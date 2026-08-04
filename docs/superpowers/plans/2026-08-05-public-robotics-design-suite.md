@@ -30,10 +30,10 @@ Document the thin-distribution architecture, public/non-public boundaries, suppo
 Run:
 
 ```powershell
-rg -n "E:/|E:\\\\|holdo|京新数智|gho_|github_pat_|sk-" . --glob '!.git/**'
+python -m unittest tests.test_public_hygiene -v
 ```
 
-Expected: no match outside the historical design document's declared local path; tests must exclude design history or explicitly allow that one path.
+Expected: all deployable and project-history text passes the public hygiene scan.
 
 - [ ] **Step 3: Commit**
 
@@ -62,7 +62,7 @@ Remove host-specific runtime paths and installation dates. Preserve capability r
 Run:
 
 ```powershell
-python -X utf8 E:/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/robotics-design
+python -X utf8 /path/to/quick_validate.py skills/robotics-design
 ```
 
 Expected: `Skill is valid!`
@@ -156,7 +156,7 @@ python -m compileall -q scripts tests
 python -m unittest discover -s tests -v
 python scripts/validate.py
 python scripts/install.py --dry-run --dest .tmp-install
-python -X utf8 E:/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/robotics-design
+python -X utf8 /path/to/quick_validate.py skills/robotics-design
 git status --short
 ```
 
@@ -180,5 +180,5 @@ Expected: public repository, `main` default branch, and all release files visibl
 ## Self-review
 
 - Spec coverage: repository identity, thin packaging, manifest, installer, licensing, hygiene, CI, validation, and publication each map to a task.
-- Placeholder scan: no `TBD`, `TODO`, “implement later,” or underspecified test steps.
+- Placeholder scan: no unresolved placeholders or underspecified test steps.
 - Type consistency: manifest destinations are skill names; installer and tests use the same source/skill mapping contract.

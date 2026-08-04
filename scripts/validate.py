@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""Validate the public distribution using only the Python standard library."""
+
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+MANIFEST = ROOT / "manifest.json"
+COMMIT = re.compile(r"^[0-9a-f]{40}$")
+SKILL_NAME = re.compile(r"^[a-z0-9-]+$")
+
+
+def validate() -> list[str]:
+    errors: list[str] = []
+    data = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    if data.get("schema_version") != 1:
+        errors.append("manifest schema_version must be 1")
+
+    names: list[str] = []
+    for source in data.get("sources", []):
+        if not COMMIT.fullmatch(source.get("commit", "")):
+            errors.append(f"{source.get('id')}: commit is not a full SHA-1")
+        if source.get("license") not in {"MIT", "Apache-2.0"}:
+            errors.append(f"{source.get('id')}: unsupported or missing license")
+        for skill in source.get("skills", []):
+            names.append(skill.get("name", ""))
+
+    for skill in data.get("local_skills", []):
+        name = skill.get("name", "")
+        names.append(name)
+        path = ROOT / skill.get("path", "")
+        if not (path / "SKILL.md").is_file():
+            errors.append(f"local skill missing SKILL.md: {path}")
+
+    if len(names) != len(set(names)):
+        errors.append("skill destination names are not unique")
+    for name in names:
+        if not SKILL_NAME.fullmatch(name):
+            errors.append(f"invalid skill name: {name}")
+
+    router = ROOT / "skills" / "robotics-design"
+    required_refs = {
+        "design-contract.md",
+        "validation-gates.md",
+        "authority-map.md",
+        "runtime.md",
+        "source-lock.md",
+    }
+    actual_refs = {path.name for path in (router / "references").glob("*.md")}
+    missing_refs = required_refs - actual_refs
+    if missing_refs:
+        errors.append("router references missing: " + ", ".join(sorted(missing_refs)))
+
+    skill_text = (router / "SKILL.md").read_text(encoding="utf-8")
+    if not skill_text.startswith("---\nname: robotics-design\n"):
+        errors.append("robotics-design frontmatter is invalid")
+    if "description: Use when" not in skill_text.split("---", 2)[1]:
+        errors.append("robotics-design description must start with Use when")
+    return errors
+
+
+def main() -> int:
+    errors = validate()
+    if errors:
+        for error in errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    count = sum(len(source["skills"]) for source in manifest["sources"]) + len(manifest["local_skills"])
+    print(f"Distribution valid: {count} skills, {len(manifest['sources'])} pinned sources")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

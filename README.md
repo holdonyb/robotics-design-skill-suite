@@ -1,0 +1,86 @@
+# Robotics Design Skill Suite
+
+[简体中文](README.zh-CN.md)
+
+An evidence-gated robotics design skill suite for Codex. It routes system design across CAD, STEP parts, DXF, URDF, SDF, SRDF, ROS 2 engineering, Gazebo simulation, visual review, and validation.
+
+This repository is a thin, auditable distribution. It owns the integration skill and installer; third-party skills are downloaded from full pinned commits in [`manifest.json`](manifest.json), not copied into this repository.
+
+## Included skills
+
+| Layer | Skills |
+|---|---|
+| System routing | `robotics-design` |
+| Mechanical artifacts | `cad`, `step-parts`, `dxf`, `cad-viewer` |
+| Robot descriptions | `urdf`, `sdf`, `srdf` |
+| Software and simulation | `ros2-engineering-skills`, `ros2-sim` |
+
+## Install
+
+Requirements: Git and Python 3.11+.
+
+```bash
+git clone https://github.com/holdonyb/robotics-design-skill-suite.git
+cd robotics-design-skill-suite
+python scripts/install.py --dry-run
+python scripts/install.py
+```
+
+The default destination is `${CODEX_HOME}/skills` when `CODEX_HOME` is set, otherwise `~/.codex/skills`. Override it explicitly when needed:
+
+```bash
+python scripts/install.py --dest /path/to/codex/skills
+```
+
+The installer refuses to overwrite existing skill directories. Review or move old installations first. Start a new Codex task after installation so skill discovery refreshes.
+
+## Use
+
+```text
+$robotics-design Design an indoor mobile manipulator from requirements through CAD, URDF, SDF, ROS 2, simulation, and validation.
+```
+
+You can also invoke an artifact owner directly:
+
+```text
+$urdf Review this robot description for frame, axis, limit, inertia, and consumer-load errors.
+$sdf Build a Gazebo Harmonic world and identify every validation gate that was not run.
+```
+
+## Optional CAD runtime
+
+Installing skills does not mutate Python environments. CAD generation needs an isolated Python 3.12+ environment; DXF also needs `ezdxf`.
+
+```bash
+python3.12 -m venv .venv-robotics-design
+.venv-robotics-design/bin/python -m pip install -e ~/.codex/skills/cad/scripts/packages/cadpy ezdxf
+```
+
+On Windows, use the environment's `Scripts/python.exe`. See [`runtime.md`](skills/robotics-design/references/runtime.md) for platform notes.
+
+## Verification
+
+```bash
+python -m compileall -q scripts tests
+python -m unittest discover -s tests -v
+python scripts/validate.py
+python scripts/install.py --dry-run
+```
+
+Tests cover manifest integrity, pinned commits, deterministic planning, local fixture installation, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, and public-data hygiene.
+
+## Claim boundary
+
+This suite improves engineering workflow; it does not certify a robot. Generated or simulated artifacts do not prove payload, stability, braking distance, endurance, field reliability, human-safe operation, or regulatory compliance. Real robot motion requires explicit authorization, a bounded test area, reachable emergency stop, power/torque/speed limits, command timeouts, and staged commissioning.
+
+ROS 2 live simulation requires a suitable Linux environment with ROS 2 Jazzy and Gazebo Harmonic. Always run the installed `ros2-sim/scripts/env_check.sh` before promising live results.
+
+## Supply chain and licenses
+
+Exact sources are locked in [`manifest.json`](manifest.json) and summarized in [`source-lock.md`](skills/robotics-design/references/source-lock.md). The installer downloads HTTPS archives at full commit hashes and places the upstream license in every installed third-party skill.
+
+Original repository content is MIT licensed. Third-party components retain their own licenses; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+## Contributing
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md). Source updates require audit, tests, and updated provenance rather than changing a commit alone.
