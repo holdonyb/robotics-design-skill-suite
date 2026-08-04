@@ -29,7 +29,7 @@ FORBIDDEN = {
 
 
 def deployable_text_files():
-    excluded = {".git", ".worktrees", "docs", "tests", "__pycache__"}
+    excluded = {".git", ".worktrees", ".tmp-install", "docs", "tests", "__pycache__"}
     for path in ROOT.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
             continue
