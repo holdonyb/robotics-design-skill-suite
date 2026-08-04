@@ -20,16 +20,16 @@ REQUIRED = {
 TEXT_SUFFIXES = {".md", ".py", ".json", ".yml", ".yaml", ".txt"}
 FORBIDDEN = {
     "windows_drive": re.compile(r"\b[A-Za-z]:[\\/]"),
-    "private_user_path": re.compile(r"(?:Users|home)[\\/]holdo", re.IGNORECASE),
-    "private_workspace": re.compile(r"京新数智"),
+    "private_user_path": re.compile(r"(?:Users|home)[\\/]" + "hol" + "do", re.IGNORECASE),
+    "private_workspace": re.compile("京" + "新数智"),
     "github_token": re.compile(r"(?:gho|ghp|github_pat)_[A-Za-z0-9_]+"),
     "api_key": re.compile(r"\bsk-[A-Za-z0-9]{16,}"),
-    "placeholder": re.compile(r"\b(?:TBD|TODO|FIXME)\b"),
+    "placeholder": re.compile(r"\b(?:" + "T" + r"BD|T" + r"ODO|FIX" + r"ME)\b"),
 }
 
 
 def deployable_text_files():
-    excluded = {".git", ".worktrees", ".tmp-install", "docs", "tests", "__pycache__"}
+    excluded = {".git", ".worktrees", ".tmp-install", "__pycache__"}
     for path in ROOT.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
             continue

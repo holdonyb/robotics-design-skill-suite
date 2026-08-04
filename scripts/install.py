@@ -163,12 +163,25 @@ def install_from_manifest(
 
         destination.mkdir(parents=True, exist_ok=True)
         installed: list[Path] = []
-        for item in plan:
-            target = Path(item["destination"])
-            if target.exists():
-                raise FileExistsError(f"Destination appeared during install: {target}")
-            shutil.move(str(stage / item["name"]), str(target))
-            installed.append(target)
+        try:
+            for item in plan:
+                target = Path(item["destination"])
+                if target.exists():
+                    raise FileExistsError(f"Destination appeared during install: {target}")
+                shutil.move(str(stage / item["name"]), str(target))
+                installed.append(target)
+        except Exception as error:
+            rollback_errors = []
+            for target in reversed(installed):
+                try:
+                    shutil.rmtree(target)
+                except OSError as rollback_error:
+                    rollback_errors.append(f"{target}: {rollback_error}")
+            if rollback_errors:
+                raise RuntimeError(
+                    f"Installation failed ({error}); rollback also failed: " + "; ".join(rollback_errors)
+                ) from error
+            raise
     return installed
 
 

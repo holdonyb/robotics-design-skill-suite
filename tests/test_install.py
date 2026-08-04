@@ -99,6 +99,31 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual(sentinel.read_text(encoding="utf-8"), "preserve")
             self.assertFalse((dest / "robotics-design").exists())
 
+    def test_rolls_back_installer_owned_targets_after_publish_race(self):
+        from scripts.install import install_from_manifest
+
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            repo_root, manifest_path, archive = self._fixture(base)
+            dest = base / "skills"
+
+            def provider(_source):
+                raced = dest / "robotics-design"
+                raced.mkdir(parents=True)
+                (raced / "keep.txt").write_text("other process", encoding="utf-8")
+                return archive
+
+            with self.assertRaises(FileExistsError):
+                install_from_manifest(
+                    manifest_path=manifest_path,
+                    destination=dest,
+                    repository_root=repo_root,
+                    archive_provider=provider,
+                )
+
+            self.assertFalse((dest / "ros2-engineering-skills").exists())
+            self.assertEqual((dest / "robotics-design" / "keep.txt").read_text(), "other process")
+
     def test_rejects_archive_path_traversal(self):
         from scripts.install import safe_extract_archive
 

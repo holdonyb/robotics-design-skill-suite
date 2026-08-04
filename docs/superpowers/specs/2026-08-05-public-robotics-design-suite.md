@@ -6,7 +6,7 @@ Publish a standalone, public GitHub repository that installs a curated robotics 
 
 ## Repository identity
 
-- Local path: `E:/Work/京新数智/robotics-design-skill-suite`
+- Local path: `<workspace>/robotics-design-skill-suite`
 - GitHub repository: `holdonyb/robotics-design-skill-suite`
 - Visibility: public
 - Original-content license: MIT
