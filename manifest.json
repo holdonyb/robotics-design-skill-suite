@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "suite": {
+    "name": "robotics-design-skill-suite",
+    "version": "0.1.0"
+  },
+  "sources": [
+    {
+      "id": "text-to-cad",
+      "repo": "earthtojake/text-to-cad",
+      "commit": "4fd71ea75fbb8a80b0d7c76862e0fd73c52a8989",
+      "license": "MIT",
+      "license_path": "LICENSE",
+      "skills": [
+        {"path": "skills/cad", "name": "cad"},
+        {"path": "skills/cad-viewer", "name": "cad-viewer"},
+        {"path": "skills/step-parts", "name": "step-parts"},
+        {"path": "skills/dxf", "name": "dxf"},
+        {"path": "skills/urdf", "name": "urdf"},
+        {"path": "skills/sdf", "name": "sdf"},
+        {"path": "skills/srdf", "name": "srdf"}
+      ]
+    },
+    {
+      "id": "ros2-engineering-skills",
+      "repo": "dbwls99706/ros2-engineering-skills",
+      "commit": "118d505c4b540912668ad2d4874022f34060112c",
+      "license": "Apache-2.0",
+      "license_path": "LICENSE",
+      "transforms": ["normalize_codex_frontmatter"],
+      "skills": [
+        {"path": ".", "name": "ros2-engineering-skills"}
+      ]
+    },
+    {
+      "id": "ros2-sim",
+      "repo": "BaraaLazkani/ros2-sim-skill",
+      "commit": "97cd3cec17b89b28c577a001285bcace35ec2374",
+      "license": "MIT",
+      "license_path": "LICENSE",
+      "skills": [
+        {"path": ".", "name": "ros2-sim"}
+      ]
+    }
+  ],
+  "local_skills": [
+    {"path": "skills/robotics-design", "name": "robotics-design"}
+  ]
+}
