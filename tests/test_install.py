@@ -112,28 +112,29 @@ class InstallerTests(unittest.TestCase):
             self.assertFalse((base / "escape.txt").exists())
 
     def test_dry_run_is_complete_and_does_not_create_destination(self):
-        destination = ROOT / ".tmp-install"
-        command = [
-            sys.executable,
-            str(ROOT / "scripts" / "install.py"),
-            "--dry-run",
-            "--dest",
-            str(destination),
-        ]
-        completed = subprocess.run(
-            command,
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-        self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertIn("robotics-design", completed.stdout)
-        self.assertIn("ros2-engineering-skills", completed.stdout)
-        self.assertIn("source_commit=", completed.stdout)
-        self.assertFalse(destination.exists())
+        with tempfile.TemporaryDirectory() as raw:
+            destination = Path(raw) / "skills"
+            command = [
+                sys.executable,
+                str(ROOT / "scripts" / "install.py"),
+                "--dry-run",
+                "--dest",
+                str(destination),
+            ]
+            completed = subprocess.run(
+                command,
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("robotics-design", completed.stdout)
+            self.assertIn("ros2-engineering-skills", completed.stdout)
+            self.assertIn("source_commit=", completed.stdout)
+            self.assertFalse(destination.exists())
 
 
 if __name__ == "__main__":
