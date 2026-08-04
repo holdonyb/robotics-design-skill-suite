@@ -76,6 +76,25 @@ class InstallerTests(unittest.TestCase):
             self.assertIn("license: Apache-2.0", frontmatter)
             self.assertTrue((dest / "robotics-design" / "SKILL.md").is_file())
 
+    def test_prepares_transaction_on_destination_filesystem(self):
+        from scripts.install import prepare_destination_transaction
+
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            staged = base / "download-stage"
+            (staged / "alpha").mkdir(parents=True)
+            (staged / "alpha" / "SKILL.md").write_text("alpha", encoding="utf-8")
+            destination = base / "publish-volume" / "skills"
+
+            transaction = prepare_destination_transaction(staged, destination, ["alpha"])
+            try:
+                self.assertEqual(transaction.parent.resolve(), destination.parent.resolve())
+                self.assertEqual((transaction / "alpha" / "SKILL.md").read_text(), "alpha")
+            finally:
+                import shutil
+
+                shutil.rmtree(transaction)
+
     def test_refuses_existing_destination_without_changing_it(self):
         from scripts.install import install_from_manifest
 
@@ -123,6 +142,7 @@ class InstallerTests(unittest.TestCase):
 
             self.assertFalse((dest / "ros2-engineering-skills").exists())
             self.assertEqual((dest / "robotics-design" / "keep.txt").read_text(), "other process")
+            self.assertEqual(list(dest.parent.glob(".robotics-design-txn-*")), [])
 
     def test_rejects_archive_path_traversal(self):
         from scripts.install import safe_extract_archive

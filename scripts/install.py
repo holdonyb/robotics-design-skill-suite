@@ -124,6 +124,49 @@ def _copy_skill(source_path: Path, destination: Path) -> None:
     shutil.copytree(source_path, destination)
 
 
+def prepare_destination_transaction(staged: Path, destination: Path, names: list[str]) -> Path:
+    """Copy a complete install set to a hidden directory on the destination filesystem."""
+    destination_parent = Path(destination).expanduser().resolve().parent
+    destination_parent.mkdir(parents=True, exist_ok=True)
+    transaction = Path(tempfile.mkdtemp(prefix=".robotics-design-txn-", dir=destination_parent))
+    try:
+        for name in names:
+            shutil.copytree(Path(staged) / name, transaction / name)
+    except Exception:
+        shutil.rmtree(transaction, ignore_errors=True)
+        raise
+    return transaction
+
+
+def publish_destination_transaction(transaction: Path, destination: Path, names: list[str]) -> list[Path]:
+    """Publish same-filesystem staged directories and roll them back as one transaction."""
+    transaction = Path(transaction).resolve()
+    destination = Path(destination).expanduser().resolve()
+    destination.mkdir(parents=True, exist_ok=True)
+    published: list[tuple[Path, Path]] = []
+    try:
+        for name in names:
+            source = transaction / name
+            target = destination / name
+            if target.exists():
+                raise FileExistsError(f"Destination appeared during install: {target}")
+            source.rename(target)
+            published.append((target, source))
+    except Exception as error:
+        rollback_errors = []
+        for target, source in reversed(published):
+            try:
+                target.rename(source)
+            except OSError as rollback_error:
+                rollback_errors.append(f"{target}: {rollback_error}")
+        if rollback_errors:
+            raise RuntimeError(
+                f"Installation failed ({error}); rollback also failed: " + "; ".join(rollback_errors)
+            ) from error
+        raise
+    return [target for target, _source in published]
+
+
 def install_from_manifest(
     manifest_path: Path,
     destination: Path,
@@ -161,27 +204,13 @@ def install_from_manifest(
         for skill in manifest["local_skills"]:
             _copy_skill((repository_root / skill["path"]).resolve(), stage / skill["name"])
 
-        destination.mkdir(parents=True, exist_ok=True)
-        installed: list[Path] = []
+        names = [item["name"] for item in plan]
+        transaction = prepare_destination_transaction(stage, destination, names)
         try:
-            for item in plan:
-                target = Path(item["destination"])
-                if target.exists():
-                    raise FileExistsError(f"Destination appeared during install: {target}")
-                shutil.move(str(stage / item["name"]), str(target))
-                installed.append(target)
-        except Exception as error:
-            rollback_errors = []
-            for target in reversed(installed):
-                try:
-                    shutil.rmtree(target)
-                except OSError as rollback_error:
-                    rollback_errors.append(f"{target}: {rollback_error}")
-            if rollback_errors:
-                raise RuntimeError(
-                    f"Installation failed ({error}); rollback also failed: " + "; ".join(rollback_errors)
-                ) from error
-            raise
+            installed = publish_destination_transaction(transaction, destination, names)
+        finally:
+            if transaction.exists():
+                shutil.rmtree(transaction)
     return installed
 
 
