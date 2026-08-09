@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-An evidence-gated robotics design skill suite for Codex. It routes system design across CAD, STEP parts, DXF, URDF, SDF, SRDF, ROS 2 engineering, Gazebo simulation, visual review, and validation.
+An evidence-gated robotics design skill suite for Codex. It routes system design across CAD, STEP parts, DXF, URDF, SDF, SRDF, ROS 2 engineering, Gazebo simulation, structure-preserving product visualization, visual review, and validation.
 
 This repository is a thin, auditable distribution. It owns the integration skill and installer; third-party skills are downloaded from full pinned commits in [`manifest.json`](manifest.json), not copied into this repository.
 
@@ -47,6 +47,18 @@ $urdf Review this robot description for frame, axis, limit, inertia, and consume
 $sdf Build a Gazebo Harmonic world and identify every validation gate that was not run.
 ```
 
+## Structure-preserving robot renders
+
+Version 0.2.0 prevents image generation from silently changing a robot's mechanism. CAD, URDF, SDF, or an equivalent deterministic model must own topology and pose. A generated image may change materials, surface finish, color, lighting, background, and non-contact environment context only.
+
+Set the exact task pose upstream, render deterministic references with visible joint and interface landmarks, then use image-to-image for the appearance pass. A render is promotable only when its source hashes and exact landmark set pass the visual manifest gate:
+
+```bash
+python skills/robotics-design/scripts/validate_visual_manifest.py path/to/visual_manifest.json
+```
+
+See [`visualization-contract.md`](skills/robotics-design/references/visualization-contract.md) for the full contract. A plausible-looking image or disclaimer is not evidence that topology, axes, interfaces, or pose are correct.
+
 ## Optional CAD runtime
 
 Installing skills does not mutate Python environments. CAD generation needs an isolated Python 3.12+ environment; DXF also needs `ezdxf`.
@@ -61,13 +73,13 @@ On Windows, use the environment's `Scripts/python.exe`. See [`runtime.md`](skill
 ## Verification
 
 ```bash
-python -m compileall -q scripts tests
+python -m compileall -q scripts tests skills/robotics-design/scripts
 python -m unittest discover -s tests -v
 python scripts/validate.py
 python scripts/install.py --dry-run
 ```
 
-Tests cover manifest integrity, pinned commits, deterministic planning, local fixture installation, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, and public-data hygiene.
+Tests cover manifest integrity, pinned commits, deterministic planning, local fixture installation, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, public-data hygiene, robot-visualization behavior, source hashes, authorized appearance changes, and exact joint/interface landmark promotion.
 
 ## Claim boundary
 

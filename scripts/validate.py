@@ -50,6 +50,7 @@ def validate() -> list[str]:
         "authority-map.md",
         "runtime.md",
         "source-lock.md",
+        "visualization-contract.md",
     }
     actual_refs = {path.name for path in (router / "references").glob("*.md")}
     missing_refs = required_refs - actual_refs
@@ -61,6 +62,18 @@ def validate() -> list[str]:
         errors.append("robotics-design frontmatter is invalid")
     if "description: Use when" not in skill_text.split("---", 2)[1]:
         errors.append("robotics-design description must start with Use when")
+    required_visual_clauses = {
+        "references/visualization-contract.md",
+        "Never ask a generative model to articulate, repose, unfold, or reconfigure a robot",
+        "A disclaimer does not make a structurally wrong robot image acceptable",
+    }
+    missing_clauses = sorted(clause for clause in required_visual_clauses if clause not in skill_text)
+    if missing_clauses:
+        errors.append("robotics-design visual gates missing: " + ", ".join(missing_clauses))
+
+    visual_validator = router / "scripts" / "validate_visual_manifest.py"
+    if not visual_validator.is_file():
+        errors.append("robotics-design visual manifest validator is missing")
     return errors
 
 

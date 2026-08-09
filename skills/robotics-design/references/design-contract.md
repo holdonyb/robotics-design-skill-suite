@@ -27,6 +27,8 @@ Label assumptions in calculations and generated artifacts. A changed interface-d
 | Planning semantics | SRDF source | MoveIt config | named semantics | MoveIt load and collision sampling |
 | Simulator physics/sensors/plugins | SDF source | launch/bridge | versioned SDF | load, topic, frame, rate, plugin checks |
 | Controller/hardware parameters | ROS config | launch/adapters | SI units, explicit rates | lifecycle and interface assertions |
+| Communication-render topology and task pose | CAD/URDF/SDF deterministic source | reference renders and visual manifest | canonical joint names and exact joint values | source hashes and joint/interface landmark equality |
+| Render appearance and environment | approved shot brief | image-generation prompt and output | allowed-change vocabulary | side-by-side review and manifest validation |
 
 Never leave two co-equal sources of truth.
 
@@ -35,3 +37,7 @@ Never leave two co-equal sources of truth.
 For each mechanical, electrical, data, safety, or software interface, record provider, consumer, datum/frame, connector/API, units, sign, rate, tolerances, limits, version, failure behavior, acceptance evidence, and change owner.
 
 Every acceptance claim maps to a requirement ID, artifact version, command or procedure, captured evidence, and disposition. “Looks right,” “builds,” and “spawns” are observations, not acceptance criteria.
+
+## Visual invariant record
+
+Before generating a robot image, record the authoritative model and pose, required joint/interface landmarks, link proportions that must remain identifiable, interface/tool attachment state, allowed appearance changes, forbidden structural changes, source hashes, reviewer, and promotion state. A pose request changes the deterministic model first; it is never delegated to an image model.

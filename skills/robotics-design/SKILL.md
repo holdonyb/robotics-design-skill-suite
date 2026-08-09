@@ -1,6 +1,6 @@
 ---
 name: robotics-design
-description: Use when designing or changing robot systems, mobile robots, manipulators, robot mechanisms, CAD or STEP geometry, URDF or xacro, SDF, SRDF, ROS 2, Gazebo, kinematics, dynamics, sensors, actuators, controls, simulation, commissioning, or robot work spanning multiple engineering layers.
+description: Use when designing or changing robot systems, mobile robots, manipulators, robot mechanisms, product or task renders, CAD or STEP geometry, URDF or xacro, SDF, SRDF, ROS 2, Gazebo, kinematics, dynamics, sensors, actuators, controls, simulation, commissioning, or robot work spanning multiple engineering layers.
 ---
 
 # Robotics Design
@@ -13,9 +13,10 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 
 1. Recover project constraints, existing artifacts, target consumers, and validation commands.
 2. Read `references/design-contract.md`; establish requirements, assumptions, quantity ownership, and acceptance evidence before interface-driving geometry or code.
-3. Load each required sub-skill from the router before editing its artifact.
-4. Run the relevant gates in `references/validation-gates.md`.
-5. Use `references/authority-map.md` for method selection, `references/runtime.md` for environment setup, and `references/source-lock.md` for supply-chain review.
+3. For any generated product, task, concept, or marketing image of the robot, read `references/visualization-contract.md` before creating references or prompts.
+4. Load each required sub-skill from the router before editing its artifact.
+5. Run the relevant gates in `references/validation-gates.md`.
+6. Use `references/authority-map.md` for method selection, `references/runtime.md` for environment setup, and `references/source-lock.md` for supply-chain review.
 
 ## Capability Router
 
@@ -26,6 +27,7 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 | Purchasable motors, servos, bearings, fasteners, electronics | `$step-parts`, then `$cad` | Record exact identity and source; otherwise use a documented envelope. |
 | DXF profiles, panels, drawings, cut layouts | `$dxf`; also `$cad` when derived from 3D | Keep 2D output linked to owning geometry. |
 | Visual review of STEP, URDF, SDF, SRDF, DXF, GLB, STL, 3MF | `$cad-viewer` | Return review evidence or report viewer failure. |
+| Photorealistic, product, task, concept, or marketing robot renders | Deterministic CAD/URDF/SDF owner, then `$imagegen` when available | The deterministic model owns topology and pose; image generation may change appearance and environment only. |
 | Links, joints, frames, limits, inertials, meshes, xacro/URDF | `$urdf` | URDF owns physical robot structure. |
 | Gazebo/libsdformat models, worlds, sensors, plugins, physics | `$sdf` | SDF owns simulation and world semantics. |
 | MoveIt groups, end effectors, semantic poses, collision exclusions | `$srdf` | Start from the exact valid URDF; SRDF owns planning semantics. |
@@ -41,8 +43,9 @@ If a required sub-skill is unavailable, name the missing capability and continue
 3. Assign one source of truth per quantity. Downstream mirrors must record their source and drift check.
 4. Freeze envelopes, datums, support polygon, swept volumes, interfaces, and budgets before detail CAD.
 5. Derive URDF frames and joints from controlled datums. Add SDF and SRDF semantics only after upstream contracts exist. Integrate ROS 2 against named, versioned interfaces.
-6. Validate syntax/schema, semantics, cross-artifact invariants, consumer loading, integrated simulation, then hardware. A generator, build, or launch alone is not proof of correctness.
-7. Repair the owning artifact, regenerate explicit dependents, and rerun failed plus regression gates:
+6. When a communication render is required, pose the authoritative deterministic model, render visible joint/interface references, perform an appearance-only image-to-image pass, then validate its visual manifest before promotion.
+7. Validate syntax/schema, semantics, cross-artifact invariants, consumer loading, integrated simulation, then hardware. A generator, build, launch, or plausible-looking image alone is not proof of correctness.
+8. Repair the owning artifact, regenerate explicit dependents, and rerun failed plus regression gates:
 
 `spec -> model -> simulate/test -> collect trace -> diagnose earliest violated contract -> minimal repair -> rerun -> promote verified pattern`
 
@@ -51,9 +54,11 @@ If a required sub-skill is unavailable, name the missing capability and continue
 - Never present assumed dimensions, inertias, limits, payloads, friction, or test evidence as measured fact.
 - Never claim certification, functional safety, human-safe operation, braking, endurance, payload, or stability without the required analysis and physical evidence.
 - Navigation lidar and depth cameras are not protective safety devices unless the exact components and architecture are certified for that role.
+- Never ask a generative model to articulate, repose, unfold, or reconfigure a robot. Change the pose in CAD, URDF, SDF, or an equivalent deterministic source and render a new reference.
+- Never promote a generated robot image unless its required and observed joint/interface landmark sets match exactly and its visual manifest passes. A disclaimer does not make a structurally wrong robot image acceptable.
 - Before real robot motion, require explicit authorization, a bounded test area, reachable emergency stop, power/torque/speed limits, observer roles, command timeout, and staged commissioning. Simulation never authorizes hardware motion.
 - Preserve failed reports and traces. An unresolved failed gate is an open risk.
 
 ## Completion Contract
 
-Report artifacts and owners, assumptions, exact validation evidence, drift checks, skipped gates, remaining risks, and the boundary between generated, parsed, consumer-loaded, simulated, bench-measured, field-verified, and certified claims.
+Report artifacts and owners, assumptions, exact validation evidence, drift checks, skipped gates, remaining risks, visual manifest status when renders are included, and the boundary between generated, parsed, consumer-loaded, simulated, bench-measured, field-verified, and certified claims.

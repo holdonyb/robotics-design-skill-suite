@@ -1,4 +1,4 @@
 interface:
   display_name: "Robotics Design"
-  short_description: "Route robot CAD, ROS 2, simulation, and validation work"
-  default_prompt: "Use $robotics-design to design and validate a robot system end to end."
+  short_description: "Design and validate robots without visual topology drift"
+  default_prompt: "Use $robotics-design to design and validate this robot system end to end, preserving authoritative topology and pose in every generated render."

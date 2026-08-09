@@ -19,6 +19,10 @@ python3.12 -m venv .venv-robotics-design
 
 On Windows use the environment's `Scripts/python.exe`. Some generator CLIs require POSIX `/` separators even on Windows. Run CAD inspection from the target project/part directory with relative paths to avoid broad catalog scans.
 
+## Visual manifest validator
+
+`scripts/validate_visual_manifest.py` uses only the Python standard library and runs on Python 3.11+. Invoke it with a visual manifest JSON path after the landmark review and before promoting a generated robot render.
+
 ## ROS 2 simulation
 
 `ros2-sim` targets ROS 2 Jazzy and Gazebo Harmonic on Linux. Run its `scripts/env_check.sh` before promising build or simulation results. A missing `/opt/ros/jazzy/setup.bash` is an environment gate, not a design pass or failure.

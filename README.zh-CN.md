@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-一套面向 Codex 的证据门控机器人设计 skill suite，覆盖系统需求、CAD、标准件、DXF、URDF、SDF、SRDF、ROS 2 工程、Gazebo 仿真、可视化审查和验证闭环。
+一套面向 Codex 的证据门控机器人设计 skill suite，覆盖系统需求、CAD、标准件、DXF、URDF、SDF、SRDF、ROS 2 工程、Gazebo 仿真、结构保真的产品效果图、可视化审查和验证闭环。
 
 本仓库采用薄封装：只维护原创的总路由、验证合同和安装器；第三方 skills 根据 [`manifest.json`](manifest.json) 中的完整 commit 固定版本下载，不把上游源码整包复制进仓库。
 
@@ -47,6 +47,18 @@ $urdf 审查这个机器人描述的坐标系、轴、限位、惯量和消费�
 $sdf 创建 Gazebo Harmonic 世界，并列出所有没有执行的验证门禁。
 ```
 
+## 结构保真的机器人效果图
+
+0.2.0 版禁止图像生成模型悄悄改写机器人的机构。拓扑与姿态必须由 CAD、URDF、SDF 或等价的确定性模型负责；生成图只允许改变材质、表面处理、颜色、光照、背景和不接触机器人的环境内容。
+
+目标动作必须先在上游模型中设定，再输出能够看清关节与接口标志点的确定性参考图，最后才做 image-to-image 外观增强。只有源文件哈希和关节/接口标志点集合都通过清单校验，效果图才能升级为正式资产：
+
+```bash
+python skills/robotics-design/scripts/validate_visual_manifest.py path/to/visual_manifest.json
+```
+
+完整规则见 [`visualization-contract.md`](skills/robotics-design/references/visualization-contract.md)。画面看起来合理或附带免责声明，都不能证明拓扑、轴线、接口和姿态正确。
+
 ## 可选 CAD 运行时
 
 安装 skill 不会修改 Python 环境。CAD 生成建议使用隔离的 Python 3.12+；DXF 还需要 `ezdxf`。
@@ -61,13 +73,13 @@ Windows 使用环境中的 `Scripts/python.exe`。平台说明见 [`runtime.md`]
 ## 验证
 
 ```bash
-python -m compileall -q scripts tests
+python -m compileall -q scripts tests skills/robotics-design/scripts
 python -m unittest discover -s tests -v
 python scripts/validate.py
 python scripts/install.py --dry-run
 ```
 
-测试覆盖清单完整性、固定 commit、确定性安装计划、离线 fixture 安装、许可证保留、Codex frontmatter 规范化、拒绝覆盖、ZIP 路径穿越保护和公开内容卫生。
+测试覆盖清单完整性、固定 commit、确定性安装计划、离线 fixture 安装、许可证保留、Codex frontmatter 规范化、拒绝覆盖、ZIP 路径穿越保护、公开内容卫生、机器人效果图行为、源文件哈希、允许的外观变化，以及关节/接口标志点的严格晋级门禁。
 
 ## 能力边界
 

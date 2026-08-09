@@ -15,6 +15,8 @@ REQUIRED = {
     "scripts/install.py",
     "scripts/validate.py",
     "skills/robotics-design/SKILL.md",
+    "skills/robotics-design/references/visualization-contract.md",
+    "skills/robotics-design/scripts/validate_visual_manifest.py",
     ".github/workflows/ci.yml",
 }
 TEXT_SUFFIXES = {".md", ".py", ".json", ".yml", ".yaml", ".txt"}
