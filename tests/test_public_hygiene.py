@@ -46,6 +46,19 @@ def deployable_text_files():
 
 
 class PublicHygieneTests(unittest.TestCase):
+    def test_local_delta_record_has_no_unresolved_disposition(self):
+        record = (ROOT / "docs/research/2026-08-13-active-local-delta.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("unclassified", record.lower())
+        for disposition in (
+            "promote_with_tests",
+            "superseded_by_v020_review_fix",
+            "host_only",
+            "generated_drop",
+        ):
+            self.assertIn(disposition, record)
+
     def test_required_release_files_exist(self):
         missing = sorted(item for item in REQUIRED if not (ROOT / item).is_file())
         self.assertEqual(missing, [])
