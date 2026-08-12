@@ -92,13 +92,18 @@ def validate_manifest(data: Any, manifest_dir: Path) -> list[str]:
     if not isinstance(data, dict):
         return ["manifest root must be a JSON object"]
 
-    if data.get("schema_version") != SCHEMA_VERSION:
+    schema_version = data.get("schema_version")
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or schema_version != SCHEMA_VERSION
+    ):
         errors.append(f"schema_version must be {SCHEMA_VERSION}")
     if not _nonempty_string(data.get("shot_id")):
         errors.append("shot_id must be a non-empty string")
 
     status = data.get("status")
-    if status not in STATUSES:
+    if not isinstance(status, str) or status not in STATUSES:
         errors.append("status must be one of: draft, rejected, promoted")
 
     _file_record(data.get("source_model"), "source_model", manifest_dir, errors)
@@ -110,6 +115,8 @@ def validate_manifest(data: Any, manifest_dir: Path) -> list[str]:
     else:
         for index, record in enumerate(references):
             _file_record(record, f"reference_images[{index}]", manifest_dir, errors)
+
+    _file_record(data.get("rendered_image"), "rendered_image", manifest_dir, errors)
 
     required_landmarks = _string_list(data, "required_landmarks", errors)
     observed_landmarks = _string_list(data, "observed_landmarks", errors)

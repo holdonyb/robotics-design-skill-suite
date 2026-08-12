@@ -20,9 +20,11 @@ class VisualManifestTests(unittest.TestCase):
         model = base / "robot.urdf"
         pose = base / "task_pose.json"
         reference = base / "task_pose_iso.png"
+        rendered = base / "generated_robot.png"
         model.write_text("<robot name='seven_axis_arm'/>", encoding="utf-8")
         pose.write_text('{"J1": 0.1, "J2": -0.2}', encoding="utf-8")
         reference.write_bytes(b"deterministic-render")
+        rendered.write_bytes(b"generated-render")
 
         manifest = {
             "schema_version": 1,
@@ -31,6 +33,7 @@ class VisualManifestTests(unittest.TestCase):
             "source_model": {"path": model.name, "sha256": sha256(model)},
             "source_pose": {"path": pose.name, "sha256": sha256(pose)},
             "reference_images": [{"path": reference.name, "sha256": sha256(reference)}],
+            "rendered_image": {"path": rendered.name, "sha256": sha256(rendered)},
             "required_landmarks": [
                 "left_arm.J1",
                 "left_arm.J2",
@@ -119,6 +122,34 @@ class VisualManifestTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 1)
             self.assertIn("SHA-256 mismatch", completed.stderr)
             self.assertIn("robot.urdf", completed.stderr)
+
+    def test_manifest_rejects_tampered_rendered_image(self):
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            manifest_path, _ = self._fixture(base)
+            (base / "generated_robot.png").write_bytes(b"replaced-after-review")
+            completed = self._run(manifest_path)
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("rendered_image SHA-256 mismatch", completed.stderr)
+
+    def test_manifest_rejects_non_string_status_without_traceback(self):
+        with tempfile.TemporaryDirectory() as raw:
+            manifest_path, manifest = self._fixture(Path(raw))
+            manifest["status"] = []
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            completed = self._run(manifest_path)
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("status must be one of", completed.stderr)
+            self.assertNotIn("Traceback", completed.stderr)
+
+    def test_manifest_rejects_boolean_schema_version(self):
+        with tempfile.TemporaryDirectory() as raw:
+            manifest_path, manifest = self._fixture(Path(raw))
+            manifest["schema_version"] = True
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            completed = self._run(manifest_path)
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("schema_version", completed.stderr)
 
     def test_promoted_manifest_requires_review_metadata(self):
         with tempfile.TemporaryDirectory() as raw:

@@ -12,7 +12,7 @@ This repository distributes an auditable robotics-design routing skill plus pinn
 - Mission-animation evidence gate: `804e2d7`.
 - Patent-aware architecture gate: `1a319a1`.
 - Portable host-runtime overlay: `b7fb670`.
-- On 2026-08-12, all 40 repository tests passed.
+- On 2026-08-12, all 47 repository tests passed after independent-review fixes.
 - On 2026-08-12, distribution validation and `git diff --check` passed.
 - Third-party source locks are unchanged from 0.1.0.
 
@@ -59,7 +59,7 @@ python skills/robotics-design/scripts/validate_mission_animation_manifest.py pat
 
 ## Known Risks
 
-- The visual manifest validates declared hashes, change categories, landmark equality, and review metadata; it does not perform automatic pixel-level landmark recognition.
+- The visual manifest validates source and final rendered-image hashes, change categories, landmark equality, and review metadata; it does not perform automatic pixel-level landmark recognition.
 - The mission manifest validates traceability and declared invariants; it does not independently recompute trajectory limits, collision, contacts, or loads from raw simulation data.
 - Patent-aware controls are an engineering workflow, not a legal opinion or freedom-to-operate conclusion.
 - A generated `host-runtime.md` intentionally contains local paths in the installed tree. It must never be committed or treated as public provenance.

@@ -62,12 +62,17 @@ def validate_manifest(data: Any, manifest_dir: Path) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
         return ["manifest root must be a JSON object"]
-    if data.get("schema_version") != SCHEMA_VERSION:
+    schema_version = data.get("schema_version")
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or schema_version != SCHEMA_VERSION
+    ):
         errors.append(f"schema_version must be {SCHEMA_VERSION}")
     if not _nonempty(data.get("animation_id")):
         errors.append("animation_id must be a non-empty string")
     status = data.get("status")
-    if status not in STATUSES:
+    if not isinstance(status, str) or status not in STATUSES:
         errors.append("status must be one of: draft, rejected, promoted")
 
     for field in ("source_model", "source_trajectory", "physics_trace", "rendered_animation"):
@@ -76,6 +81,10 @@ def validate_manifest(data: Any, manifest_dir: Path) -> list[str]:
     joint_order = _strings(data, "joint_order", errors)
     required = _strings(data, "required_moving_joints", errors)
     observed = _strings(data, "observed_moving_joints", errors)
+    contact_interfaces = _strings(data, "contact_interfaces", errors)
+    continuous_anchor_required = data.get("continuous_anchor_required")
+    if not isinstance(continuous_anchor_required, bool):
+        errors.append("continuous_anchor_required must be boolean")
     unknown = sorted((set(required) | set(observed)) - set(joint_order))
     if unknown:
         errors.append("moving joints absent from joint_order: " + ",".join(unknown))
@@ -96,11 +105,25 @@ def validate_manifest(data: Any, manifest_dir: Path) -> list[str]:
             if not isinstance(contacts, dict) or not contacts:
                 errors.append(f"task_phases[{index}].contact_state must be a non-empty object")
                 continue
-            invalid = sorted(str(value) for value in contacts.values() if value not in CONTACT_STATES)
+            missing_interfaces = sorted(set(contact_interfaces) - set(contacts))
+            if missing_interfaces:
+                errors.append(
+                    f"task_phases[{index}] missing declared contact interfaces: "
+                    + ",".join(missing_interfaces)
+                )
+            invalid = sorted(
+                repr(value)
+                for value in contacts.values()
+                if not isinstance(value, str) or value not in CONTACT_STATES
+            )
             if invalid:
                 errors.append(f"task_phases[{index}] has invalid contact states: " + ",".join(invalid))
-            if contacts.get("interface_A") == "free" and contacts.get("interface_B") == "free":
-                errors.append(f"task_phases[{index}] leaves both interfaces free")
+            if (
+                continuous_anchor_required is True
+                and contact_interfaces
+                and all(contacts.get(interface) == "free" for interface in contact_interfaces)
+            ):
+                errors.append(f"task_phases[{index}] leaves all declared interfaces free")
 
     checks = data.get("checks")
     required_zero = (
@@ -124,6 +147,20 @@ def validate_manifest(data: Any, manifest_dir: Path) -> list[str]:
             errors.append("checks.physics_trace_passed must be true for promoted animations")
 
     if status == "promoted":
+        if not joint_order:
+            errors.append("joint_order must contain at least one joint for promoted animations")
+        if not required:
+            errors.append(
+                "required_moving_joints must contain at least one joint for promoted animations"
+            )
+        if not observed:
+            errors.append(
+                "observed_moving_joints must contain at least one joint for promoted animations"
+            )
+        if not contact_interfaces:
+            errors.append(
+                "contact_interfaces must contain at least one interface for promoted animations"
+            )
         missing = sorted(set(required) - set(observed))
         extra = sorted(set(observed) - set(required))
         if missing or extra:

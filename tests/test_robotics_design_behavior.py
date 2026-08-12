@@ -44,6 +44,7 @@ class RoboticsDesignBehaviorTests(unittest.TestCase):
             "`source_model`",
             "`source_pose`",
             "`reference_images`",
+            "`rendered_image`",
             "`required_landmarks`",
             "`observed_landmarks`",
             "`allowed_changes`",

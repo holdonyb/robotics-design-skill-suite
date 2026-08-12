@@ -1,6 +1,6 @@
 # Robotics Visual Fidelity Gate v0.2.0
 
-**Status:** Approved for implementation  
+**Status:** Approved for implementation
 **Date:** 2026-08-09
 
 ## Problem

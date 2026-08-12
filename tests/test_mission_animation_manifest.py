@@ -42,6 +42,8 @@ class MissionAnimationManifestTests(unittest.TestCase):
             "joint_order": ["J1", "J2", "J3", "J4", "J5", "J6", "J7"],
             "required_moving_joints": ["J2", "J4", "J6"],
             "observed_moving_joints": ["J2", "J4", "J6"],
+            "contact_interfaces": ["interface_A", "interface_B"],
+            "continuous_anchor_required": True,
             "task_phases": [
                 {
                     "name": "A anchored, B transfer",
@@ -112,7 +114,7 @@ class MissionAnimationManifestTests(unittest.TestCase):
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             completed = self._run(manifest_path)
             self.assertEqual(completed.returncode, 1)
-            self.assertIn("both interfaces free", completed.stderr)
+            self.assertIn("all declared interfaces free", completed.stderr)
 
     def test_promoted_manifest_rejects_missing_load_case(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -131,6 +133,49 @@ class MissionAnimationManifestTests(unittest.TestCase):
             completed = self._run(manifest_path)
             self.assertEqual(completed.returncode, 1)
             self.assertIn("source_trajectory SHA-256 mismatch", completed.stderr)
+
+    def test_promoted_manifest_rejects_empty_motion_contract(self):
+        with tempfile.TemporaryDirectory() as raw:
+            manifest_path, manifest = self._fixture(Path(raw))
+            manifest["joint_order"] = []
+            manifest["required_moving_joints"] = []
+            manifest["observed_moving_joints"] = []
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            completed = self._run(manifest_path)
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("joint_order must contain at least one", completed.stderr)
+            self.assertIn("required_moving_joints must contain at least one", completed.stderr)
+
+    def test_manifest_rejects_missing_declared_contact_interface(self):
+        with tempfile.TemporaryDirectory() as raw:
+            manifest_path, manifest = self._fixture(Path(raw))
+            del manifest["task_phases"][0]["contact_state"]["interface_B"]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            completed = self._run(manifest_path)
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("missing declared contact interfaces", completed.stderr)
+            self.assertIn("interface_B", completed.stderr)
+
+    def test_manifest_rejects_malformed_types_without_traceback(self):
+        with tempfile.TemporaryDirectory() as raw:
+            manifest_path, manifest = self._fixture(Path(raw))
+            manifest["status"] = []
+            manifest["task_phases"][0]["contact_state"]["interface_A"] = []
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            completed = self._run(manifest_path)
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("status must be one of", completed.stderr)
+            self.assertIn("invalid contact states", completed.stderr)
+            self.assertNotIn("Traceback", completed.stderr)
+
+    def test_manifest_rejects_boolean_schema_version(self):
+        with tempfile.TemporaryDirectory() as raw:
+            manifest_path, manifest = self._fixture(Path(raw))
+            manifest["schema_version"] = True
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            completed = self._run(manifest_path)
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("schema_version", completed.stderr)
 
 
 if __name__ == "__main__":

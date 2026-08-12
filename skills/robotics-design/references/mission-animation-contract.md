@@ -19,6 +19,7 @@ For every shot, define:
 - payload, gravity, external wrench, friction/contact assumptions and load-case IDs;
 - collision pairs, clearance limits, speed/acceleration/jerk/torque limits and abort conditions;
 - expected moving joints. For a seven-axis inchworm transfer, include J4 whenever the planned geometry requires central elbow motion; a visually static J4 cannot pass by implication;
+- canonical contact interface identifiers and whether continuous anchoring is required; every task phase must declare a state for every named interface;
 - camera plan separated from robot-state generation.
 
 ## Motion pipeline
@@ -50,4 +51,4 @@ An MP4 proves that frames were rendered. It does not prove dynamics, structural 
 
 ## Manifest minimum
 
-The manifest records hashes for the source model, trajectory, physics trace and rendered animation; canonical joint order; required and observed moving joints; task phases with contact state and load-case IDs; zero-count topology, limit, collision and unconstrained-dual-release violations; physics-trace disposition; and independent review notes.
+The manifest records hashes for the source model, trajectory, physics trace and rendered animation; non-empty canonical joint order; non-empty required and observed moving joints; declared contact interfaces and continuous-anchor policy; task phases with complete contact state and load-case IDs; zero-count topology, limit, collision and unconstrained-release violations; physics-trace disposition; and independent review notes.

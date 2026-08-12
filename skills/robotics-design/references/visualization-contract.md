@@ -20,7 +20,7 @@ It may not change topology, pose, joint count, joint axes, interfaces, link prop
 1. Freeze the mechanism, interface, and visual invariants in the design contract.
 2. Set the exact task pose in CAD, URDF, SDF, or another deterministic kinematic model.
 3. Produce deterministic isometric and orthographic reference views. Add views until every required joint and interface landmark can be enumerated without guessing.
-4. Create a visual manifest with hashes of the source model, source pose, and reference images.
+4. Create a visual manifest with hashes of the source model, source pose, reference images, and the final generated/rendered image.
 5. Use the exact target-pose render for an **image-to-image appearance pass**. The prompt must repeat the allowed and forbidden change lists.
 6. Compare the generated image side by side with the deterministic references. Record only landmarks actually visible and identifiable.
 7. Require `required_landmarks == observed_landmarks`, run `scripts/validate_visual_manifest.py`, and promote only after it passes.
@@ -37,6 +37,7 @@ If the requested task needs a different articulation, **change the pose upstream
 | `source_model` | Object with a manifest-relative `path` and lowercase `sha256` |
 | `source_pose` | Object with a manifest-relative `path` and lowercase `sha256` |
 | `reference_images` | Non-empty list of deterministic render path/hash objects |
+| `rendered_image` | Final generated/rendered image object with a manifest-relative `path` and lowercase `sha256` |
 | `required_landmarks` | Unique canonical joint/interface identifiers |
 | `observed_landmarks` | Unique identifiers actually verified in the generated image |
 | `allowed_changes` | Subset of `materials`, `surface_finish`, `color`, `lighting`, `background`, `environment` |
@@ -81,4 +82,4 @@ Run:
 python skills/robotics-design/scripts/validate_visual_manifest.py path/to/visual_manifest.json
 ```
 
-The validator proves manifest consistency, source integrity, authorized change categories, landmark equality, and recorded review. It does not prove flight readiness, loads, thermal closure, collision clearance, or manufacturability.
+The validator proves manifest consistency, source and rendered-image integrity, authorized change categories, landmark equality, and recorded review. It does not prove flight readiness, loads, thermal closure, collision clearance, or manufacturability.
