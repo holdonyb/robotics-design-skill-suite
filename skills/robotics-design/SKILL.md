@@ -19,6 +19,7 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 6. Load each required sub-skill from the router before editing its artifact.
 7. Run the relevant gates in `references/validation-gates.md`.
 8. Use `references/authority-map.md` for method selection, `references/runtime.md` for environment setup, and `references/source-lock.md` for supply-chain review.
+9. If `references/host-runtime.md` exists, read it for this installation's runtime executable and destination; never copy those host values into project artifacts.
 
 ## Capability Router
 

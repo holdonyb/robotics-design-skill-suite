@@ -1,5 +1,12 @@
 # Runtime Setup
 
+## Optional generated host overlay
+
+The public skill contains portable runtime guidance only. Installers may create
+`references/host-runtime.md` when invoked with `--host-runtime-python`. That
+generated file records the resolved executable and destination for one host; it
+is installation state, not repository provenance, and must not be committed.
+
 Skill installation and tool runtime are separate concerns.
 
 ## Codex skills
