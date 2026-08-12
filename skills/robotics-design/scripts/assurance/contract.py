@@ -55,6 +55,7 @@ RECORD_FIELDS = {
             "source",
             "evidence_level",
             "tolerance",
+            "observation",
         }
     ),
     "components": frozenset(
@@ -251,6 +252,19 @@ def validate_contract(data: Any) -> list[str]:
             EvidenceLevel(item.get("evidence_level"))
         except (TypeError, ValueError):
             errors.append(f"quantities[{index}].evidence_level is invalid")
+        observation = item.get("observation")
+        if observation is not None:
+            if not _nonempty(observation) or not re.fullmatch(
+                r"artifact:[A-Za-z][A-Za-z0-9_.-]*#[A-Za-z0-9_.-]+",
+                observation,
+            ):
+                errors.append(
+                    f"quantities[{index}].observation must be artifact:ID#normalized.path"
+                )
+            elif observation.split("#", 1)[0][9:] not in artifact_ids:
+                errors.append(
+                    f"quantities[{index}].observation references unknown artifact: {observation}"
+                )
 
     for index, item in enumerate(collections["components"]):
         for field in ("role", "state"):

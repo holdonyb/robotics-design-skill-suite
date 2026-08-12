@@ -138,6 +138,13 @@ class AssuranceContractTests(unittest.TestCase):
         data["magic_completion"] = True
         self.assertIn("root has unknown fields: magic_completion", validate_contract(data))
 
+    def test_quantity_may_bind_to_normalized_artifact_observation(self):
+        data = valid_contract()
+        data["quantities"][0]["observation"] = (
+            "artifact:robot-model#links.base.mass_kg"
+        )
+        self.assertEqual(validate_contract(data), [])
+
     def test_load_errors_are_actionable_without_traceback(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "contract.json"
