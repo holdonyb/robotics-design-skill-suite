@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-An evidence-gated robotics design skill suite for Codex. It routes system design across CAD, STEP parts, DXF, URDF, SDF, SRDF, ROS 2 engineering, Gazebo simulation, visual review, and validation.
+An evidence-gated robotics design skill suite for Codex. It routes system design across CAD, STEP parts, DXF, URDF, SDF, SRDF, ROS 2 engineering, Gazebo simulation, structure-preserving visualization, traceable mission animation, patent-aware architecture, visual review, and validation.
 
 This repository is a thin, auditable distribution. It owns the integration skill and installer; third-party skills are downloaded from full pinned commits in [`manifest.json`](manifest.json), not copied into this repository.
 
@@ -32,6 +32,14 @@ The default destination is `${CODEX_HOME}/skills` when `CODEX_HOME` is set, othe
 python scripts/install.py --dest /path/to/codex/skills
 ```
 
+To generate a machine-local runtime overlay without putting host paths in the public skill, pass an existing Python executable:
+
+```bash
+python scripts/install.py --host-runtime-python /path/to/python3.12
+```
+
+This creates `references/host-runtime.md` only in the staged installation. The repository's runtime and source-lock documents remain portable.
+
 The installer refuses to overwrite existing skill directories. Review or move old installations first. Start a new Codex task after installation so skill discovery refreshes.
 
 ## Use
@@ -47,6 +55,34 @@ $urdf Review this robot description for frame, axis, limit, inertia, and consume
 $sdf Build a Gazebo Harmonic world and identify every validation gate that was not run.
 ```
 
+## Structure-preserving robot renders
+
+Version 0.2.0 prevents image generation from silently changing a robot's mechanism. CAD, URDF, SDF, or an equivalent deterministic model must own topology and pose. A generated image may change materials, surface finish, color, lighting, background, and non-contact environment context only.
+
+Set the exact task pose upstream, render deterministic references with visible joint and interface landmarks, then use image-to-image for the appearance pass. A render is promotable only when its source hashes and exact landmark set pass the visual manifest gate:
+
+```bash
+python skills/robotics-design/scripts/validate_visual_manifest.py path/to/visual_manifest.json
+```
+
+See [`visualization-contract.md`](skills/robotics-design/references/visualization-contract.md) for the full contract. A plausible-looking image or disclaimer is not evidence that topology, axes, interfaces, or pose are correct.
+
+## Traceable mission animation
+
+Mission animation uses one deterministic model, one accepted trajectory, and one physics/contact trace. Robot joint transforms may not be hand-keyframed for engineering evidence. Every promoted animation records source hashes, canonical joint order, required moving joints, task phases, contact states, load cases, violation counts, and independent review evidence.
+
+```bash
+python skills/robotics-design/scripts/validate_mission_animation_manifest.py path/to/mission_manifest.json
+```
+
+See [`mission-animation-contract.md`](skills/robotics-design/references/mission-animation-contract.md). A rendered video proves frames exist; it does not by itself prove dynamics, contact fidelity, controllability, or hardware performance.
+
+## Patent-aware architecture
+
+Patent study and competitor-inspired design route through source research and an element-by-element claim chart before architecture is frozen. Selected distinctions become positive design requirements, prohibited combinations, owned artifacts, and drift tests. This is an engineering design-around screen, not a legal opinion or FTO conclusion; qualified counsel owns legal disposition.
+
+See [`patent-design-around.md`](skills/robotics-design/references/patent-design-around.md) for the evidence hierarchy, claim-chart schema, review package, and counsel boundary.
+
 ## Optional CAD runtime
 
 Installing skills does not mutate Python environments. CAD generation needs an isolated Python 3.12+ environment; DXF also needs `ezdxf`.
@@ -61,17 +97,17 @@ On Windows, use the environment's `Scripts/python.exe`. See [`runtime.md`](skill
 ## Verification
 
 ```bash
-python -m compileall -q scripts tests
+python -m compileall -q scripts tests skills/robotics-design/scripts
 python -m unittest discover -s tests -v
 python scripts/validate.py
 python scripts/install.py --dry-run
 ```
 
-Tests cover manifest integrity, pinned commits, deterministic planning, local fixture installation, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, and public-data hygiene.
+Tests cover manifest integrity, pinned commits, transactional installation, host overlays, bytecode exclusion, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, public-data hygiene, visual source hashes and landmark promotion, mission trajectory/contact traceability, and patent-aware routing boundaries.
 
 ## Claim boundary
 
-This suite improves engineering workflow; it does not certify a robot. Generated or simulated artifacts do not prove payload, stability, braking distance, endurance, field reliability, human-safe operation, or regulatory compliance. Real robot motion requires explicit authorization, a bounded test area, reachable emergency stop, power/torque/speed limits, command timeouts, and staged commissioning.
+This suite improves engineering workflow; it does not certify a robot or provide a legal opinion. Generated or simulated artifacts do not prove payload, stability, braking distance, endurance, field reliability, human-safe operation, or regulatory compliance. Patent-aware controls do not establish non-infringement or freedom to operate. Real robot motion requires explicit authorization, a bounded test area, reachable emergency stop, power/torque/speed limits, command timeouts, and staged commissioning.
 
 ROS 2 live simulation requires a suitable Linux environment with ROS 2 Jazzy and Gazebo Harmonic. Always run the installed `ros2-sim/scripts/env_check.sh` before promising live results.
 

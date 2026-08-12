@@ -19,6 +19,9 @@ class InstallerTests(unittest.TestCase):
             "---\nname: robotics-design\ndescription: Use when designing robots.\n---\n# Router\n",
             encoding="utf-8",
         )
+        cache = router / "scripts" / "__pycache__"
+        cache.mkdir(parents=True)
+        (cache / "generated.pyc").write_bytes(b"bytecode")
 
         archive = base / "source.zip"
         with zipfile.ZipFile(archive, "w") as handle:
@@ -75,6 +78,63 @@ class InstallerTests(unittest.TestCase):
             self.assertNotIn("hooks:", frontmatter)
             self.assertIn("license: Apache-2.0", frontmatter)
             self.assertTrue((dest / "robotics-design" / "SKILL.md").is_file())
+            self.assertFalse(
+                (dest / "robotics-design" / "references" / "host-runtime.md").exists()
+            )
+            self.assertFalse((dest / "robotics-design" / "scripts" / "__pycache__").exists())
+
+    def test_generates_host_runtime_overlay_when_requested(self):
+        from scripts.install import install_from_manifest
+
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            repo_root, manifest_path, archive = self._fixture(base)
+            runtime = base / "runtime" / "python.exe"
+            runtime.parent.mkdir()
+            runtime.write_bytes(b"python")
+            dest = base / "skills"
+
+            install_from_manifest(
+                manifest_path=manifest_path,
+                destination=dest,
+                repository_root=repo_root,
+                archive_provider=lambda _source: archive,
+                host_runtime_python=runtime,
+            )
+
+            overlay = dest / "robotics-design" / "references" / "host-runtime.md"
+            self.assertTrue(overlay.is_file())
+            text = overlay.read_text(encoding="utf-8")
+            self.assertIn(str(runtime.resolve()), text)
+            self.assertIn(str(dest.resolve()), text)
+            self.assertIn("generated host state", text.lower())
+            self.assertNotIn("Installation date", text)
+
+    def test_missing_host_runtime_fails_before_archive_download(self):
+        from scripts.install import install_from_manifest
+
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            repo_root, manifest_path, archive = self._fixture(base)
+            dest = base / "skills"
+            provider_called = False
+
+            def provider(_source):
+                nonlocal provider_called
+                provider_called = True
+                return archive
+
+            with self.assertRaisesRegex(ValueError, "Host runtime Python does not exist"):
+                install_from_manifest(
+                    manifest_path=manifest_path,
+                    destination=dest,
+                    repository_root=repo_root,
+                    archive_provider=provider,
+                    host_runtime_python=base / "missing-python",
+                )
+
+            self.assertFalse(provider_called)
+            self.assertFalse(dest.exists())
 
     def test_prepares_transaction_on_destination_filesystem(self):
         from scripts.install import prepare_destination_transaction
@@ -179,6 +239,36 @@ class InstallerTests(unittest.TestCase):
             self.assertIn("robotics-design", completed.stdout)
             self.assertIn("ros2-engineering-skills", completed.stdout)
             self.assertIn("source_commit=", completed.stdout)
+            self.assertFalse(destination.exists())
+
+    def test_dry_run_reports_requested_host_overlay_without_writes(self):
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            destination = base / "skills"
+            runtime = base / "runtime" / "python.exe"
+            runtime.parent.mkdir()
+            runtime.write_bytes(b"python")
+            command = [
+                sys.executable,
+                str(ROOT / "scripts" / "install.py"),
+                "--dry-run",
+                "--dest",
+                str(destination),
+                "--host-runtime-python",
+                str(runtime),
+            ]
+            completed = subprocess.run(
+                command,
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("host-runtime overlay", completed.stdout)
+            self.assertIn(str(runtime.resolve()), completed.stdout)
             self.assertFalse(destination.exists())
 
 

@@ -1,5 +1,12 @@
 # Runtime Setup
 
+## Optional generated host overlay
+
+The public skill contains portable runtime guidance only. Installers may create
+`references/host-runtime.md` when invoked with `--host-runtime-python`. That
+generated file records the resolved executable and destination for one host; it
+is installation state, not repository provenance, and must not be committed.
+
 Skill installation and tool runtime are separate concerns.
 
 ## Codex skills
@@ -18,6 +25,10 @@ python3.12 -m venv .venv-robotics-design
 ```
 
 On Windows use the environment's `Scripts/python.exe`. Some generator CLIs require POSIX `/` separators even on Windows. Run CAD inspection from the target project/part directory with relative paths to avoid broad catalog scans.
+
+## Visual manifest validator
+
+`scripts/validate_visual_manifest.py` uses only the Python standard library and runs on Python 3.11+. Invoke it with a visual manifest JSON path after the landmark review and before promoting a generated robot render.
 
 ## ROS 2 simulation
 

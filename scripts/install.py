@@ -121,7 +121,38 @@ def normalize_codex_frontmatter(skill_md: Path, source: dict) -> None:
 def _copy_skill(source_path: Path, destination: Path) -> None:
     if not (source_path / "SKILL.md").is_file():
         raise ValueError(f"Skill path has no SKILL.md: {source_path}")
-    shutil.copytree(source_path, destination)
+    shutil.copytree(
+        source_path,
+        destination,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
+    )
+
+
+def resolve_host_runtime(path: Path | None) -> Path | None:
+    """Resolve an optional host Python executable before installation side effects."""
+    if path is None:
+        return None
+    resolved = Path(path).expanduser().resolve()
+    if not resolved.is_file():
+        raise ValueError(f"Host runtime Python does not exist or is not a file: {resolved}")
+    return resolved
+
+
+def write_host_runtime_overlay(skill_root: Path, runtime: Path, destination: Path) -> Path:
+    """Write generated host state into a staged robotics-design skill."""
+    references = Path(skill_root) / "references"
+    references.mkdir(parents=True, exist_ok=True)
+    output = references / "host-runtime.md"
+    output.write_text(
+        "# Host Runtime Overlay\n\n"
+        "This file is generated host state, not public source provenance.\n\n"
+        f"- Python executable: `{Path(runtime).resolve()}`\n"
+        f"- Skills destination: `{Path(destination).expanduser().resolve()}`\n\n"
+        "Use this runtime only for the installed suite tools. Keep target-project "
+        "dependencies in that project's own environment.\n",
+        encoding="utf-8",
+    )
+    return output
 
 
 def prepare_destination_transaction(staged: Path, destination: Path, names: list[str]) -> Path:
@@ -172,10 +203,12 @@ def install_from_manifest(
     destination: Path,
     repository_root: Path | None = None,
     archive_provider: ArchiveProvider | None = None,
+    host_runtime_python: Path | None = None,
 ) -> list[Path]:
     manifest_path = Path(manifest_path).resolve()
     repository_root = Path(repository_root).resolve() if repository_root else manifest_path.parent
     destination = Path(destination).expanduser().resolve()
+    host_runtime = resolve_host_runtime(host_runtime_python)
     manifest = load_manifest(manifest_path)
     plan = build_plan(manifest, destination)
 
@@ -204,6 +237,12 @@ def install_from_manifest(
         for skill in manifest["local_skills"]:
             _copy_skill((repository_root / skill["path"]).resolve(), stage / skill["name"])
 
+        if host_runtime is not None:
+            robotics_skill = stage / "robotics-design"
+            if not robotics_skill.is_dir():
+                raise ValueError("Host runtime overlay requires the robotics-design local skill")
+            write_host_runtime_overlay(robotics_skill, host_runtime, destination)
+
         names = [item["name"] for item in plan]
         transaction = prepare_destination_transaction(stage, destination, names)
         try:
@@ -219,21 +258,44 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--dest", type=Path, default=default_destination(), help="Skills directory")
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST, help=argparse.SUPPRESS)
     parser.add_argument("--dry-run", action="store_true", help="Print the plan without network or writes")
+    parser.add_argument(
+        "--host-runtime-python",
+        type=Path,
+        help="Generate a host-runtime overlay for this Python executable",
+    )
     return parser
 
 
 def main() -> int:
     args = _parser().parse_args()
-    manifest = load_manifest(args.manifest)
+    try:
+        host_runtime = resolve_host_runtime(args.host_runtime_python)
+        manifest = load_manifest(args.manifest)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        print(f"ERROR: {error}", file=os.sys.stderr)
+        return 1
     if args.dry_run:
         for item in build_plan(manifest, args.dest):
             print(
                 f"{item['name']} -> {item['destination']} "
                 f"source={item['source']} source_commit={item['source_commit']}"
             )
+        if host_runtime is not None:
+            overlay = (
+                Path(args.dest).expanduser().resolve()
+                / "robotics-design"
+                / "references"
+                / "host-runtime.md"
+            )
+            print(f"host-runtime overlay -> {overlay} python={host_runtime}")
         return 0
     try:
-        installed = install_from_manifest(args.manifest, args.dest, args.manifest.resolve().parent)
+        installed = install_from_manifest(
+            args.manifest,
+            args.dest,
+            args.manifest.resolve().parent,
+            host_runtime_python=host_runtime,
+        )
     except (FileExistsError, OSError, ValueError, zipfile.BadZipFile) as error:
         print(f"ERROR: {error}", file=os.sys.stderr)
         return 1
