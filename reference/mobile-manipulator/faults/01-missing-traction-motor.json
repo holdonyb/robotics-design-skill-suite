@@ -1,0 +1,1 @@
+{"id":"missing-traction-motor","critical":true,"mutation":{"op":"set_component_missing","role":"traction_motor"},"expected_diagnostic":"BOM.MISSING_ROLE"}

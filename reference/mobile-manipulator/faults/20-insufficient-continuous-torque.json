@@ -1,0 +1,1 @@
+{"id":"insufficient-continuous-torque","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-MOTOR-CONTINUOUS-TORQUE","value":{"value":0.1,"unit":"N*m"}},"expected_diagnostic":"PHY.DRIVE.CONTINUOUS_TORQUE"}

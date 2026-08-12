@@ -1,0 +1,1 @@
+{"id":"insufficient-continuous-current","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-MAX-CONTINUOUS-CURRENT","value":{"value":10,"unit":"A"}},"expected_diagnostic":"PHY.POWER.CONTINUOUS_CURRENT"}

@@ -1,0 +1,1 @@
+{"id":"insufficient-energy","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-USABLE-ENERGY","value":{"value":100,"unit":"Wh"}},"expected_diagnostic":"PHY.POWER.ENERGY"}

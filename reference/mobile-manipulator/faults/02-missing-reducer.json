@@ -1,0 +1,1 @@
+{"id":"missing-reducer","critical":true,"mutation":{"op":"set_component_missing","role":"reducer"},"expected_diagnostic":"BOM.MISSING_ROLE"}

@@ -1,0 +1,1 @@
+{"id":"stale-artifact-hash","critical":true,"mutation":{"op":"set_artifact_hash","id":"robot-model","sha256":"0000000000000000000000000000000000000000000000000000000000000000"},"expected_diagnostic":"EVIDENCE.STALE_ARTIFACT"}

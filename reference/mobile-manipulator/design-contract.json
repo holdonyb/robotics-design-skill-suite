@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "candidate_id": "reference-mobile-manipulator-v0",
+  "status": "draft",
+  "requirements": [
+    {
+      "id": "REQ-PHYSICAL",
+      "statement": "Reject incomplete or contradictory physical architecture before simulation promotion",
+      "verification": "v0.3 assurance report and critical fault corpus",
+      "owner": "project:system"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "ASM-REGRESSION",
+      "statement": "All non-URDF physical values are regression assumptions, not measured facts",
+      "confidence": "low",
+      "owner": "project:system",
+      "validation": "Replace with exact vendor evidence and controlled measurements",
+      "decision_deadline": "engineering-freeze"
+    }
+  ],
+  "quantities": [
+    {"id":"Q-BASE-MASS","dimension":"mass","value":{"value":100,"unit":"kg"},"owner":"artifact:robot-model","source":"evidence:EV-URDF","evidence_level":"parsed","observation":"artifact:robot-model#links.base_link.mass_kg"},
+    {"id":"Q-PAYLOAD","dimension":"mass","value":{"value":5,"unit":"kg"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ROLLING-RESISTANCE","dimension":"dimensionless","value":{"value":0.02,"unit":"1"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-SLOPE","dimension":"angle","value":{"value":5,"unit":"deg"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ACCELERATION","dimension":"acceleration","value":{"value":0.5,"unit":"m/s^2"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-WHEEL-RADIUS","dimension":"length","value":{"value":0.15,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-DRIVEN-WHEELS","dimension":"dimensionless","value":{"value":2,"unit":"1"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-GEAR-RATIO","dimension":"dimensionless","value":{"value":20,"unit":"1"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-DRIVE-EFFICIENCY","dimension":"dimensionless","value":{"value":0.8,"unit":"1"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-TARGET-SPEED","dimension":"speed","value":{"value":1,"unit":"m/s"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-MOTOR-CONTINUOUS-TORQUE","dimension":"torque","value":{"value":4,"unit":"N*m"},"owner":"component:CMP-TRACTION-MOTOR","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-MOTOR-PEAK-TORQUE","dimension":"torque","value":{"value":8,"unit":"N*m"},"owner":"component:CMP-TRACTION-MOTOR","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-MOTOR-MAX-SPEED","dimension":"angular_velocity","value":{"value":200,"unit":"rad/s"},"owner":"component:CMP-TRACTION-MOTOR","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-DRIVE-DUTY","dimension":"dimensionless","value":{"value":0.5,"unit":"1"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-BATTERY-VOLTAGE","dimension":"voltage","value":{"value":48,"unit":"V"},"owner":"component:CMP-BATTERY","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-PEAK-POWER","dimension":"power","value":{"value":3000,"unit":"W"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-CONTINUOUS-POWER","dimension":"power","value":{"value":800,"unit":"W"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-MAX-CONTINUOUS-CURRENT","dimension":"current","value":{"value":50,"unit":"A"},"owner":"component:CMP-BATTERY","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-MAX-PEAK-CURRENT","dimension":"current","value":{"value":100,"unit":"A"},"owner":"component:CMP-BATTERY","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-USABLE-ENERGY","dimension":"energy","value":{"value":5000,"unit":"Wh"},"owner":"component:CMP-BATTERY","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-REQUIRED-RUNTIME","dimension":"time","value":{"value":4,"unit":"h"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-SUPPORT-MIN-X","dimension":"length","value":{"value":-0.4,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-SUPPORT-MAX-X","dimension":"length","value":{"value":0.4,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-SUPPORT-MIN-Y","dimension":"length","value":{"value":-0.3,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-SUPPORT-MAX-Y","dimension":"length","value":{"value":0.3,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-COM-X","dimension":"length","value":{"value":0.05,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-COM-Y","dimension":"length","value":{"value":0,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-LEVER","dimension":"length","value":{"value":1,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-CONTINUOUS-TORQUE","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-BRAKE-HOLDING-TORQUE","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-BRAKE","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-SAFETY-FACTOR","dimension":"dimensionless","value":{"value":1.5,"unit":"1"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-J1-UPPER","dimension":"angle","value":{"value":3.14,"unit":"rad"},"owner":"artifact:robot-model","source":"evidence:EV-URDF","evidence_level":"parsed","observation":"artifact:robot-model#joints.joint_1.limit.upper"}
+  ],
+  "components": [
+    {"id":"CMP-TRACTION-MOTOR","role":"traction_motor","state":"engineering_placeholder","interfaces":["IF-TRACTION-MOTOR"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-REDUCER","role":"reducer","state":"engineering_placeholder","interfaces":["IF-REDUCER"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-WHEEL","role":"wheel","state":"engineering_placeholder","interfaces":["IF-WHEEL"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-BEARING","role":"bearing","state":"engineering_placeholder","interfaces":["IF-BEARING"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-MOTOR-DRIVER","role":"motor_driver","state":"engineering_placeholder","interfaces":["IF-MOTOR-DRIVER"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-BATTERY","role":"battery","state":"engineering_placeholder","interfaces":["IF-BATTERY"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-BMS","role":"bms","state":"engineering_placeholder","interfaces":["IF-BMS"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-PROTECTION","role":"main_protection","state":"engineering_placeholder","interfaces":["IF-PROTECTION"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-CONTACTOR","role":"contactor","state":"engineering_placeholder","interfaces":["IF-CONTACTOR"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-CONVERTER","role":"dc_converter","state":"engineering_placeholder","interfaces":["IF-CONVERTER"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-ARM-MOTOR","role":"motor","state":"engineering_placeholder","interfaces":["IF-ARM-MOTOR"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-BRAKE","role":"brake","state":"engineering_placeholder","interfaces":["IF-BRAKE"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-CABLE","role":"cable","state":"engineering_placeholder","interfaces":["IF-CABLE"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-CONNECTOR","role":"connector","state":"engineering_placeholder","interfaces":["IF-CONNECTOR"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-STRAIN-RELIEF","role":"strain_relief","state":"engineering_placeholder","interfaces":["IF-STRAIN-RELIEF"],"supports_claims":["REQ-PHYSICAL"]},
+    {"id":"CMP-CABLE-MANAGEMENT","role":"cable_management","state":"engineering_placeholder","interfaces":["IF-CABLE-MANAGEMENT"],"supports_claims":["REQ-PHYSICAL"]}
+  ],
+  "architecture": {
+    "features": ["differential_drive", "battery_powered"],
+    "actuators": ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"],
+    "moving_cables": ["arm_harness"],
+    "claimed_safety_functions": ["holding_brake"]
+  },
+  "artifacts": [
+    {"id":"robot-model","kind":"urdf","path":"robot.urdf","sha256":"ce16eb91a634df3dc136245f5c6bdd572a662f7c36277479aedb591b4f8bc429"},
+    {"id":"assumption-registry","kind":"assumptions","path":"assumptions.json","sha256":"061b123d5c62373b9baf8a638455705765605fc36caababc3f219021f4c7aeb8"}
+  ],
+  "analyses": [
+    {"id":"AN-DRIVE","plugin":"drivetrain_v1","inputs":{"base_mass_kg":"quantity:Q-BASE-MASS","payload_mass_kg":"quantity:Q-PAYLOAD","rolling_resistance":"quantity:Q-ROLLING-RESISTANCE","slope_rad":"quantity:Q-SLOPE","acceleration_m_s2":"quantity:Q-ACCELERATION","wheel_radius_m":"quantity:Q-WHEEL-RADIUS","driven_wheels":"quantity:Q-DRIVEN-WHEELS","gear_ratio":"quantity:Q-GEAR-RATIO","efficiency":"quantity:Q-DRIVE-EFFICIENCY","target_speed_m_s":"quantity:Q-TARGET-SPEED","motor_continuous_torque_nm":"quantity:Q-MOTOR-CONTINUOUS-TORQUE","motor_peak_torque_nm":"quantity:Q-MOTOR-PEAK-TORQUE","motor_max_speed_rad_s":"quantity:Q-MOTOR-MAX-SPEED","duty_cycle":"quantity:Q-DRIVE-DUTY"}},
+    {"id":"AN-BATTERY","plugin":"battery_v1","inputs":{"voltage_v":"quantity:Q-BATTERY-VOLTAGE","peak_power_w":"quantity:Q-PEAK-POWER","continuous_power_w":"quantity:Q-CONTINUOUS-POWER","max_continuous_current_a":"quantity:Q-MAX-CONTINUOUS-CURRENT","max_peak_current_a":"quantity:Q-MAX-PEAK-CURRENT","usable_energy_j":"quantity:Q-USABLE-ENERGY","required_runtime_s":"quantity:Q-REQUIRED-RUNTIME"}},
+    {"id":"AN-STABILITY","plugin":"stability_v1","inputs":{"support_min_x_m":"quantity:Q-SUPPORT-MIN-X","support_max_x_m":"quantity:Q-SUPPORT-MAX-X","support_min_y_m":"quantity:Q-SUPPORT-MIN-Y","support_max_y_m":"quantity:Q-SUPPORT-MAX-Y","com_x_m":"quantity:Q-COM-X","com_y_m":"quantity:Q-COM-Y"}},
+    {"id":"AN-ARM-GRAVITY","plugin":"arm_gravity_v1","inputs":{"joints":[{"id":"joint_2","loads":[{"mass_kg":"quantity:Q-PAYLOAD","horizontal_lever_m":"quantity:Q-ARM-LEVER"}],"rated_continuous_torque_nm":"quantity:Q-ARM-CONTINUOUS-TORQUE","brake_holding_torque_nm":"quantity:Q-BRAKE-HOLDING-TORQUE","safety_factor":"quantity:Q-ARM-SAFETY-FACTOR"}]}}
+  ],
+  "evidence": [
+    {"id":"EV-URDF","level":"parsed","source":{"path":"robot.urdf","sha256":"ce16eb91a634df3dc136245f5c6bdd572a662f7c36277479aedb591b4f8bc429"},"supports":["artifact:robot-model","quantity:Q-BASE-MASS","quantity:Q-J1-UPPER"]},
+    {"id":"EV-ASSUMPTIONS","level":"assumed","source":{"path":"assumptions.json","sha256":"061b123d5c62373b9baf8a638455705765605fc36caababc3f219021f4c7aeb8"},"supports":["artifact:assumption-registry","quantity:Q-PAYLOAD"]}
+  ]
+}

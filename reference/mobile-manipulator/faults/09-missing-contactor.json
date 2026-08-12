@@ -1,0 +1,1 @@
+{"id":"missing-contactor","critical":true,"mutation":{"op":"set_component_missing","role":"contactor"},"expected_diagnostic":"BOM.MISSING_ROLE"}

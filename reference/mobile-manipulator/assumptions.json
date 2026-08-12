@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "purpose": "Deterministic regression assumptions for the v0.3 assurance kernel",
+  "claim_boundary": "These values are not measurements, vendor specifications, purchasing recommendations, or hardware performance claims.",
+  "assumptions": [
+    "indoor level-floor reference mission",
+    "bounded payload and arm pose used only for conservative regression calculations",
+    "constant drivetrain efficiency and rolling resistance at the checked point",
+    "axis-aligned static support rectangle",
+    "battery usable energy already includes an assumed reserve"
+  ]
+}

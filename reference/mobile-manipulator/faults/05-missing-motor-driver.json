@@ -1,0 +1,1 @@
+{"id":"missing-motor-driver","critical":true,"mutation":{"op":"set_component_missing","role":"motor_driver"},"expected_diagnostic":"BOM.MISSING_ROLE"}

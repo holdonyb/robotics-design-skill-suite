@@ -1,0 +1,1 @@
+{"id":"missing-cable-management","critical":true,"mutation":{"op":"set_component_missing","role":"cable_management"},"expected_diagnostic":"BOM.MISSING_ROLE"}
