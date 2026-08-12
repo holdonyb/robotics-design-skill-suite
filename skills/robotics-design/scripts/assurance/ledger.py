@@ -42,14 +42,16 @@ def required_roles(architecture: dict[str, Any]) -> dict[str, set[str]]:
     result: dict[str, set[str]] = {}
     for feature in architecture.get("features", []):
         if feature in FEATURE_ROLES:
-            result[feature] = set(FEATURE_ROLES[feature])
+            result[f"feature:{feature}"] = set(FEATURE_ROLES[feature])
     for actuator in architecture.get("actuators", []):
         result[f"actuator:{actuator}"] = set(ACTUATOR_ROLES)
     for cable in architecture.get("moving_cables", []):
         result[f"moving_cable:{cable}"] = set(CABLE_ROLES)
     for safety_function in architecture.get("claimed_safety_functions", []):
         if safety_function in SAFETY_FUNCTION_ROLES:
-            result[safety_function] = set(SAFETY_FUNCTION_ROLES[safety_function])
+            result[f"safety_function:{safety_function}"] = set(
+                SAFETY_FUNCTION_ROLES[safety_function]
+            )
     return result
 
 
@@ -86,14 +88,33 @@ def validate_ledger(contract: dict[str, Any]) -> list[Diagnostic]:
             )
 
     interface_owners: dict[str, list[str]] = {}
-    available_roles: set[str] = set()
+    bound_roles: dict[str, set[str]] = {}
     for index, item in enumerate(valid_records):
         path = f"components[{index}]"
         component_id = str(item.get("id", index))
         state = item.get("state")
         role = item.get("role")
-        if _nonempty(role) and state != "missing":
-            available_roles.add(role)
+        bindings = item.get("bindings", [])
+        if _nonempty(role) and state != "missing" and isinstance(bindings, list):
+            for binding in bindings:
+                if _nonempty(binding):
+                    bound_roles.setdefault(binding, set()).add(role)
+
+        actuator_bindings = [
+            value
+            for value in bindings
+            if _nonempty(value) and value.startswith("actuator:")
+        ] if isinstance(bindings, list) else []
+        if role in {"motor", "reducer", "bearing"} and len(actuator_bindings) > 1:
+            diagnostics.append(
+                Diagnostic(
+                    "BOM.MULTI_ACTUATOR_COMPONENT",
+                    "error",
+                    f"{path}.bindings",
+                    f"component {component_id} cannot serve multiple actuators: "
+                    + ", ".join(sorted(actuator_bindings)),
+                )
+            )
 
         interfaces = item.get("interfaces", [])
         if isinstance(interfaces, list):
@@ -166,7 +187,7 @@ def validate_ledger(contract: dict[str, Any]) -> list[Diagnostic]:
         )
     else:
         for source, roles in sorted(required_roles(architecture).items()):
-            for role in sorted(roles - available_roles):
+            for role in sorted(roles - bound_roles.get(source, set())):
                 diagnostics.append(
                     Diagnostic(
                         "BOM.MISSING_ROLE",

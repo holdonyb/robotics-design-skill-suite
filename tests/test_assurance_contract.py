@@ -52,6 +52,7 @@ def valid_contract():
                 "role": "traction_motor",
                 "state": "engineering_placeholder",
                 "interfaces": ["IF-BASE-DRIVE-L"],
+                "bindings": ["feature:differential_drive"],
             }
         ],
         "architecture": {
@@ -131,6 +132,34 @@ class AssuranceContractTests(unittest.TestCase):
         self.assertIn(
             "evidence[0].certificate_id must be a non-empty string for certified evidence",
             errors,
+        )
+
+    def test_quantity_source_must_explicitly_support_that_quantity(self):
+        data = valid_contract()
+        data["evidence"][0]["supports"] = ["artifact:robot-model"]
+        self.assertIn(
+            "quantities[0].source evidence:EV-URDF does not support quantity:Q-PAYLOAD",
+            validate_contract(data),
+        )
+
+    def test_component_binding_must_reference_declared_architecture(self):
+        data = valid_contract()
+        data["components"][0]["bindings"] = ["actuator:missing-axis"]
+        self.assertIn(
+            "components[0].bindings references unknown architecture responsibility: actuator:missing-axis",
+            validate_contract(data),
+        )
+
+    def test_malformed_architecture_and_supports_are_actionable_not_tracebacks(self):
+        data = valid_contract()
+        data["architecture"]["actuators"] = None
+        data["evidence"][0]["supports"] = [{}]
+        errors = validate_contract(data)
+        self.assertIn(
+            "architecture.actuators must be a list of non-empty strings", errors
+        )
+        self.assertIn(
+            "evidence[0].supports must be a list of non-empty strings", errors
         )
 
     def test_unknown_fields_are_rejected_in_schema_one(self):

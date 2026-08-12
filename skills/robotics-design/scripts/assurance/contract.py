@@ -70,6 +70,7 @@ RECORD_FIELDS = {
             "source_date",
             "limits",
             "supports_claims",
+            "bindings",
         }
     ),
     "artifacts": frozenset({"id", "kind", "path", "sha256"}),
@@ -231,6 +232,19 @@ def validate_contract(data: Any) -> list[str]:
     known_owners = {"project:system"}
     known_owners.update(f"artifact:{item}" for item in artifact_ids)
     known_owners.update(f"component:{item}" for item in component_ids)
+    architecture_responsibilities: set[str] = set()
+    if isinstance(architecture, dict):
+        for field, prefix in (
+            ("features", "feature"),
+            ("actuators", "actuator"),
+            ("moving_cables", "moving_cable"),
+            ("claimed_safety_functions", "safety_function"),
+        ):
+            values = architecture.get(field)
+            if isinstance(values, list):
+                architecture_responsibilities.update(
+                    f"{prefix}:{item}" for item in values if _nonempty(item)
+                )
 
     for name in ("requirements", "assumptions", "quantities"):
         for index, item in enumerate(collections[name]):
@@ -302,6 +316,14 @@ def validate_contract(data: Any) -> list[str]:
                 f"components[{index}].state must be a supported component state"
             )
         _string_list(item.get("interfaces"), f"components[{index}].interfaces", errors)
+        bindings = _string_list(
+            item.get("bindings"), f"components[{index}].bindings", errors
+        )
+        for binding in bindings:
+            if binding not in architecture_responsibilities:
+                errors.append(
+                    f"components[{index}].bindings references unknown architecture responsibility: {binding}"
+                )
         if "supports_claims" in item:
             _string_list(
                 item.get("supports_claims"),
@@ -357,6 +379,24 @@ def validate_contract(data: Any) -> list[str]:
                     errors.append(
                         f"evidence[{index}].{field} must be a non-empty string for certified evidence"
                     )
+
+    evidence_supports = {
+        item.get("id"): {
+            support for support in item.get("supports", []) if _nonempty(support)
+        }
+        for item in collections["evidence"]
+        if _nonempty(item.get("id")) and isinstance(item.get("supports"), list)
+    }
+    for index, item in enumerate(collections["quantities"]):
+        source = item.get("source")
+        if not isinstance(source, str) or not source.startswith("evidence:"):
+            continue
+        evidence_id = source[9:]
+        target = f"quantity:{item.get('id')}"
+        if evidence_id in evidence_supports and target not in evidence_supports[evidence_id]:
+            errors.append(
+                f"quantities[{index}].source {source} does not support {target}"
+            )
 
     return sorted(set(errors))
 

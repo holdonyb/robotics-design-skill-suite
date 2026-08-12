@@ -100,6 +100,7 @@ class AssuranceEngineTests(unittest.TestCase):
                         "evidence_level": "assumed",
                     }
                 )
+                data["evidence"][0]["supports"].append(f"quantity:{quantity_id}")
             data["analyses"] = [
                 {
                     "id": "AN-ARM",

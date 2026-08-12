@@ -18,6 +18,7 @@ def component(component_id, role, state="engineering_placeholder", **extra):
         "role": role,
         "state": state,
         "interfaces": [f"IF-{component_id}"],
+        "bindings": [],
     }
     record.update(extra)
     return record
@@ -33,9 +34,9 @@ class AssuranceLedgerTests(unittest.TestCase):
                 "claimed_safety_functions": ["holding_brake"],
             }
         )
-        self.assertIn("reducer", roles["differential_drive"])
-        self.assertIn("bms", roles["battery_powered"])
-        self.assertEqual(roles["holding_brake"], {"brake"})
+        self.assertIn("reducer", roles["feature:differential_drive"])
+        self.assertIn("bms", roles["feature:battery_powered"])
+        self.assertEqual(roles["safety_function:holding_brake"], {"brake"})
 
     def test_missing_reducer_bms_and_strain_relief_are_errors(self):
         data = valid_contract()
@@ -109,6 +110,32 @@ class AssuranceLedgerTests(unittest.TestCase):
         codes = {item.code for item in diagnostics}
         self.assertIn("BOM.DUPLICATE_ID", codes)
         self.assertIn("BOM.UNBOUND_INTERFACE", codes)
+
+    def test_each_actuator_requires_its_own_motor_transmission_and_bearing(self):
+        data = valid_contract()
+        data["architecture"]["features"] = []
+        data["architecture"]["actuators"] = ["joint_1", "joint_2"]
+        data["components"] = [
+            component(
+                "MOTOR",
+                "motor",
+                bindings=["actuator:joint_1", "actuator:joint_2"],
+            ),
+            component("REDUCER", "reducer", bindings=["actuator:joint_1"]),
+            component("BEARING", "bearing", bindings=["actuator:joint_1"]),
+            component(
+                "DRIVER",
+                "motor_driver",
+                bindings=["actuator:joint_1", "actuator:joint_2"],
+            ),
+        ]
+        diagnostics = validate_ledger(data)
+        messages = {item.message for item in diagnostics}
+        self.assertTrue(any("actuator:joint_2" in item and "reducer" in item for item in messages))
+        self.assertTrue(any("actuator:joint_2" in item and "bearing" in item for item in messages))
+        self.assertTrue(
+            any(item.code == "BOM.MULTI_ACTUATOR_COMPONENT" for item in diagnostics)
+        )
 
 
 if __name__ == "__main__":

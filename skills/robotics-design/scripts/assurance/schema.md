@@ -33,7 +33,12 @@ and `certified`. Ordering supports comparison only; it never promotes a claim.
 
 ## Components and architecture
 
-A component has `id`, `role`, lifecycle `state`, and unique `interfaces`.
+A component has `id`, `role`, lifecycle `state`, unique `interfaces`, and one
+or more explicit `bindings`. A binding names the exact architecture
+responsibility it realizes: `feature:ID`, `actuator:ID`, `moving_cable:ID`, or
+`safety_function:ID`. Motor, reducer, and bearing records cannot be shared
+across multiple actuators; each declared actuator therefore has an auditable
+physical load path instead of inheriting a global role checkbox.
 States are `verified_part`, `qualified_substitute`, `engineering_placeholder`,
 or `missing`. Verified and substitute records additionally use manufacturer,
 part number, source URL/date, limits and supported claims as enforced by the
@@ -52,7 +57,9 @@ number is a typed reference such as `quantity:Q-MASS`; bare numeric literals
 are forbidden.
 
 Evidence has `id`, `level`, a path/SHA-256 `source`, and unique `supports`
-references. `certified` evidence additionally requires a non-empty external
+references. Every quantity's selected evidence source must explicitly include
+that `quantity:ID` in `supports`; merely naming an evidence record is not a
+closed evidence graph. `certified` evidence additionally requires a non-empty external
 `authority` and `certificate_id`; the suite never creates those values.
 
 Schema validation establishes shape and references. File existence, digest
