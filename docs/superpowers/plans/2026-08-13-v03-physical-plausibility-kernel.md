@@ -35,8 +35,9 @@
 Run:
 
 ```powershell
-git diff --no-index --name-status -- skills/robotics-design E:/.codex/skills/robotics-design
-git diff --no-index -- skills/robotics-design E:/.codex/skills/robotics-design/scripts/test_review_contracts.py
+$activeSkill = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.codex/skills/robotics-design'
+git diff --no-index --name-status -- skills/robotics-design $activeSkill
+git diff --no-index -- skills/robotics-design (Join-Path $activeSkill 'scripts/test_review_contracts.py')
 ```
 
 Expected: 17 changed, added, removed, or generated paths; neither installed copy changes.
@@ -649,10 +650,10 @@ hardware evidence.
 - [ ] **Step 2: Run fresh dual-version verification**
 
 ```powershell
-D:/Python/Python311/python.exe -m compileall -q scripts tests skills/robotics-design/scripts
-D:/Python/Python311/python.exe -m unittest discover -s tests -v
-D:/Python/Python311/python.exe scripts/validate.py
-C:/Users/holdo/AppData/Roaming/uv/python/cpython-3.12.12-windows-x86_64-none/python.exe -m unittest discover -s tests -v
+py -3.11 -m compileall -q scripts tests skills/robotics-design/scripts
+py -3.11 -m unittest discover -s tests -v
+py -3.11 scripts/validate.py
+py -V:Astral/CPython3.12.12 -m unittest discover -s tests -v
 git diff --check v0.2.0..HEAD
 ```
 
