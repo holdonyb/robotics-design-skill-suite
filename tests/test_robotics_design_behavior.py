@@ -10,6 +10,9 @@ VISUALIZATION_CONTRACT = (
 MISSION_CONTRACT = (
     ROOT / "skills" / "robotics-design" / "references" / "mission-animation-contract.md"
 )
+PATENT_CONTRACT = (
+    ROOT / "skills" / "robotics-design" / "references" / "patent-design-around.md"
+)
 
 
 class RoboticsDesignBehaviorTests(unittest.TestCase):
@@ -62,6 +65,26 @@ class RoboticsDesignBehaviorTests(unittest.TestCase):
         self.assertIn("One versioned trajectory owns robot pose over time", text)
         self.assertIn("contact state", text.lower())
         self.assertIn("J4", text)
+
+    def test_patent_requests_route_through_research_and_design_contract(self):
+        text = SKILL.read_text(encoding="utf-8")
+        self.assertIn("references/patent-design-around.md", text)
+        self.assertIn("$deep-research", text)
+        self.assertIn("Patent study, competitor-inspired design", text)
+
+    def test_patent_contract_requires_claim_controls_and_legal_boundary(self):
+        self.assertTrue(PATENT_CONTRACT.is_file())
+        text = PATENT_CONTRACT.read_text(encoding="utf-8")
+        for required in (
+            "claim chart",
+            "equivalents",
+            "official register",
+            "positive design requirements",
+            "drift tests",
+            "qualified counsel",
+        ):
+            self.assertIn(required, text.lower())
+        self.assertIn("FTO", text)
 
 
 if __name__ == "__main__":

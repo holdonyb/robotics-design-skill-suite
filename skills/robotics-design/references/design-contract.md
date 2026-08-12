@@ -47,3 +47,7 @@ Before generating a robot image, record the authoritative model and pose, requir
 ## Mission animation invariant record
 
 Before rendering robot task motion, record the authoritative model, immutable trajectory and physics/contact trace; canonical joint order; required moving joints; task phases and guards; contact states; load-case IDs; position, velocity, acceleration, jerk and torque limits; collision and clearance checks; source hashes; independent reviewer; and promotion state. The renderer samples the accepted trajectory and never owns robot joint motion.
+
+## Patent-aware architecture constraints
+
+When patent or competitor evidence affects the design, record the reviewed publication and family/status sources, claim-chart revision, literal and equivalents risks, selected distinguishing principles, positive design requirements, prohibited combinations, owned artifacts, drift tests, review territory, and qualified-counsel questions. A design change that touches one of these constraints reopens the claim chart and its dependent gates.

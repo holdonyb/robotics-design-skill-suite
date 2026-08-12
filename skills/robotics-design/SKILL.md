@@ -1,6 +1,6 @@
 ---
 name: robotics-design
-description: Use when designing or changing robot systems, mobile robots, manipulators, robot mechanisms, mission animation, product or task renders, CAD or STEP geometry, URDF or xacro, SDF, SRDF, ROS 2, Gazebo, kinematics, dynamics, sensors, actuators, controls, simulation, commissioning, or robot work spanning multiple engineering layers.
+description: Use when designing or changing robot systems, mobile robots, manipulators, robot mechanisms, mission animation, patent-aware architecture, product or task renders, CAD or STEP geometry, URDF or xacro, SDF, SRDF, ROS 2, Gazebo, kinematics, dynamics, sensors, actuators, controls, simulation, commissioning, or robot work spanning multiple engineering layers.
 ---
 
 # Robotics Design
@@ -15,9 +15,10 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 2. Read `references/design-contract.md`; establish requirements, assumptions, quantity ownership, and acceptance evidence before interface-driving geometry or code.
 3. For any generated product, task, concept, or marketing image of the robot, read `references/visualization-contract.md` before creating references or prompts.
 4. For a task, product, or demonstration animation, read `references/mission-animation-contract.md` before creating trajectories, keyframes, renders, or video.
-5. Load each required sub-skill from the router before editing its artifact.
-6. Run the relevant gates in `references/validation-gates.md`.
-7. Use `references/authority-map.md` for method selection, `references/runtime.md` for environment setup, and `references/source-lock.md` for supply-chain review.
+5. For patent study, design-around, freedom-to-operate screening, or competitor-inspired mechanisms, read `references/patent-design-around.md` before freezing topology or interfaces.
+6. Load each required sub-skill from the router before editing its artifact.
+7. Run the relevant gates in `references/validation-gates.md`.
+8. Use `references/authority-map.md` for method selection, `references/runtime.md` for environment setup, and `references/source-lock.md` for supply-chain review.
 
 ## Capability Router
 
@@ -30,6 +31,7 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 | Visual review of STEP, URDF, SDF, SRDF, DXF, GLB, STL, 3MF | `$cad-viewer` | Return review evidence or report viewer failure. |
 | Photorealistic, product, task, concept, or marketing robot renders | Deterministic CAD/URDF/SDF owner, then `$imagegen` when available | The deterministic model owns topology and pose; image generation may change appearance and environment only. |
 | Mission, operation, assembly, docking, crawling, driving, or manipulation animation | Deterministic robot model and trajectory owner; `$sdf`/`$ros2-sim` when physics is claimed | One trajectory and contact-state trace must drive every robot frame; validate `scripts/validate_mission_animation_manifest.py` before promotion. |
+| Patent study, competitor-inspired design, design-around, or FTO screening | `$deep-research`, then `$robotics-design` | Map live claim elements to explicit architecture constraints; preserve official sources and the qualified-counsel boundary. |
 | Links, joints, frames, limits, inertials, meshes, xacro/URDF | `$urdf` | URDF owns physical robot structure. |
 | Gazebo/libsdformat models, worlds, sensors, plugins, physics | `$sdf` | SDF owns simulation and world semantics. |
 | MoveIt groups, end effectors, semantic poses, collision exclusions | `$srdf` | Start from the exact valid URDF; SRDF owns planning semantics. |
@@ -60,9 +62,10 @@ If a required sub-skill is unavailable, name the missing capability and continue
 - Never ask a generative model to articulate, repose, unfold, or reconfigure a robot. Change the pose in CAD, URDF, SDF, or an equivalent deterministic source and render a new reference.
 - Never promote a generated robot image unless its required and observed joint/interface landmark sets match exactly and its visual manifest passes. A disclaimer does not make a structurally wrong robot image acceptable.
 - Never keyframe robot joint poses by hand for mission evidence. Camera and lighting may be authored separately, but robot transforms must come from the accepted trajectory and contact-state trace.
+- Never claim that a cosmetic change, renamed joint, reordered drawing, or single omitted feature avoids a patent. Record claim elements, equivalents risk, status uncertainty, and architecture constraints; reserve FTO conclusions for qualified counsel.
 - Before real robot motion, require explicit authorization, a bounded test area, reachable emergency stop, power/torque/speed limits, observer roles, command timeout, and staged commissioning. Simulation never authorizes hardware motion.
 - Preserve failed reports and traces. An unresolved failed gate is an open risk.
 
 ## Completion Contract
 
-Report artifacts and owners, assumptions, exact validation evidence, drift checks, skipped gates, remaining risks, visual manifest status when renders are included, mission-animation manifest status and trajectory identity when motion is included, and the boundary between generated, parsed, consumer-loaded, simulated, bench-measured, field-verified, and certified claims.
+Report artifacts and owners, assumptions, exact validation evidence, drift checks, skipped gates, remaining risks, visual manifest status when renders are included, mission-animation manifest status and trajectory identity when motion is included, patent claim-map status and legal-review boundary when patent constraints affected architecture, and the boundary between generated, parsed, consumer-loaded, simulated, bench-measured, field-verified, and certified claims.

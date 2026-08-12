@@ -8,7 +8,8 @@ Use these as method references, not substitutes for project evidence. Verify cur
 - [Gemini Robotics SDK](https://github.com/google-deepmind/gemini-robotics-sdk) — current DeepMind robotics SDK integration patterns; verify supported hardware and APIs.
 - [NVIDIA Agent Skills](https://github.com/NVIDIA/skills) — staged physical-AI skill packaging and validation structure.
 - [NVIDIA ASPIRE](https://research.nvidia.com/labs/gear/aspire/) — trace-diagnose-repair-rerun-promote feedback pattern.
+- Official patent offices and registers — authoritative publications, claims, families, prosecution records, and legal status for patent-aware architecture work; aggregators are discovery aids only.
 
-Prefer project measurements and exact vendor data, then exact-version official documentation, then institution-maintained methods/models, then installed community workflow guidance, and model memory only as a labeled hypothesis.
+Prefer project measurements and exact vendor data, then exact-version official documentation and official patent records, then institution-maintained methods/models, then installed community workflow guidance, and model memory only as a labeled hypothesis.
 
 NVIDIA `omniverse-cad-to-simready` is deliberately not a default dependency. Re-evaluate its current official benchmark, runtime requirements, and live-agent evidence before adding it.

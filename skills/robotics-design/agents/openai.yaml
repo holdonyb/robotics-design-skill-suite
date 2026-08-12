@@ -1,4 +1,4 @@
 interface:
   display_name: "Robotics Design"
-  short_description: "Design and validate robots without visual topology drift"
-  default_prompt: "Use $robotics-design to design and validate this robot system end to end, preserving authoritative topology and pose in every generated render."
+  short_description: "Design and validate evidence-gated robot systems"
+  default_prompt: "Use $robotics-design to design and validate this robot system end to end, preserving authoritative artifacts, traceable mission motion, patent-aware constraints, and bounded engineering claims."
