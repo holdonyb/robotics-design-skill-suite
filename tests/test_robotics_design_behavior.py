@@ -7,6 +7,9 @@ SKILL = ROOT / "skills" / "robotics-design" / "SKILL.md"
 VISUALIZATION_CONTRACT = (
     ROOT / "skills" / "robotics-design" / "references" / "visualization-contract.md"
 )
+MISSION_CONTRACT = (
+    ROOT / "skills" / "robotics-design" / "references" / "mission-animation-contract.md"
+)
 
 
 class RoboticsDesignBehaviorTests(unittest.TestCase):
@@ -45,6 +48,20 @@ class RoboticsDesignBehaviorTests(unittest.TestCase):
             "`review`",
         ):
             self.assertIn(field, text)
+
+    def test_mission_animation_routes_to_traceable_motion_contract(self):
+        text = SKILL.read_text(encoding="utf-8")
+        self.assertIn("references/mission-animation-contract.md", text)
+        self.assertIn("validate_mission_animation_manifest.py", text)
+        self.assertIn("Mission, operation, assembly, docking", text)
+
+    def test_mission_contract_forbids_hand_authored_robot_joint_motion(self):
+        self.assertTrue(MISSION_CONTRACT.is_file())
+        text = MISSION_CONTRACT.read_text(encoding="utf-8")
+        self.assertIn("Never keyframe robot joint poses by hand", text)
+        self.assertIn("One versioned trajectory owns robot pose over time", text)
+        self.assertIn("contact state", text.lower())
+        self.assertIn("J4", text)
 
 
 if __name__ == "__main__":

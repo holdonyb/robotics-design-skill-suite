@@ -13,6 +13,7 @@ Record tool versions and distinguish PASS, FAIL, WARN, and NOT RUN.
 | ROS 2 | Build/lint, interface/parameter validation | Lifecycle, QoS, timing, bag regression, fault injection |
 | Integration | Repeatable launch, model/TF/controllers/bridges/topics visible | Scenario matrix, randomized starts, timeout/dropout/contact tests |
 | Generated visualization | Exact deterministic target-pose references, source hashes, visible joint/interface landmarks, appearance-only changes | Independent side-by-side landmark review and valid promoted visual manifest |
+| Mission animation | Versioned trajectory/contact trace, hashes, phase/load-case manifest, exact required moving joints | Numeric render-to-trajectory comparison, contact/load trace review, valid promoted mission manifest |
 | Hardware | Current-limited power-up, E-stop/STO, timeout checks | Incremental commissioning, calibration, thermal/current logs |
 | Field | Controlled acceptance tied to requirements | Payload/endurance/stability/braking/coverage and safety validation |
 
@@ -24,6 +25,7 @@ Record tool versions and distinguish PASS, FAIL, WARN, and NOT RUN.
 - sensor topic/frame/rate/noise contracts agree across model, bridge, ROS config, and consumers;
 - controller command/state interfaces agree with description and hardware;
 - generated robot images preserve deterministic topology, pose, joint count/axes, interfaces, and link proportions; required and observed landmark sets match exactly;
+- mission animation frames sample the accepted trajectory exactly; phase contacts, required moving joints, load cases, and violation counts agree with the physics trace;
 - safety and fault states exist in architecture, simulation, configuration, and commissioning procedures.
 
 ## Evidence ladder
@@ -40,3 +42,5 @@ Record tool versions and distinguish PASS, FAIL, WARN, and NOT RUN.
 A higher-level claim requires its own evidence.
 
 A plausible image is level 1 evidence at most until its deterministic sources, hashes, landmark review, and promotion manifest pass. Visual review does not replace kinematic, structural, thermal, electrical, manufacturing, or hardware evidence.
+
+An animation is level 1 evidence until its source trajectory, physics/contact trace, hashes, phase invariants, numeric render comparison, and promotion manifest pass. Even a promoted simulation animation does not establish hardware performance.
