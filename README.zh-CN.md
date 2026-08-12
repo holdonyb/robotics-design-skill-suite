@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-一套面向 Codex 的证据门控机器人设计 skill suite，覆盖系统需求、CAD、标准件、DXF、URDF、SDF、SRDF、ROS 2 工程、Gazebo 仿真、结构保真的产品效果图、可视化审查和验证闭环。
+一套面向 Codex 的证据门控机器人设计 skill suite，覆盖系统需求、CAD、标准件、DXF、URDF、SDF、SRDF、ROS 2 工程、Gazebo 仿真、结构保真的产品效果图、可追溯任务动画、专利感知架构、可视化审查和验证闭环。
 
 本仓库采用薄封装：只维护原创的总路由、验证合同和安装器；第三方 skills 根据 [`manifest.json`](manifest.json) 中的完整 commit 固定版本下载，不把上游源码整包复制进仓库。
 
@@ -32,6 +32,14 @@ python scripts/install.py
 python scripts/install.py --dest /path/to/codex/skills
 ```
 
+如需记录某台机器的专用 Python 运行时，可传入已有解释器，让安装器生成 host overlay，而不把本机路径写进公共源码：
+
+```bash
+python scripts/install.py --host-runtime-python /path/to/python3.12
+```
+
+它只会在暂存安装中生成 `references/host-runtime.md`；仓库中的 runtime 与 source lock 仍保持可移植。
+
 安装器不会覆盖已有 skill 目录。请先审查或移动旧版本。安装后新建一个 Codex 任务，让 skill 自动发现刷新。
 
 ## 使用
@@ -59,6 +67,22 @@ python skills/robotics-design/scripts/validate_visual_manifest.py path/to/visual
 
 完整规则见 [`visualization-contract.md`](skills/robotics-design/references/visualization-contract.md)。画面看起来合理或附带免责声明，都不能证明拓扑、轴线、接口和姿态正确。
 
+## 可追溯任务动画
+
+任务动画由一个确定性模型、一条验收后的轨迹和一份物理/接触状态 trace 共同驱动。用于工程证据的机器人关节运动不能手工打关键帧。每个可发布动画都要记录源文件哈希、规范关节顺序、必须运动的关节、任务阶段、接触状态、载荷工况、违规计数和独立审查证据。
+
+```bash
+python skills/robotics-design/scripts/validate_mission_animation_manifest.py path/to/mission_manifest.json
+```
+
+完整约束见 [`mission-animation-contract.md`](skills/robotics-design/references/mission-animation-contract.md)。视频成功渲染只证明帧存在，不能单独证明动力学、接触真实性、可控性或硬件性能。
+
+## 专利感知架构
+
+专利研究和竞品启发设计必须先经过来源研究与逐要素 claim chart，再冻结架构。选中的差异原则会转成正向设计要求、禁止组合、责任工件和漂移测试。这是工程设计规避筛查，不是法律意见或 FTO 结论；法律结论仍由具备资质的律师负责。
+
+证据层级、claim chart、审查包和法律边界见 [`patent-design-around.md`](skills/robotics-design/references/patent-design-around.md)。
+
 ## 可选 CAD 运行时
 
 安装 skill 不会修改 Python 环境。CAD 生成建议使用隔离的 Python 3.12+；DXF 还需要 `ezdxf`。
@@ -79,11 +103,11 @@ python scripts/validate.py
 python scripts/install.py --dry-run
 ```
 
-测试覆盖清单完整性、固定 commit、确定性安装计划、离线 fixture 安装、许可证保留、Codex frontmatter 规范化、拒绝覆盖、ZIP 路径穿越保护、公开内容卫生、机器人效果图行为、源文件哈希、允许的外观变化，以及关节/接口标志点的严格晋级门禁。
+测试覆盖清单完整性、固定 commit、事务式安装、host overlay、bytecode 排除、许可证保留、Codex frontmatter 规范化、拒绝覆盖、ZIP 路径穿越保护、公开内容卫生、视觉源文件哈希与 landmark 门禁、任务轨迹/接触 trace，以及专利感知路由边界。
 
 ## 能力边界
 
-这套 suite 改善工程工作流，但不会认证机器人。生成或仿真的工件不能证明负载、稳定性、制动距离、续航、现场可靠性、人机共融安全或法规合规。真实机器人运动必须具备明确授权、受控测试区、可触达急停、功率/力矩/速度限制、命令超时和分阶段调试。
+这套 suite 改善工程工作流，但不会认证机器人，也不提供法律意见。生成或仿真的工件不能证明负载、稳定性、制动距离、续航、现场可靠性、人机共融安全或法规合规；专利感知约束也不能证明不侵权或已完成 FTO。真实机器人运动必须具备明确授权、受控测试区、可触达急停、功率/力矩/速度限制、命令超时和分阶段调试。
 
 ROS 2 实时仿真需要安装 ROS 2 Jazzy 与 Gazebo Harmonic 的 Linux 环境。承诺仿真结果前必须运行已安装的 `ros2-sim/scripts/env_check.sh`。
 

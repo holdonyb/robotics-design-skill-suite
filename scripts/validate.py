@@ -51,6 +51,8 @@ def validate() -> list[str]:
         "runtime.md",
         "source-lock.md",
         "visualization-contract.md",
+        "mission-animation-contract.md",
+        "patent-design-around.md",
     }
     actual_refs = {path.name for path in (router / "references").glob("*.md")}
     missing_refs = required_refs - actual_refs
@@ -74,6 +76,20 @@ def validate() -> list[str]:
     visual_validator = router / "scripts" / "validate_visual_manifest.py"
     if not visual_validator.is_file():
         errors.append("robotics-design visual manifest validator is missing")
+    mission_validator = router / "scripts" / "validate_mission_animation_manifest.py"
+    if not mission_validator.is_file():
+        errors.append("robotics-design mission animation validator is missing")
+    required_workflow_clauses = {
+        "references/mission-animation-contract.md",
+        "references/patent-design-around.md",
+        "Never keyframe robot joint poses by hand",
+        "qualified counsel",
+    }
+    missing_workflows = sorted(
+        clause for clause in required_workflow_clauses if clause not in skill_text
+    )
+    if missing_workflows:
+        errors.append("robotics-design workflow gates missing: " + ", ".join(missing_workflows))
     return errors
 
 
