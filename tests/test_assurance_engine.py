@@ -79,6 +79,58 @@ class AssuranceEngineTests(unittest.TestCase):
         self.assertFalse(report.promotable)
         self.assertTrue(any(item.code == "PHY.PLUGIN.UNKNOWN" for item in report.diagnostics))
 
+    def test_nested_arm_inputs_resolve_owned_quantities(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            contract, _ = write_fixture(root)
+            data = json.loads(contract.read_text(encoding="utf-8"))
+            for quantity_id, dimension, value, unit in (
+                ("Q-LEVER", "length", 0.5, "m"),
+                ("Q-RATING", "torque", 100.0, "N*m"),
+                ("Q-BRAKE", "torque", 100.0, "N*m"),
+                ("Q-SF", "dimensionless", 1.5, "1"),
+            ):
+                data["quantities"].append(
+                    {
+                        "id": quantity_id,
+                        "dimension": dimension,
+                        "value": {"value": value, "unit": unit},
+                        "owner": "artifact:robot-model",
+                        "source": "evidence:EV-URDF",
+                        "evidence_level": "assumed",
+                    }
+                )
+            data["analyses"] = [
+                {
+                    "id": "AN-ARM",
+                    "plugin": "arm_gravity_v1",
+                    "inputs": {
+                        "joints": [
+                            {
+                                "id": "joint_2",
+                                "loads": [
+                                    {
+                                        "mass_kg": "quantity:Q-PAYLOAD",
+                                        "horizontal_lever_m": "quantity:Q-LEVER",
+                                    }
+                                ],
+                                "rated_continuous_torque_nm": "quantity:Q-RATING",
+                                "brake_holding_torque_nm": "quantity:Q-BRAKE",
+                                "safety_factor": "quantity:Q-SF",
+                            }
+                        ]
+                    },
+                }
+            ]
+            contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            report, errors = evaluate_contract(contract)
+        self.assertEqual(errors, [])
+        self.assertTrue(report.promotable)
+        self.assertGreater(
+            report.analyses[0]["outputs"]["joints"][0]["gravity_torque_nm"],
+            0.0,
+        )
+
     def test_schema_errors_do_not_create_a_physical_report(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             contract = Path(temp_dir) / "bad.json"

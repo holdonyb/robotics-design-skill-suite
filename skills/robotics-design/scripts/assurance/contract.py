@@ -154,6 +154,33 @@ def _file_record(value: Any, path: str, errors: list[str]) -> None:
         errors.append(f"{path}.sha256 must be a lowercase SHA-256 digest")
 
 
+def _validate_analysis_input(
+    value: Any, path: str, quantity_ids: set[str], errors: list[str]
+) -> None:
+    if isinstance(value, str):
+        if not value.strip():
+            errors.append(f"{path} must not be an empty string")
+        elif value.startswith("quantity:") and value[9:] not in quantity_ids:
+            errors.append(f"{path} references unknown quantity: {value}")
+        return
+    if isinstance(value, dict):
+        for key, child in sorted(value.items()):
+            if not _nonempty(key):
+                errors.append(f"{path} object keys must be non-empty strings")
+            else:
+                _validate_analysis_input(child, f"{path}.{key}", quantity_ids, errors)
+        return
+    if isinstance(value, list):
+        if not value:
+            errors.append(f"{path} list must not be empty")
+        for index, child in enumerate(value):
+            _validate_analysis_input(child, f"{path}[{index}]", quantity_ids, errors)
+        return
+    errors.append(
+        f"{path} must use quantity references for physical values; bare literals are forbidden"
+    )
+
+
 def validate_contract(data: Any) -> list[str]:
     """Return sorted actionable errors for schema v1; empty means valid."""
 
@@ -299,13 +326,14 @@ def validate_contract(data: Any) -> list[str]:
             errors.append(f"analyses[{index}].inputs must be an object")
             continue
         for name, reference in sorted(inputs.items()):
-            if not _nonempty(name) or not _nonempty(reference):
-                errors.append(
-                    f"analyses[{index}].inputs must map non-empty names to references"
-                )
-            elif reference.startswith("quantity:") and reference[9:] not in quantity_ids:
-                errors.append(
-                    f"analyses[{index}].inputs.{name} references unknown quantity: {reference}"
+            if not _nonempty(name):
+                errors.append(f"analyses[{index}].inputs keys must be non-empty strings")
+            else:
+                _validate_analysis_input(
+                    reference,
+                    f"analyses[{index}].inputs.{name}",
+                    quantity_ids,
+                    errors,
                 )
 
     known_supports = {f"quantity:{item_id}" for item_id in quantity_ids}

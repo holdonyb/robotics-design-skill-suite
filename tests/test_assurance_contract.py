@@ -145,6 +145,23 @@ class AssuranceContractTests(unittest.TestCase):
         )
         self.assertEqual(validate_contract(data), [])
 
+    def test_analysis_inputs_may_nest_quantity_references(self):
+        data = valid_contract()
+        data["analyses"][0]["inputs"] = {
+            "joints": [
+                {
+                    "id": "joint_2",
+                    "loads": [
+                        {
+                            "mass_kg": "quantity:Q-PAYLOAD",
+                            "horizontal_lever_m": "quantity:Q-PAYLOAD",
+                        }
+                    ],
+                }
+            ]
+        }
+        self.assertEqual(validate_contract(data), [])
+
     def test_load_errors_are_actionable_without_traceback(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "contract.json"

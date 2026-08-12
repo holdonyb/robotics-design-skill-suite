@@ -102,7 +102,8 @@ def _resolved_analysis_inputs(
     inputs = analysis.get("inputs", {})
     if not isinstance(inputs, dict):
         return resolved
-    for name, reference in sorted(inputs.items()):
+
+    def resolve(reference: Any, path: str) -> Any:
         if isinstance(reference, str) and reference.startswith("quantity:"):
             quantity_id = reference[9:]
             quantity = quantities.get(quantity_id)
@@ -111,13 +112,13 @@ def _resolved_analysis_inputs(
                     Diagnostic(
                         "PHY.INPUT.REFERENCE",
                         "indeterminate",
-                        f"analyses.{analysis.get('id')}.inputs.{name}",
+                        path,
                         f"unknown quantity reference: {reference}",
                     )
                 )
-                continue
+                return None
             try:
-                resolved[name] = to_si(
+                return to_si(
                     quantity.get("value"),
                     quantity.get("dimension"),
                     f"quantity:{quantity_id}",
@@ -127,17 +128,41 @@ def _resolved_analysis_inputs(
                     Diagnostic(
                         "PHY.INPUT.REFERENCE",
                         "error",
-                        f"analyses.{analysis.get('id')}.inputs.{name}",
+                        path,
                         str(exc),
                     )
                 )
+                return None
+        if isinstance(reference, str):
+            return reference
+        if isinstance(reference, list):
+            return [resolve(item, f"{path}[{index}]") for index, item in enumerate(reference)]
+        if isinstance(reference, dict):
+            return {
+                key: resolve(value, f"{path}.{key}")
+                for key, value in sorted(reference.items())
+            }
+        report.add(
+            Diagnostic(
+                "PHY.INPUT.REFERENCE",
+                "indeterminate",
+                path,
+                f"unsupported analysis input reference: {reference}",
+            )
+        )
+        return None
+
+    for name, reference in sorted(inputs.items()):
+        value = resolve(reference, f"analyses.{analysis.get('id')}.inputs.{name}")
+        if value is not None:
+            resolved[name] = value
         else:
             report.add(
                 Diagnostic(
                     "PHY.INPUT.REFERENCE",
                     "indeterminate",
                     f"analyses.{analysis.get('id')}.inputs.{name}",
-                    f"unsupported analysis input reference: {reference}",
+                    "analysis input could not be resolved",
                 )
             )
     return resolved

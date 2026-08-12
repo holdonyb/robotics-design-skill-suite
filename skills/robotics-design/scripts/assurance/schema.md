@@ -46,8 +46,10 @@ component roles; absence from the schema never means absence from the robot.
 ## Artifacts, analyses, and evidence
 
 An artifact has `id`, `kind`, manifest-relative non-escaping `path`, and
-lowercase SHA-256. An analysis has `id`, plug-in name and an `inputs` object
-whose values are typed references such as `quantity:Q-MASS`.
+lowercase SHA-256. An analysis has `id`, plug-in name and an `inputs` object.
+Inputs may nest objects/lists and non-empty identifiers, but every physical
+number is a typed reference such as `quantity:Q-MASS`; bare numeric literals
+are forbidden.
 
 Evidence has `id`, `level`, a path/SHA-256 `source`, and unique `supports`
 references. `certified` evidence additionally requires a non-empty external
