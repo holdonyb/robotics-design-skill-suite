@@ -28,10 +28,17 @@ _SOURCE_FIELDS = {"path", "sha256"}
 _OUTPUT_FIELDS = {"path", "sha256", "source_sha256", "physical_source_sha256", "contract_source_sha256", "assumptions_source_sha256"}
 _GENERATOR = {"name": "reference-model-generator", "version": "0.5.0"}
 _MAX_MANIFEST_BYTES = 5 * 1024 * 1024
+_MAX_SOURCE_BYTES = 5 * 1024 * 1024
 
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _bounded_bytes(path: Path, label: str) -> bytes:
+    if path.stat().st_size > _MAX_SOURCE_BYTES:
+        raise ValueError(f"{label} exceeds maximum size of 5 MiB")
+    return path.read_bytes()
 
 
 def _safe_path(value: object) -> str | None:
@@ -353,12 +360,13 @@ def validate_artifact_manifest(
     if geometry_path.is_symlink():
         errors.append("geometry source must not be a symlink")
     try:
-        observed_source_sha = _sha256(geometry_path)
+        geometry_bytes = _bounded_bytes(geometry_path, "geometry source")
+        observed_source_sha = hashlib.sha256(geometry_bytes).hexdigest()
         validate_sha256(source.get("sha256"), "geometry_source.sha256")
         if source.get("sha256") != observed_source_sha:
             errors.append("geometry source SHA-256 mismatch")
-        geometry = json.loads(geometry_path.read_text(encoding="utf-8"), object_pairs_hook=_unique_object)
-    except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        geometry = json.loads(geometry_bytes.decode("utf-8"), object_pairs_hook=_unique_object)
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError, TypeError, ValueError) as exc:
         errors.append(f"cannot validate geometry source: {exc}")
         return sorted(set(errors))
     geometry_errors = _geometry_schema_errors(geometry)
@@ -377,12 +385,13 @@ def validate_artifact_manifest(
     if physical_path.is_symlink():
         errors.append("physical source must not be a symlink")
     try:
-        observed_physical_sha = _sha256(physical_path)
+        physical_bytes = _bounded_bytes(physical_path, "physical source")
+        observed_physical_sha = hashlib.sha256(physical_bytes).hexdigest()
         validate_sha256(physical_source.get("sha256"), "physical_source.sha256")
         if physical_source.get("sha256") != observed_physical_sha:
             errors.append("physical source SHA-256 mismatch")
-        physical_root = ET.parse(physical_path).getroot()
-    except (ET.ParseError, OSError, TypeError, ValueError) as exc:
+        physical_root = ET.fromstring(physical_bytes)
+    except (ET.ParseError, OSError, RecursionError, TypeError, ValueError) as exc:
         errors.append(f"cannot validate physical source: {exc}")
         return sorted(set(errors))
 
@@ -397,18 +406,19 @@ def validate_artifact_manifest(
     if contract_path.is_symlink():
         errors.append("contract source must not be a symlink")
     try:
-        observed_contract_sha = _sha256(contract_path)
+        contract_bytes = _bounded_bytes(contract_path, "contract source")
+        observed_contract_sha = hashlib.sha256(contract_bytes).hexdigest()
         validate_sha256(contract_source.get("sha256"), "contract_source.sha256")
         if contract_source.get("sha256") != observed_contract_sha:
             errors.append("contract source SHA-256 mismatch")
-        contract = json.loads(contract_path.read_text(encoding="utf-8"), object_pairs_hook=_unique_object)
+        contract = json.loads(contract_bytes.decode("utf-8"), object_pairs_hook=_unique_object)
         robot_artifacts = [
             item for item in contract.get("artifacts", [])
             if isinstance(item, dict) and item.get("id") == "robot-model"
         ]
         if len(robot_artifacts) != 1 or robot_artifacts[0].get("path") != "robot.urdf" or robot_artifacts[0].get("sha256") != observed_physical_sha:
             errors.append("contract source does not hash-bind physical robot.urdf")
-    except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError, TypeError, ValueError) as exc:
         errors.append(f"cannot validate contract source: {exc}")
         return sorted(set(errors))
 
@@ -423,11 +433,12 @@ def validate_artifact_manifest(
     if assumptions_path.is_symlink():
         errors.append("assumptions source must not be a symlink")
     try:
-        observed_assumptions_sha = _sha256(assumptions_path)
+        assumptions_bytes = _bounded_bytes(assumptions_path, "assumptions source")
+        observed_assumptions_sha = hashlib.sha256(assumptions_bytes).hexdigest()
         validate_sha256(assumptions_source.get("sha256"), "assumptions_source.sha256")
         if assumptions_source.get("sha256") != observed_assumptions_sha:
             errors.append("assumptions source SHA-256 mismatch")
-        assumptions = json.loads(assumptions_path.read_text(encoding="utf-8"), object_pairs_hook=_unique_object)
+        assumptions = json.loads(assumptions_bytes.decode("utf-8"), object_pairs_hook=_unique_object)
         dynamics = assumptions.get("simulation_dynamics", {})
         links = dynamics.get("links", {}) if isinstance(dynamics, dict) else {}
         valid_dynamics = (
@@ -463,7 +474,7 @@ def validate_artifact_manifest(
             or assumption_artifacts[0].get("sha256") != observed_assumptions_sha
         ):
             errors.append("contract source does not hash-bind assumptions registry")
-    except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError, TypeError, ValueError) as exc:
         errors.append(f"cannot validate assumptions source: {exc}")
         return sorted(set(errors))
 
@@ -517,5 +528,8 @@ def validate_artifact_manifest(
     }
     for extra in sorted(actual - declared):
         errors.append(f"extra file not declared by artifact manifest: {extra}")
-    errors.extend(_semantic_errors(base, geometry, physical_root, assumptions))
+    try:
+        errors.extend(_semantic_errors(base, geometry, physical_root, assumptions))
+    except RecursionError:
+        errors.append("artifact semantic validation exceeded maximum nesting depth")
     return sorted(set(errors))

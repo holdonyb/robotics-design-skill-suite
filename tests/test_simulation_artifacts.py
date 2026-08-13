@@ -244,6 +244,21 @@ class SimulationArtifactTests(unittest.TestCase):
             path.write_bytes(canonical_bytes(manifest))
             self.assertTrue(any("external receipt" in item for item in self.validate(root)))
 
+    def test_deep_geometry_is_actionable_without_recursion_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "bundle"
+            self.generate(root)
+            geometry = root / "model" / "geometry.json"
+            geometry.write_text("{\"x\":" * 3000 + "0" + "}" * 3000, encoding="utf-8", newline="\n")
+            manifest = self.manifest(root)
+            manifest["geometry_source"]["sha256"] = sha256(geometry)
+            for output in manifest["outputs"]:
+                output["source_sha256"] = sha256(geometry)
+            manifest_path = root / "simulation" / "artifact-manifest.json"
+            manifest_path.write_bytes(canonical_bytes(manifest))
+            errors = self.validate(root, accept_current_manifest=True)
+            self.assertTrue(any("geometry source" in item for item in errors), errors)
+
     def test_rehashed_urdf_joint_transmission_collision_and_mass_drift_are_rejected(self):
         def wrong_axis(root):
             root.find("joint[@name='joint_2']/axis").set("xyz", "0 -1 0")
