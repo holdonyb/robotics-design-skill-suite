@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "0b5cef1926561c4acab482bcf7e54af0cbdd97e373616a00c278f8c84e923f26"
+ROS_MANIFEST_RECEIPT = "258a39cc16c81d535798ba0f244a398faf5e1c74428a25db00c9d2194828217d"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -120,7 +120,7 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         root = ET.fromstring(body)
         self.assertEqual("reference_mobile_manipulator", root.get("name"))
         self.assertIn('xacro:arg name="use_sim" default="true"', body)
-        self.assertIn('<xacro:if value="$(arg use_sim)">', body)
+        self.assertIn('<xacro:if value="${\'$(arg use_sim)\' == \'true\'}">', body)
         self.assertIn("gz_ros2_control/GazeboSimSystem", body)
         self.assertIn('filename="libgz_ros2_control-system.so"', body)
         self.assertIn('sensor name="navigation_lidar" type="gpu_lidar"', body)
