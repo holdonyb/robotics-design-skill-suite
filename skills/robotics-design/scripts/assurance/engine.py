@@ -768,7 +768,22 @@ def evaluate_contract(path: Path) -> tuple[Report | None, list[str]]:
         analysis_record["analysis_id"] = str(analysis.get("id"))
         report.analyses.append(analysis_record)
         for diagnostic in result.diagnostics:
-            report.add(diagnostic)
+            path = diagnostic.path
+            if diagnostic.code == "PHY.DRIVE.PEAK_TORQUE":
+                reference = analysis.get("inputs", {}).get(
+                    "motor_peak_torque_nm"
+                )
+                if isinstance(reference, str) and reference.startswith("quantity:"):
+                    path = reference
+            report.add(
+                Diagnostic(
+                    diagnostic.code,
+                    diagnostic.severity,
+                    path,
+                    diagnostic.message,
+                    diagnostic.evidence_ids,
+                )
+            )
 
     return report, []
 

@@ -1,3 +1,6 @@
+import contextlib
+import http.client
+import io
 import json
 import subprocess
 import sys
@@ -5,6 +8,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,6 +86,96 @@ class InstallerTests(unittest.TestCase):
                 (dest / "robotics-design" / "references" / "host-runtime.md").exists()
             )
             self.assertFalse((dest / "robotics-design" / "scripts" / "__pycache__").exists())
+
+    def test_archive_download_retries_incomplete_response_without_partial_file(self):
+        from scripts.install import download_archive
+
+        source = {
+            "id": "source",
+            "repo": "example/source",
+            "commit": "a" * 40,
+        }
+        with tempfile.TemporaryDirectory() as raw:
+            destination = Path(raw)
+            valid = io.BytesIO()
+            with zipfile.ZipFile(valid, "w") as handle:
+                handle.writestr("source/LICENSE", "license")
+            valid_bytes = valid.getvalue()
+            responses = [
+                http.client.IncompleteRead(b"partial", 7),
+                io.BytesIO(valid_bytes),
+            ]
+            with mock.patch(
+                "scripts.install.urllib.request.urlopen", side_effect=responses
+            ) as opened:
+                archive = download_archive(source, destination)
+
+            self.assertEqual(2, opened.call_count)
+            self.assertEqual(valid_bytes, archive.read_bytes())
+            self.assertFalse((destination / "source.zip.part").exists())
+
+    def test_archive_download_exhaustion_is_actionable_and_leaves_no_partial(self):
+        from scripts.install import download_archive
+
+        source = {
+            "id": "source",
+            "repo": "example/source",
+            "commit": "a" * 40,
+        }
+        with tempfile.TemporaryDirectory() as raw:
+            destination = Path(raw)
+            failure = http.client.IncompleteRead(b"partial", 7)
+            with mock.patch(
+                "scripts.install.urllib.request.urlopen", side_effect=[failure] * 3
+            ):
+                with self.assertRaisesRegex(
+                    RuntimeError, "cannot download pinned source source after 3 attempts"
+                ):
+                    download_archive(source, destination)
+
+            self.assertFalse((destination / "source.zip").exists())
+            self.assertFalse((destination / "source.zip.part").exists())
+
+    def test_archive_download_retries_malformed_zip_before_returning(self):
+        from scripts.install import download_archive
+
+        source = {
+            "id": "source",
+            "repo": "example/source",
+            "commit": "a" * 40,
+        }
+        valid = io.BytesIO()
+        with zipfile.ZipFile(valid, "w") as handle:
+            handle.writestr("source/LICENSE", "license")
+        valid.seek(0)
+        with tempfile.TemporaryDirectory() as raw:
+            destination = Path(raw)
+            with mock.patch(
+                "scripts.install.urllib.request.urlopen",
+                side_effect=[io.BytesIO(b"not a zip"), valid],
+            ) as opened:
+                archive = download_archive(source, destination)
+
+            self.assertEqual(2, opened.call_count)
+            with zipfile.ZipFile(archive) as handle:
+                self.assertEqual(None, handle.testzip())
+            self.assertFalse((destination / "source.zip.part").exists())
+
+    def test_cli_reports_exhausted_download_without_traceback(self):
+        from scripts.install import main
+
+        stderr = io.StringIO()
+        with mock.patch(
+            "scripts.install.install_from_manifest",
+            side_effect=RuntimeError("cannot download pinned source source after 3 attempts"),
+        ), mock.patch(
+            "sys.argv", ["install.py", "--dest", "unused"]
+        ), contextlib.redirect_stderr(stderr):
+            returncode = main()
+
+        self.assertEqual(1, returncode)
+        self.assertIn("cannot download pinned source source after 3 attempts", stderr.getvalue())
+        self.assertNotIn("Traceback", stderr.getvalue())
 
     def test_generates_host_runtime_overlay_when_requested(self):
         from scripts.install import install_from_manifest

@@ -83,6 +83,27 @@ purchasing recommendation. It intentionally remains unpromoted until exact
 parts and stronger evidence replace every claim-driving placeholder. See the
 full [`physical-plausibility-contract.md`](skills/robotics-design/references/physical-plausibility-contract.md).
 
+## Bounded design hypotheses
+
+Version 0.4 adds deterministic finite design spaces, hard uncertainty and
+counterexample search, visible Pareto fronts, owner-correct repair lineage, and
+transactional evidence bundles. Every canonical resolved candidate runs through
+the v0.3 contract and physical gate; content aliases share that exact evidence.
+Candidate and stage budgets are hard limits.
+
+```bash
+python skills/robotics-design/scripts/generate_design_hypotheses.py reference/mobile-manipulator/hypothesis-space.json --out ../v040-reference --seed 20260813
+```
+
+Exit `0` means at least one candidate is accepted, `1` means the bounded run
+completed with none accepted, and `2` means invalid input or a fail-closed
+execution/publication error. Preserve the printed `manifest_sha256` outside the
+bundle. `pareto.json` is promotion-scoped; `screening-pareto.json` is an
+explicitly non-promoting comparison for analytically passing placeholder-only
+candidates. This calculated evidence does not prove simulation or hardware performance.
+See [`hypothesis-engine-contract.md`](skills/robotics-design/references/hypothesis-engine-contract.md)
+and the public [`hypothesis benchmark`](reference/mobile-manipulator/hypothesis-benchmark.md).
+
 ## Structure-preserving robot renders
 
 Version 0.2.0 prevents image generation from silently changing a robot's mechanism. CAD, URDF, SDF, or an equivalent deterministic model must own topology and pose. A generated image may change materials, surface finish, color, lighting, background, and non-contact environment context only.
@@ -131,7 +152,7 @@ python scripts/validate.py
 python scripts/install.py --dry-run
 ```
 
-Tests cover manifest integrity, pinned commits, transactional installation, host overlays, bytecode exclusion, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, public-data hygiene, physical contract/schema/units/evidence/component bindings, deterministic analysis reports, URDF drift, 32 critical physical faults, visual source hashes and landmark promotion, mission trajectory/contact traceability, and patent-aware routing boundaries.
+Tests cover manifest integrity, pinned commits, transactional installation, host overlays, bytecode exclusion, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, public-data hygiene, physical contract/schema/units/evidence/component bindings, deterministic analysis reports, bounded hypotheses, uncertainty/counterexamples, Pareto fronts, repair ownership, manifest-bound bundles, the reference benchmark, URDF drift, 32 critical physical faults, visual source hashes and landmark promotion, mission trajectory/contact traceability, and patent-aware routing boundaries.
 
 ## Claim boundary
 

@@ -67,6 +67,25 @@ python skills/robotics-design/scripts/validate_design_contract.py path/to/design
 
 [`reference/mobile-manipulator`](reference/mobile-manipulator) 是“差速底盘 + 六轴机械臂”的回归工装，包含 32 个关键故障变体。其中的组件额定值都是工程假设，不是制造或采购推荐；在精确部件和更强证据替换所有影响结论的占位项之前，它会故意保持不可晋级。完整约束见 [`physical-plausibility-contract.md`](skills/robotics-design/references/physical-plausibility-contract.md)。
 
+## 有边界的设计假设
+
+0.4 版增加确定性的有限设计空间、硬不确定性与反例搜索、可见 Pareto
+front、责任正确的修复 lineage，以及事务式证据包。每个规范解析后的
+候选都必须经过 0.3 的契约与物理门禁；内容 alias 共享同一份证据。候选
+数和阶段执行数是硬预算。
+
+```bash
+python skills/robotics-design/scripts/generate_design_hypotheses.py reference/mobile-manipulator/hypothesis-space.json --out ../v040-reference --seed 20260813
+```
+
+退出码 `0` 表示至少一个候选被接受，`1` 表示有限评估完成但没有候选被
+接受，`2` 表示输入非法或执行/发布安全失败。打印的 `manifest_sha256`
+需要保存在证据包之外。`pareto.json` 面向晋级；`screening-pareto.json`
+只是对“解析分析通过、唯一 blocker 为组件占位”的候选做非晋级比较。
+这些计算证据不能证明仿真或实机性能。完整规则见
+[`hypothesis-engine-contract.md`](skills/robotics-design/references/hypothesis-engine-contract.md)
+与公开的 [`hypothesis benchmark`](reference/mobile-manipulator/hypothesis-benchmark.md)。
+
 ## 结构保真的机器人效果图
 
 0.2.0 版禁止图像生成模型悄悄改写机器人的机构。拓扑与姿态必须由 CAD、URDF、SDF 或等价的确定性模型负责；生成图只允许改变材质、表面处理、颜色、光照、背景和不接触机器人的环境内容。
@@ -115,7 +134,7 @@ python scripts/validate.py
 python scripts/install.py --dry-run
 ```
 
-测试覆盖清单完整性、固定 commit、事务式安装、host overlay、bytecode 排除、许可证保留、Codex frontmatter 规范化、拒绝覆盖、ZIP 路径穿越保护、公开内容卫生、物理契约/单位/证据/逐责任组件绑定、确定性分析报告、URDF 漂移、32 个关键物理故障、视觉源文件哈希与 landmark 门禁、任务轨迹/接触 trace，以及专利感知路由边界。
+测试覆盖清单完整性、固定 commit、事务式安装、host overlay、bytecode 排除、许可证保留、Codex frontmatter 规范化、拒绝覆盖、ZIP 路径穿越保护、公开内容卫生、物理契约/单位/证据/逐责任组件绑定、确定性分析报告、有限假设、不确定性/反例、Pareto front、修复责任、清单绑定证据包、参考 benchmark、URDF 漂移、32 个关键物理故障、视觉源文件哈希与 landmark 门禁、任务轨迹/接触 trace，以及专利感知路由边界。
 
 ## 能力边界
 

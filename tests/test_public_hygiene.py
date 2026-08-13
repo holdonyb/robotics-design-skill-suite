@@ -13,6 +13,8 @@ REQUIRED = {
     "SECURITY.md",
     "CONTRIBUTING.md",
     "manifest.json",
+    "PROJECT_STATUS.md",
+    "docs/releases/v0.4-completion-audit.md",
     "scripts/install.py",
     "scripts/validate.py",
     "skills/robotics-design/SKILL.md",
@@ -20,8 +22,12 @@ REQUIRED = {
     "skills/robotics-design/references/mission-animation-contract.md",
     "skills/robotics-design/references/patent-design-around.md",
     "skills/robotics-design/references/physical-plausibility-contract.md",
+    "skills/robotics-design/references/hypothesis-engine-contract.md",
     "skills/robotics-design/scripts/validate_design_contract.py",
+    "skills/robotics-design/scripts/generate_design_hypotheses.py",
     "reference/mobile-manipulator/design-contract.json",
+    "reference/mobile-manipulator/hypothesis-space.json",
+    "reference/mobile-manipulator/hypothesis-expected.json",
     "reference/mobile-manipulator/robot.urdf",
     "skills/robotics-design/scripts/validate_visual_manifest.py",
     "skills/robotics-design/scripts/validate_mission_animation_manifest.py",
@@ -145,12 +151,75 @@ class PublicHygieneTests(unittest.TestCase):
         self.assertIn("mission-animation", source_lock)
         self.assertIn("patent-aware", source_lock)
 
+    def test_bilingual_docs_expose_hypothesis_quick_start_and_nonclaims(self):
+        english = (ROOT / "README.md").read_text(encoding="utf-8")
+        chinese = (ROOT / "README.zh-CN.md").read_text(encoding="utf-8")
+        command = "generate_design_hypotheses.py"
+        for phrase in (command, "screening-pareto.json", "0.4"):
+            self.assertIn(phrase, english)
+            self.assertIn(phrase, chinese)
+        self.assertIn("does not prove simulation or hardware performance", english)
+        self.assertIn("不能证明仿真或实机性能", chinese)
+
     def test_ci_compiles_local_skill_runtime_before_tests(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         self.assertIn(
             "python -m compileall -q scripts tests skills/robotics-design/scripts",
             ci,
         )
+
+    def test_ci_runs_fresh_install_and_pinned_official_skill_validation(self):
+        ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        for required in (
+            "release-install:",
+            "python scripts/install.py --dest .release-install",
+            "openai/skills/49f948faa9258a0c61caceaf225e179651397431",
+            "PyYAML==6.0.3",
+            "quick_validate.py",
+            "UPSTREAM_LICENSE",
+            "license_path",
+            "raw.githubusercontent.com",
+            "license content mismatch",
+            "__pycache__",
+            "host-runtime.md",
+            "assurance/hypothesis/engine.py",
+            "include-hidden-files: true",
+        ):
+            self.assertIn(required, ci)
+
+    def test_v040_status_and_completion_audit_are_evidence_bounded(self):
+        status = (ROOT / "PROJECT_STATUS.md").read_text(encoding="utf-8")
+        audit = (ROOT / "docs/releases/v0.4-completion-audit.md").read_text(
+            encoding="utf-8"
+        )
+        for phrase in (
+            "6 candidates",
+            "76 stage evaluations",
+            "0 accepted",
+            "v0.5",
+            "simulation",
+            "hardware",
+        ):
+            self.assertIn(phrase, status)
+        for gate in (
+            "Candidates never bypass v0.3 physical gates",
+            "Identical inputs and seeds reproduce",
+            "Injected design flaws are traced",
+            "reference design trade-off is improved",
+            "Uncertainty and counterexample results affect promotion",
+            "Public release",
+        ):
+            self.assertIn(gate, audit)
+        self.assertIn("OPEN", audit)
+        for evidence in (
+            "6881a2c",
+            "31715656399",
+            "31715652132",
+            "10/10 skills",
+            "9/9 per-skill pinned-source license byte matches",
+            "whole-release adversarial review",
+        ):
+            self.assertIn(evidence, status + audit)
 
 
 if __name__ == "__main__":

@@ -48,6 +48,19 @@ Run the physical contract validator before promoting a candidate to simulation
 or training. A failed or indeterminate result reopens dependent geometry,
 component, control, simulation, and procurement decisions.
 
+## Bounded hypothesis exploration
+
+When the request includes multiple concepts, a parameter sweep, optimization,
+robustness, counterexample search, or automatic repair, use
+`hypothesis-engine-contract.md`. The mandatory order is:
+
+`physical contract -> bounded hypothesis search -> simulation`
+
+Each operation changes only an owned semantic target. Retain candidate identity,
+base/source hashes, seed, hard uncertainty result, visible objectives, repair
+lineage, bundle manifest receipt, and every rejected report. A screening Pareto
+front is calculated comparison, not promotion evidence.
+
 ## Interface record
 
 For each mechanical, electrical, data, safety, or software interface, record provider, consumer, datum/frame, connector/API, units, sign, rate, tolerances, limits, version, failure behavior, acceptance evidence, and change owner.
