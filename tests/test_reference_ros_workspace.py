@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "a63f84ed631f9af21c3a9a80d033799b9e04d68d9262733ecb1d85e7341c40c9"
+ROS_MANIFEST_RECEIPT = "003af61a82a71c18bdc73c20105dc7b12d1c880ee309b3d2be1c87eb47740742"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -226,6 +226,7 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
             normalized_xml(ROOT / "reference" / "mobile-manipulator" / "robot.urdf"),
             normalized_xml(moveit / "config" / "reference_mobile_manipulator.urdf"),
         )
+        self.assertFalse((moveit / "config" / "reference_mobile_manipulator.urdf.xacro").exists())
         ompl = text(moveit / "config" / "ompl_planning.yaml")
         # Jazzy scopes planner plugins under the selected `ompl` pipeline and
         # accepts a vector, rather than the retired scalar `planning_plugin`.
