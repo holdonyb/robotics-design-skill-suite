@@ -16,6 +16,7 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn("ros-jazzy", dockerfile)
         self.assertIn("gz-harmonic", dockerfile)
         self.assertIn("build-essential", dockerfile)
+        self.assertIn("ros-jazzy-joint-trajectory-controller", dockerfile)
         self.assertIn('"image_digest"', lock)
         self.assertNotIn(":latest", dockerfile + workflow)
         for token in ("xacro", "colcon test", "gz sim", "ros2_control", "move_group", "nav2", "timeout", "trap", "validate_simulation_bundle.py", "kill -0", "joint_state_broadcaster", "arm_controller", "diff_drive_controller"):
