@@ -17,5 +17,5 @@ def generate_launch_description():
               .joint_limits(file_path="config/joint_limits.yaml")
               .planning_pipelines(pipelines=["ompl"], default_planning_pipeline="ompl")
               .trajectory_execution(file_path="config/moveit_controllers.yaml").to_moveit_configs())
-    config.robot_description = {"robot_description": ParameterValue(Command(["xacro ", str(description_xacro), " use_sim:=false"]), value_type=str)}
+    config.robot_description = {"robot_description": ParameterValue(Command(["xacro ", str(description_xacro), " use_sim:=0"]), value_type=str)}
     return LaunchDescription([DeclareLaunchArgument("use_sim_time", default_value="true"), Node(package="moveit_ros_move_group", executable="move_group", output="screen", parameters=[config.to_dict(), {"use_sim_time": use_sim_time}])])
