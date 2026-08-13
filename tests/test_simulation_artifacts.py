@@ -258,6 +258,7 @@ class SimulationArtifactTests(unittest.TestCase):
             manifest_path.write_bytes(canonical_bytes(manifest))
             errors = self.validate(root, accept_current_manifest=True)
             self.assertTrue(any("geometry source" in item for item in errors), errors)
+            self.assertFalse(any("RecursionError" in item for item in errors), errors)
 
     def test_rehashed_urdf_joint_transmission_collision_and_mass_drift_are_rejected(self):
         def wrong_axis(root):
