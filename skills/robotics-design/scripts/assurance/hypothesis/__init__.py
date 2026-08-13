@@ -21,6 +21,7 @@ from .uncertainty import (
     ordered_cases,
     search_counterexample,
 )
+from .objectives import ObjectiveVector, ParetoResult, extract_vector, pareto_fronts
 
 __all__ = [
     "CandidateDecision",
@@ -48,4 +49,8 @@ __all__ = [
     "evaluate_sensitivity",
     "ordered_cases",
     "search_counterexample",
+    "ObjectiveVector",
+    "ParetoResult",
+    "extract_vector",
+    "pareto_fronts",
 ]
