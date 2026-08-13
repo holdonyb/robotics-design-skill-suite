@@ -212,10 +212,11 @@ class PublicHygieneTests(unittest.TestCase):
             self.assertIn(gate, audit)
         self.assertIn("OPEN", audit)
         for evidence in (
-            "0e8cdcc",
-            "31714792180",
+            "6881a2c",
+            "31715656399",
+            "31715652132",
             "10/10 skills",
-            "9/9 upstream licenses",
+            "9/9 per-skill pinned-source license byte matches",
             "whole-release adversarial review",
         ):
             self.assertIn(evidence, status + audit)

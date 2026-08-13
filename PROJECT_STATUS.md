@@ -14,7 +14,7 @@ ROS 2, and simulation skills to audited commits.
   release status are complete.
 - Pre-release branch: `feature/v040-hypothesis-engine`.
 - Candidate version: `0.4.0` in `manifest.json`.
-- v0.4 release candidate head: `0e8cdcc` on public draft pull request `#4`.
+- v0.4 release candidate head: `6881a2c` on public draft pull request `#4`.
 - Fresh local dual-version tests, GitHub matrix CI, the fresh staged install,
   and whole-release adversarial review are complete. Merge, annotated tag,
   GitHub Release, public tag verification, and controlled local-skill refresh
@@ -85,9 +85,9 @@ On 2026-08-13, before Task 12 release publication:
 - the whole-release adversarial review at `d431688` found no Critical,
   Important, or Minor issues; its engineering release-candidate verdict was
   APPROVED, with only the then-unexecuted external release gates left open;
-- GitHub Actions run `31714792180` passed the Ubuntu/Windows × Python 3.11/3.12
-  matrix plus the `release-install` job at `0e8cdcc` (the parallel push run
-  passed independently as well);
+- GitHub Actions PR run `31715656399` passed the Ubuntu/Windows × Python
+  3.11/3.12 matrix plus the strengthened `release-install` job at `6881a2c`;
+  push run `31715652132` passed the same gates independently;
 - the GitHub runner fresh-install evidence contains 10/10 skills, 9/9 upstream
   licenses, OpenAI's official validator pinned to `openai/skills@49f948f`, no
   bytecode/partial/transaction residue, a generated `host-runtime.md`, and an
