@@ -58,6 +58,16 @@ class ReferenceHypothesisTests(unittest.TestCase):
             )
             screened = sum(screening["fronts"], [])
             self.assertTrue(screened)
+            for candidate_id in screened:
+                counterexample = json.loads(
+                    (
+                        output
+                        / "candidates"
+                        / candidate_id
+                        / "counterexample.json"
+                    ).read_text(encoding="utf-8")
+                )
+                self.assertFalse(counterexample["blocking"])
             self.assertTrue(
                 any(
                     json.loads(path.read_text(encoding="utf-8"))["values"].get("runtime")
@@ -66,6 +76,33 @@ class ReferenceHypothesisTests(unittest.TestCase):
                     for path in objective_files
                 )
             )
+
+    def test_repair_policy_never_skips_a_nonplaceholder_blocker(self):
+        from assurance.hypothesis.engine import _repairable_diagnostics
+
+        diagnostics = [
+            {
+                "code": "PHY.SAFETY.BLOCK",
+                "severity": "error",
+                "path": "component:CMP-SAFETY",
+                "message": "safety blocker",
+                "stage": "physical_v030",
+            },
+            {
+                "code": "PHY.DRIVE.PEAK_TORQUE",
+                "severity": "error",
+                "path": "quantity:Q-MOTOR-PEAK-TORQUE-R",
+                "message": "rating blocker",
+                "stage": "physical_v030",
+            },
+        ]
+        rules = [
+            {
+                "diagnostic_code": "PHY.DRIVE.PEAK_TORQUE",
+                "id": "restore-right-rating",
+            }
+        ]
+        self.assertEqual([], _repairable_diagnostics(diagnostics, rules))
 
     def test_wrong_right_rating_repairs_only_its_owner_and_stays_unpromoted(self):
         with tempfile.TemporaryDirectory() as raw:

@@ -187,6 +187,41 @@ def _uncertainty_work(uncertainties: list[dict[str, Any]]) -> tuple[int, int]:
     return product + 1, 2 * unique_non_nominal
 
 
+def _placeholder_only_report(report: dict[str, Any] | None) -> bool:
+    if not isinstance(report, dict):
+        return False
+    blocking_codes = {
+        item.get("code")
+        for item in report.get("diagnostics", [])
+        if isinstance(item, dict)
+        and item.get("severity") in {"error", "indeterminate"}
+    }
+    return blocking_codes == {"BOM.PLACEHOLDER_BLOCKS_CLAIM"} and all(
+        isinstance(item, dict) and item.get("passed") is True
+        for item in report.get("analyses", [])
+    )
+
+
+def _repairable_diagnostics(
+    diagnostics: list[dict[str, Any]],
+    rules: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    repairable_codes = {rule.get("diagnostic_code") for rule in rules}
+    blockers = [
+        item
+        for item in diagnostics
+        if item.get("severity") in {"error", "indeterminate"}
+    ]
+    nonplaceholder = [
+        item
+        for item in blockers
+        if item.get("code") != "BOM.PLACEHOLDER_BLOCKS_CLAIM"
+    ]
+    if any(item.get("code") not in repairable_codes for item in nonplaceholder):
+        return []
+    return [item for item in nonplaceholder if item.get("code") in repairable_codes]
+
+
 def _evaluate_uncertainties(
     candidate: ResolvedCandidate,
     physical: Any | None,
@@ -205,6 +240,7 @@ def _evaluate_uncertainties(
     contract = candidate.resolved_contract
     candidate_id = candidate.candidate_id
     nominal_passed = physical is not None and physical.status == "passed"
+    nominal_screenable = nominal_passed or _placeholder_only_report(report)
     total_cases, _ = _uncertainty_work(space["uncertainties"])
     cases = ordered_cases(
         candidate_id,
@@ -216,7 +252,7 @@ def _evaluate_uncertainties(
     files[f"candidates/{candidate_id}/cases.json"] = [
         case.to_dict() for case in cases
     ]
-    if not nominal_passed:
+    if not nominal_screenable:
         files[f"candidates/{candidate_id}/counterexample.json"] = {
             "status": "skipped",
             "reason": "nominal candidate is already blocked",
@@ -254,7 +290,13 @@ def _evaluate_uncertainties(
             )
             objective_values = dict(vector.values)
         outcomes[case.case_id] = {
-            "promotable": case_stage is not None and case_stage.status == "passed",
+            "promotable": (
+                case_stage is not None
+                and (
+                    case_stage.status == "passed"
+                    or _placeholder_only_report(case_report)
+                )
+            ),
             "diagnostic_codes": _diagnostic_codes(case_stage),
             "objectives": objective_values,
         }
@@ -407,25 +449,7 @@ def run_space(
                     )
                     vectors[candidate_id] = vector
                     files[f"candidates/{candidate_id}/objectives.json"] = vector.to_dict()
-                    blocking_codes = {
-                        item.get("code")
-                        for item in report.get("diagnostics", [])
-                        if isinstance(item, dict)
-                        and item.get("severity") in {"error", "indeterminate"}
-                    }
-                    analyses_pass = all(
-                        isinstance(item, dict) and item.get("passed") is True
-                        for item in report.get("analyses", [])
-                    )
-                    if (
-                        analyses_pass
-                        and blocking_codes == {"BOM.PLACEHOLDER_BLOCKS_CLAIM"}
-                        and set(vector.values)
-                        == {item["id"] for item in space["objectives"]}
-                    ):
-                        screening_vectors[candidate_id] = ObjectiveVector(
-                            candidate_id, dict(vector.values), {}, True
-                        )
+                    # Added only after the complete hard-uncertainty gate below.
 
                 if space["uncertainties"]:
                     total_cases, required_extra = _uncertainty_work(
@@ -456,6 +480,19 @@ def run_space(
                         vectors=vectors,
                         blocking_diagnostics=blocking_diagnostics,
                     )
+                    if (
+                        not hard_blocked
+                        and _placeholder_only_report(report)
+                        and candidate_id in vectors
+                        and set(vectors[candidate_id].values)
+                        == {item["id"] for item in space["objectives"]}
+                    ):
+                        screening_vectors[candidate_id] = ObjectiveVector(
+                            candidate_id,
+                            dict(vectors[candidate_id].values),
+                            {},
+                            True,
+                        )
 
                 accepted = nominal_passed and not hard_blocked
                 accepted_count += int(accepted)
@@ -519,14 +556,9 @@ def run_space(
                         for item in physical.to_dict().get("diagnostics", [])
                         if isinstance(item, dict)
                     ]
-                    repairable_codes = {
-                        rule["diagnostic_code"] for rule in space["repair_rules"]
-                    }
-                    repairable_diagnostics = [
-                        item
-                        for item in diagnostics
-                        if item.get("code") in repairable_codes
-                    ]
+                    repairable_diagnostics = _repairable_diagnostics(
+                        diagnostics, space["repair_rules"]
+                    )
                     try:
                         diagnostic, rule = select_repair(
                             repairable_diagnostics, space["repair_rules"]
