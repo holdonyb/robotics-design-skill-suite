@@ -22,9 +22,12 @@ Expected baseline result: exit `1` with
 `BOM.PLACEHOLDER_BLOCKS_CLAIM`; structural, reference, hash, drift and physical
 analysis diagnostics remain clear. Files under `faults/` mutate one critical
 condition at a time and must add their declared diagnostic without allowing
-promotion. The baseline runs drivetrain, battery/runtime, support-polygon
-stability, arm gravity/brake holding, and conservative steady-state winding
-thermal-duty checks. Thermal values remain assumptions until replaced with an
+promotion. The baseline runs 13 analysis instances across five plug-in
+families: independent left/right drivetrain checks, battery/runtime,
+support-polygon stability, six-joint arm gravity/brake holding, and a separate
+conservative steady-state winding thermal-duty check for each drive motor and
+each of the six arm motors. Ratings are component-owned and cannot be reused
+across responsibilities. Thermal values remain assumptions until replaced with an
 exact motor curve, temperature-dependent resistance, thermal network, and
 bench data. Stability projects the declared center of mass on the declared
 five-degree slope; the fault corpus also includes a slope-induced support-bound

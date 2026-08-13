@@ -18,7 +18,7 @@ FEATURE_ROLES: dict[str, set[str]] = {
         "dc_converter",
     },
 }
-ACTUATOR_ROLES = {"motor", "reducer", "bearing", "motor_driver"}
+ACTUATOR_ROLES = {"motor", "reducer", "bearing", "motor_driver", "brake"}
 CABLE_ROLES = {"cable", "connector", "strain_relief", "cable_management"}
 DRIVE_ROLES = {"traction_motor", "reducer", "wheel", "bearing", "motor_driver"}
 SAFETY_FUNCTION_ROLES = {"holding_brake": {"brake"}}

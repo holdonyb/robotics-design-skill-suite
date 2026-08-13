@@ -1,1 +1,1 @@
-{"id":"thermal-over-temperature","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-THERMAL-ON-CURRENT","value":{"value":30,"unit":"A"}},"expected_diagnostic":"PHY.THERMAL.WINDING_OVER_TEMPERATURE"}
+{"id":"thermal-over-temperature","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-THERMAL-ON-CURRENT-DRIVE-L","value":{"value":30,"unit":"A"}},"expected_diagnostic":"PHY.THERMAL.WINDING_OVER_TEMPERATURE"}

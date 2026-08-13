@@ -1,1 +1,1 @@
-{"id":"motor-overspeed","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-MOTOR-MAX-SPEED","value":{"value":100,"unit":"rad/s"}},"expected_diagnostic":"PHY.DRIVE.OVERSPEED"}
+{"id":"motor-overspeed","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-MOTOR-MAX-SPEED-L","value":{"value":100,"unit":"rad/s"}},"expected_diagnostic":"PHY.DRIVE.OVERSPEED"}

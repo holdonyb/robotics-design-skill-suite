@@ -1,1 +1,1 @@
-{"id":"zero-wheel-radius","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-WHEEL-RADIUS","value":{"value":0,"unit":"m"}},"expected_diagnostic":"PHY.INPUT.DOMAIN"}
+{"id":"zero-wheel-radius","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-WHEEL-RADIUS-L","value":{"value":0,"unit":"m"}},"expected_diagnostic":"PHY.INPUT.DOMAIN"}

@@ -98,6 +98,7 @@ class Report:
                 key=lambda item: (
                     str(item.get("name", "")),
                     str(item.get("version", "")),
+                    str(item.get("analysis_id", "")),
                 ),
             ),
             "metadata": dict(sorted(self.metadata.items())),

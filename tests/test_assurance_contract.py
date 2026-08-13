@@ -133,6 +133,8 @@ def valid_contract():
                     "path": "robot.urdf",
                     "sha256": "0" * 64,
                 },
+                "locator": "https://example.com/M-100",
+                "observed_date": "2026-08-13",
                 "supports": [
                     "quantity:Q-PAYLOAD",
                     "quantity:Q-LEVER",
@@ -246,17 +248,24 @@ class AssuranceContractTests(unittest.TestCase):
                 "state": "verified_part",
                 "manufacturer": "Example Robotics",
                 "part_number": "M-100",
-                "source_url": "https://example.invalid/M-100",
+                "source_url": "https://example.com/M-100",
                 "source_date": "2026-08-13",
+                "source_evidence": "evidence:EV-URDF",
                 "limits": {"continuous_torque": "quantity:Q-RATING"},
             }
         )
         data["quantities"][2]["owner"] = f"component:{component['id']}"
+        data["evidence"][0]["supports"].append(f"component:{component['id']}")
         self.assertEqual(validate_contract(data), [])
 
         component["limits"] = {"continuous_torque": {"value": float("nan")}}
         self.assertTrue(
             any("limits.continuous_torque must reference a quantity" in error for error in validate_contract(data))
+        )
+
+        component["limits"] = {"magic_rating": "quantity:Q-RATING"}
+        self.assertTrue(
+            any("limits has unsupported fields for role traction_motor: magic_rating" in error for error in validate_contract(data))
         )
 
     def test_verified_component_source_url_and_date_are_closed(self):
@@ -269,6 +278,7 @@ class AssuranceContractTests(unittest.TestCase):
                 "part_number": "M-100",
                 "source_url": "remembered catalog",
                 "source_date": "soon",
+                "source_evidence": "evidence:EV-URDF",
                 "limits": {"continuous_torque": "quantity:Q-RATING"},
             }
         )
@@ -276,6 +286,42 @@ class AssuranceContractTests(unittest.TestCase):
         errors = validate_contract(data)
         self.assertTrue(any("source_url must be an absolute HTTP(S) URL" in error for error in errors))
         self.assertTrue(any("source_date must be an ISO calendar date" in error for error in errors))
+
+    def test_verified_component_requires_hash_bound_supporting_evidence(self):
+        data = valid_contract()
+        component = data["components"][0]
+        component.update(
+            {
+                "state": "verified_part",
+                "manufacturer": "Example Robotics",
+                "part_number": "M-100",
+                "source_url": "https://example.com/M-100",
+                "source_date": "2026-08-13",
+                "limits": {"continuous_torque": "quantity:Q-RATING"},
+            }
+        )
+        data["quantities"][2]["owner"] = f"component:{component['id']}"
+        errors = validate_contract(data)
+        self.assertTrue(any("source_evidence must reference" in error for error in errors))
+
+        component["source_evidence"] = "evidence:EV-URDF"
+        errors = validate_contract(data)
+        self.assertTrue(any("does not support component:" in error for error in errors))
+
+        data["evidence"][0]["supports"].append(f"component:{component['id']}")
+        data["evidence"][0]["level"] = "assumed"
+        errors = validate_contract(data)
+        self.assertTrue(any("must be parsed or stronger" in error for error in errors))
+
+        data["evidence"][0]["level"] = "parsed"
+        data["evidence"][0]["locator"] = "https://example.com/another-part"
+        errors = validate_contract(data)
+        self.assertTrue(any("locator must match component source_url" in error for error in errors))
+
+        data["evidence"][0]["locator"] = component["source_url"]
+        data["evidence"][0]["observed_date"] = "2026-08-12"
+        errors = validate_contract(data)
+        self.assertTrue(any("observed_date must match component source_date" in error for error in errors))
 
     def test_malformed_architecture_and_supports_are_actionable_not_tracebacks(self):
         data = valid_contract()

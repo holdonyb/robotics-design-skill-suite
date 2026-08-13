@@ -43,8 +43,11 @@ across multiple actuators; each declared actuator therefore has an auditable
 physical load path instead of inheriting a global role checkbox.
 States are `verified_part`, `qualified_substitute`, `engineering_placeholder`,
 or `missing`. Verified and substitute records additionally use manufacturer,
-part number, absolute HTTP(S) source URL, ISO source date, limits and supported
-claims. Every limit is a `quantity:ID` reference owned by that component.
+part number, absolute HTTP(S) source URL, ISO source date, `source_evidence`,
+limits and supported claims. The evidence record must be `parsed` or stronger,
+explicitly support the component, bind the same URL and observation date, and
+hash the captured local source. Every limit is a role-approved `quantity:ID`
+reference owned by that component and sourced from that same evidence.
 
 Architecture contains string lists: `features`, `drive_units`, `actuators`, `moving_cables`,
 and `claimed_safety_functions`. The ledger maps these declarations to mandatory
@@ -63,11 +66,16 @@ supplied. An analysis has `id`, plug-in name, explicit `covers` edges, and an
 Inputs may nest objects/lists and non-empty identifiers, but every physical
 number is a typed reference such as `quantity:Q-MASS`; bare numeric literals
 are forbidden. Known plug-ins close both input shape and expected dimensions.
-Architecture-derived plug-in coverage and per-actuator load coverage are
-required; a physical contract with no analysis is indeterminate.
+Architecture-derived plug-in coverage and reciprocal plug-in-to-architecture
+scope checks are required. Each drive and actuator requires its own thermal
+analysis, and drivetrain/arm/battery rating inputs must be owned by the exact
+covered component. A physical contract with no applicable analysis is
+indeterminate.
 
 Evidence has `id`, `level`, a path/SHA-256 `source`, and unique `supports`
-references. Every quantity's selected evidence source must explicitly include
+references. Optional `locator` and `observed_date` record the external URL and
+capture date; they are mandatory through the component provenance edge for
+verified parts and qualified substitutes. Every quantity's selected evidence source must explicitly include
 that `quantity:ID` in `supports`; merely naming an evidence record is not a
 closed evidence graph. `certified` evidence additionally requires a non-empty external
 `authority` and `certificate_id`; the suite never creates those values.

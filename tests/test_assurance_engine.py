@@ -27,18 +27,92 @@ def write_fixture(root, plugin=None):
     robot.write_text(URDF, encoding="utf-8")
     digest = hashlib.sha256(robot.read_bytes()).hexdigest()
     data = valid_contract()
-    data["architecture"]["features"] = []
-    data["architecture"]["drive_units"] = []
-    data["components"] = []
+    data["requirements"][0]["verification"] = "AN-BATTERY"
+    data["architecture"] = {
+        "features": ["battery_powered"],
+        "drive_units": [],
+        "actuators": [],
+        "moving_cables": [],
+        "claimed_safety_functions": [],
+    }
     data["artifacts"][0]["sha256"] = digest
-    data["evidence"][0]["source"]["sha256"] = digest
-    data["quantities"][0].update(
-        {
-            "value": {"value": 2, "unit": "kg"},
-            "evidence_level": "parsed",
-            "observation": "artifact:robot-model#links.base.mass_kg",
-        }
+    quantity_specs = (
+        ("Q-VOLTAGE", "voltage", 48.0, "V", "component:BATTERY"),
+        ("Q-PEAK-POWER", "power", 100.0, "W", "project:system"),
+        ("Q-CONTINUOUS-POWER", "power", 50.0, "W", "project:system"),
+        ("Q-BAT-CONT-CURRENT", "current", 10.0, "A", "component:BATTERY"),
+        ("Q-BAT-PEAK-CURRENT", "current", 20.0, "A", "component:BATTERY"),
+        ("Q-USABLE-ENERGY", "energy", 100000.0, "J", "component:BATTERY"),
+        ("Q-RUNTIME", "time", 1000.0, "s", "project:system"),
+        ("Q-BMS-CURRENT", "current", 10.0, "A", "component:BMS"),
+        ("Q-PROTECTION-CURRENT", "current", 10.0, "A", "component:PROTECTION"),
+        ("Q-CONTACTOR-CURRENT", "current", 10.0, "A", "component:CONTACTOR"),
+        ("Q-CONVERTER-POWER", "power", 100.0, "W", "component:CONVERTER"),
     )
+    data["quantities"] = [
+        {
+            "id": quantity_id,
+            "dimension": dimension,
+            "value": {"value": value, "unit": unit},
+            "owner": owner,
+            "source": "evidence:EV-URDF",
+            "evidence_level": "parsed",
+        }
+        for quantity_id, dimension, value, unit, owner in quantity_specs
+    ]
+    component_specs = (
+        ("BATTERY", "battery", {"nominal_voltage": "Q-VOLTAGE", "continuous_current": "Q-BAT-CONT-CURRENT", "peak_current": "Q-BAT-PEAK-CURRENT", "usable_energy": "Q-USABLE-ENERGY"}),
+        ("BMS", "bms", {"continuous_current": "Q-BMS-CURRENT"}),
+        ("PROTECTION", "main_protection", {"rated_current": "Q-PROTECTION-CURRENT"}),
+        ("CONTACTOR", "contactor", {"continuous_current": "Q-CONTACTOR-CURRENT"}),
+        ("CONVERTER", "dc_converter", {"continuous_power": "Q-CONVERTER-POWER"}),
+    )
+    data["components"] = [
+        {
+            "id": component_id,
+            "role": role,
+            "state": "verified_part",
+            "interfaces": [f"IF-{component_id}"],
+            "bindings": ["feature:battery_powered"],
+            "manufacturer": "Fixture Components",
+            "part_number": f"FIX-{component_id}",
+            "source_url": "https://example.com/catalog",
+            "source_date": "2026-08-13",
+            "source_evidence": "evidence:EV-URDF",
+            "limits": {name: f"quantity:{quantity_id}" for name, quantity_id in limits.items()},
+        }
+        for component_id, role, limits in component_specs
+    ]
+    data["evidence"] = [
+        {
+            "id": "EV-URDF",
+            "level": "parsed",
+            "source": {"path": "robot.urdf", "sha256": digest},
+            "locator": "https://example.com/catalog",
+            "observed_date": "2026-08-13",
+            "supports": [
+                "artifact:robot-model",
+                *(f"quantity:{item['id']}" for item in data["quantities"]),
+                *(f"component:{item['id']}" for item in data["components"]),
+            ],
+        }
+    ]
+    data["analyses"] = [
+        {
+            "id": "AN-BATTERY",
+            "plugin": "battery_v1",
+            "covers": ["requirement:REQ-PAYLOAD", "feature:battery_powered"],
+            "inputs": {
+                "voltage_v": "quantity:Q-VOLTAGE",
+                "peak_power_w": "quantity:Q-PEAK-POWER",
+                "continuous_power_w": "quantity:Q-CONTINUOUS-POWER",
+                "max_continuous_current_a": "quantity:Q-BAT-CONT-CURRENT",
+                "max_peak_current_a": "quantity:Q-BAT-PEAK-CURRENT",
+                "usable_energy_j": "quantity:Q-USABLE-ENERGY",
+                "required_runtime_s": "quantity:Q-RUNTIME",
+            },
+        }
+    ]
     if plugin:
         data["analyses"] = [
             {
@@ -67,9 +141,9 @@ class AssuranceEngineTests(unittest.TestCase):
         self.assertEqual(report["metadata"]["schema_version"], 1)
         self.assertRegex(report["metadata"]["contract_sha256"], r"^[0-9a-f]{64}$")
         self.assertEqual(report["metadata"]["evidence_coverage"], "1/1")
-        self.assertEqual(report["metadata"]["minimum_evidence_level"], "assumed")
+        self.assertEqual(report["metadata"]["minimum_evidence_level"], "parsed")
         self.assertEqual(
-            report["metadata"]["evidence_level_counts"], {"assumed": 4, "parsed": 1}
+            report["metadata"]["evidence_level_counts"], {"parsed": 11}
         )
 
     def test_changed_artifact_invalidates_hash_bound_evidence(self):
@@ -103,7 +177,29 @@ class AssuranceEngineTests(unittest.TestCase):
             any(item.code == "PHY.ANALYSIS.MISSING" for item in report.diagnostics)
         )
 
-    def test_nested_arm_inputs_resolve_owned_quantities(self):
+    def test_known_analysis_cannot_exist_without_matching_architecture_scope(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            contract, _ = write_fixture(Path(temp_dir))
+            data = json.loads(contract.read_text(encoding="utf-8"))
+            data["architecture"] = {
+                "features": [],
+                "drive_units": [],
+                "actuators": [],
+                "moving_cables": [],
+                "claimed_safety_functions": [],
+            }
+            for component in data["components"]:
+                component["bindings"] = []
+            data["analyses"][0]["covers"] = ["requirement:REQ-PAYLOAD"]
+            contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            report, errors = evaluate_contract(contract)
+        self.assertEqual(errors, [])
+        self.assertFalse(report.promotable)
+        self.assertTrue(
+            any(item.code == "PHY.ANALYSIS.UNDECLARED_SCOPE" for item in report.diagnostics)
+        )
+
+    def test_analysis_inputs_resolve_owned_quantities(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             contract, _ = write_fixture(root)
@@ -111,7 +207,7 @@ class AssuranceEngineTests(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertTrue(report.promotable)
         self.assertGreater(
-            report.analyses[0]["outputs"]["joints"][0]["gravity_torque_nm"],
+            report.analyses[0]["outputs"]["peak_current_a"],
             0.0,
         )
 

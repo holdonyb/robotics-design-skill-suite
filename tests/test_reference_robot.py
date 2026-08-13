@@ -156,6 +156,49 @@ class ReferenceRobotTests(unittest.TestCase):
             any(item.code == "PHY.DRIVE.CARDINALITY_MISMATCH" for item in report.diagnostics)
         )
 
+    def test_every_drive_and_arm_actuator_requires_thermal_coverage(self):
+        data = json.loads(
+            (REFERENCE / "design-contract.json").read_text(encoding="utf-8")
+        )
+        data["analyses"] = [
+            item for item in data["analyses"] if item["plugin"] != "thermal_duty_v1"
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            for source_name in ("robot.urdf", "assumptions.json"):
+                (temp / source_name).write_bytes((REFERENCE / source_name).read_bytes())
+            contract = temp / "design-contract.json"
+            contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            report, errors = evaluate_contract(contract)
+        self.assertEqual(errors, [])
+        missing = {
+            item.message
+            for item in report.diagnostics
+            if item.code == "PHY.ANALYSIS.MISSING_COVERAGE"
+        }
+        for responsibility in ("drive:left", "drive:right", *(f"actuator:joint_{i}" for i in range(1, 7))):
+            self.assertIn(
+                f"{responsibility} requires analysis thermal_duty_v1", missing
+            )
+
+    def test_drive_analysis_rating_must_be_owned_by_covered_motor(self):
+        data = json.loads(
+            (REFERENCE / "design-contract.json").read_text(encoding="utf-8")
+        )
+        drive = next(item for item in data["analyses"] if item["id"] == "AN-DRIVE-R")
+        drive["inputs"]["motor_continuous_torque_nm"] = "quantity:Q-MOTOR-CONTINUOUS-TORQUE-L"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            for source_name in ("robot.urdf", "assumptions.json"):
+                (temp / source_name).write_bytes((REFERENCE / source_name).read_bytes())
+            contract = temp / "design-contract.json"
+            contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            report, errors = evaluate_contract(contract)
+        self.assertEqual(errors, [])
+        self.assertTrue(
+            any(item.code == "PHY.ANALYSIS.RATING_OWNER" for item in report.diagnostics)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

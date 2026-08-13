@@ -1,1 +1,1 @@
-{"id":"efficiency-over-one","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-DRIVE-EFFICIENCY","value":{"value":1.1,"unit":"1"}},"expected_diagnostic":"PHY.INPUT.DOMAIN"}
+{"id":"efficiency-over-one","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-DRIVE-EFFICIENCY-L","value":{"value":1.1,"unit":"1"}},"expected_diagnostic":"PHY.INPUT.DOMAIN"}

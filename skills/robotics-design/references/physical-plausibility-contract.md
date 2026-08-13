@@ -60,8 +60,10 @@ Architecture declarations create mandatory component responsibilities.
 `missing` is an explicit error. `engineering_placeholder` is useful during
 exploration but cannot support a promoted claim. `verified_part` and
 `qualified_substitute` require manufacturer, part number, absolute source
-URL/date, and component-owned quantity references for limits. Catalog values
-require exact part provenance; a similar
+URL/date, hash-bound source evidence at `parsed` level or stronger, and
+component-owned quantity references for role-approved limits. The evidence
+must support that exact component, carry the same URL and observation date,
+and source every declared component limit. Catalog values require exact part provenance; a similar
 product family or remembered rating is assumed evidence.
 
 An incomplete drive example is a wheel and motor without its reducer, bearing,
@@ -75,6 +77,11 @@ conversion, continuous/peak current checks, and usable-energy budget.
 All plug-ins use normalized SI values and a closed expected dimension for every
 input. A mismatched quantity dimension is invalid before evaluation. They publish their validity assumptions,
 outputs, signed margins, diagnostics, version, and `calculated` evidence level.
+Coverage is bidirectional: architecture responsibilities require applicable
+analyses, and an analysis may cover only declared responsibilities. Drive,
+battery, arm, and thermal ratings must be owned by the exact component whose
+responsibility is being evaluated. Every drive and actuator requires a separate
+thermal-duty instance.
 
 ### `drivetrain_v1`
 
@@ -182,6 +189,10 @@ upstream gate remains visible.
 
 Passing this contract proves only that the declared values, bindings, evidence
 edges, artifacts, and implemented conservative equations agree. It does not
+independently authenticate an Internet publisher or prove that a captured
+catalog page is truthful; URL/date/hash binding provides reproducible
+traceability, while external authenticity needs supplier review, certificates,
+or stronger evidence. It also does not
 prove structural strength, collision safety, braking distance, controllability,
 manufacturability, reliability, human safety, certification, or real-world task
 performance. Those claims require their own analyses and physical evidence.

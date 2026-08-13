@@ -22,6 +22,45 @@ CONFIDENCE = frozenset({"low", "medium", "high"})
 COMPONENT_STATES = frozenset(
     {"verified_part", "qualified_substitute", "engineering_placeholder", "missing"}
 )
+ROLE_LIMIT_DIMENSIONS: dict[str, dict[str, str]] = {
+    "traction_motor": {
+        "continuous_torque": "torque",
+        "peak_torque": "torque",
+        "max_speed": "angular_velocity",
+        "continuous_current": "current",
+        "winding_resistance": "resistance",
+        "thermal_resistance": "thermal_resistance",
+        "max_winding_temperature": "temperature",
+    },
+    "motor": {
+        "continuous_torque": "torque",
+        "peak_torque": "torque",
+        "max_speed": "angular_velocity",
+        "continuous_current": "current",
+        "winding_resistance": "resistance",
+        "thermal_resistance": "thermal_resistance",
+        "max_winding_temperature": "temperature",
+    },
+    "reducer": {"gear_ratio": "dimensionless", "efficiency": "dimensionless"},
+    "wheel": {"radius": "length", "rated_load": "force"},
+    "bearing": {"static_load": "force", "dynamic_load": "force"},
+    "motor_driver": {"continuous_current": "current", "peak_current": "current"},
+    "battery": {
+        "nominal_voltage": "voltage",
+        "continuous_current": "current",
+        "peak_current": "current",
+        "usable_energy": "energy",
+    },
+    "bms": {"continuous_current": "current", "peak_current": "current"},
+    "main_protection": {"rated_current": "current"},
+    "contactor": {"continuous_current": "current"},
+    "dc_converter": {"continuous_power": "power"},
+    "brake": {"holding_torque": "torque"},
+    "cable": {"continuous_current": "current", "bend_radius": "length"},
+    "connector": {"continuous_current": "current"},
+    "strain_relief": {"retention_force": "force"},
+    "cable_management": {"minimum_bend_radius": "length"},
+}
 ROOT_FIELDS = frozenset(
     {
         "schema_version",
@@ -71,6 +110,7 @@ RECORD_FIELDS = {
             "part_number",
             "source_url",
             "source_date",
+            "source_evidence",
             "limits",
             "supports_claims",
             "bindings",
@@ -83,6 +123,8 @@ RECORD_FIELDS = {
             "id",
             "level",
             "source",
+            "locator",
+            "observed_date",
             "supports",
             "authority",
             "certificate_id",
@@ -96,6 +138,31 @@ ARCHITECTURE_FIELDS = frozenset(
 
 def _nonempty(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def _is_safe_http_url(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    parsed = urlparse(value)
+    hostname = parsed.hostname or ""
+    return (
+        parsed.scheme in {"http", "https"}
+        and bool(parsed.netloc)
+        and hostname not in {"localhost", "127.0.0.1", "::1"}
+        and not hostname.endswith((".invalid", ".localhost", ".test"))
+    )
+
+
+def _parse_past_or_present_date(value: Any) -> tuple[date | None, str | None]:
+    try:
+        if not isinstance(value, str):
+            raise ValueError
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        return None, "must be an ISO calendar date"
+    if parsed > date.today():
+        return parsed, "must not be in the future"
+    return parsed, None
 
 
 def _unknown_fields(
@@ -241,6 +308,11 @@ def validate_contract(data: Any) -> list[str]:
     evidence_ids = {
         item.get("id") for item in collections["evidence"] if _nonempty(item.get("id"))
     }
+    evidence_by_id = {
+        item.get("id"): item
+        for item in collections["evidence"]
+        if _nonempty(item.get("id"))
+    }
     quantity_ids = {
         item.get("id") for item in collections["quantities"] if _nonempty(item.get("id"))
     }
@@ -381,28 +453,63 @@ def validate_contract(data: Any) -> list[str]:
             "qualified_substitute",
         }:
             source_url = item.get("source_url")
-            parsed_url = urlparse(source_url) if isinstance(source_url, str) else None
-            if (
-                parsed_url is None
-                or parsed_url.scheme not in {"http", "https"}
-                or not parsed_url.netloc
-            ):
+            if not _is_safe_http_url(source_url):
                 errors.append(
                     f"components[{index}].source_url must be an absolute HTTP(S) URL"
                 )
             source_date = item.get("source_date")
-            try:
-                if not isinstance(source_date, str):
-                    raise ValueError
-                date.fromisoformat(source_date)
-            except ValueError:
+            _, source_date_error = _parse_past_or_present_date(source_date)
+            if source_date_error:
                 errors.append(
-                    f"components[{index}].source_date must be an ISO calendar date"
+                    f"components[{index}].source_date {source_date_error}"
                 )
+            source_evidence = item.get("source_evidence")
+            evidence_id = (
+                source_evidence[9:]
+                if isinstance(source_evidence, str)
+                and source_evidence.startswith("evidence:")
+                else None
+            )
+            component_evidence = evidence_by_id.get(evidence_id)
+            if component_evidence is None:
+                errors.append(
+                    f"components[{index}].source_evidence must reference an existing evidence record"
+                )
+            else:
+                supported_target = f"component:{item.get('id')}"
+                supports = component_evidence.get("supports", [])
+                if not isinstance(supports, list) or supported_target not in supports:
+                    errors.append(
+                        f"components[{index}].source_evidence {source_evidence} does not support {supported_target}"
+                    )
+                try:
+                    component_level = EvidenceLevel(component_evidence.get("level"))
+                except (TypeError, ValueError):
+                    component_level = None
+                if component_level is not None and component_level < EvidenceLevel.PARSED:
+                    errors.append(
+                        f"components[{index}].source_evidence must be parsed or stronger"
+                    )
+                if component_evidence.get("locator") != source_url:
+                    errors.append(
+                        f"components[{index}].source_evidence locator must match component source_url"
+                    )
+                if component_evidence.get("observed_date") != source_date:
+                    errors.append(
+                        f"components[{index}].source_evidence observed_date must match component source_date"
+                    )
             limits = item.get("limits")
             if not isinstance(limits, dict) or not limits:
                 errors.append(f"components[{index}].limits must be a non-empty object")
             else:
+                role = item.get("role")
+                role_schema = ROLE_LIMIT_DIMENSIONS.get(role, {})
+                unsupported_limits = sorted(set(limits) - set(role_schema))
+                if unsupported_limits:
+                    errors.append(
+                        f"components[{index}].limits has unsupported fields for role {role}: "
+                        + ", ".join(unsupported_limits)
+                    )
                 for limit_name, reference in sorted(limits.items()):
                     limit_path = f"components[{index}].limits.{limit_name}"
                     if not _nonempty(limit_name):
@@ -423,6 +530,19 @@ def validate_contract(data: Any) -> list[str]:
                     if quantity.get("owner") != f"component:{item.get('id')}":
                         errors.append(
                             f"{limit_path} quantity must be owned by component:{item.get('id')}"
+                        )
+                    if source_evidence is not None and quantity.get("source") != source_evidence:
+                        errors.append(
+                            f"{limit_path} quantity must use the component source evidence {source_evidence}"
+                        )
+                    expected_dimension = role_schema.get(limit_name)
+                    if (
+                        expected_dimension is not None
+                        and quantity.get("dimension") != expected_dimension
+                    ):
+                        errors.append(
+                            f"{limit_path} expects dimension {expected_dimension}, "
+                            f"but {reference} declares {quantity.get('dimension')}"
                         )
 
     for index, item in enumerate(collections["artifacts"]):
@@ -470,6 +590,7 @@ def validate_contract(data: Any) -> list[str]:
 
     known_supports = {f"quantity:{item_id}" for item_id in quantity_ids}
     known_supports.update(f"artifact:{item_id}" for item_id in artifact_ids)
+    known_supports.update(f"component:{item_id}" for item_id in component_ids)
     evidence_levels: dict[str, EvidenceLevel] = {}
     for index, item in enumerate(collections["evidence"]):
         try:
@@ -480,6 +601,18 @@ def validate_contract(data: Any) -> list[str]:
             level = None
             errors.append(f"evidence[{index}].level is invalid")
         _file_record(item.get("source"), f"evidence[{index}].source", errors)
+        locator = item.get("locator")
+        if locator is not None and not _is_safe_http_url(locator):
+            errors.append(
+                f"evidence[{index}].locator must be an absolute HTTP(S) URL"
+            )
+        observed_date = item.get("observed_date")
+        if observed_date is not None:
+            _, observed_date_error = _parse_past_or_present_date(observed_date)
+            if observed_date_error:
+                errors.append(
+                    f"evidence[{index}].observed_date {observed_date_error}"
+                )
         supports = _string_list(item.get("supports"), f"evidence[{index}].supports", errors)
         for reference in supports:
             if reference not in known_supports:

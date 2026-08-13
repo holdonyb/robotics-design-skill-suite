@@ -66,19 +66,81 @@ def _analysis_coverage_diagnostics(data: dict[str, Any]) -> list[Diagnostic]:
             )
 
     declared_actuators = set(architecture.get("actuators", []))
+    declared_drives = set(architecture.get("drive_units", []))
+    declared_features = set(architecture.get("features", []))
     for index, analysis in enumerate(analyses):
-        if analysis.get("plugin") != "arm_gravity_v1":
+        plugin = analysis.get("plugin")
+        covers = {
+            value for value in analysis.get("covers", []) if isinstance(value, str)
+        }
+        scoped_drives = {value[6:] for value in covers if value.startswith("drive:")}
+        scoped_actuators = {
+            value[9:] for value in covers if value.startswith("actuator:")
+        }
+        undeclared_message: str | None = None
+        if plugin == "drivetrain_v1" and (
+            "differential_drive" not in declared_features or len(scoped_drives) != 1
+        ):
+            undeclared_message = (
+                "drivetrain_v1 requires differential_drive architecture and exactly one drive responsibility"
+            )
+        elif plugin == "stability_v1" and (
+            "differential_drive" not in declared_features or not scoped_drives
+        ):
+            undeclared_message = (
+                f"{plugin} requires differential_drive architecture and explicit drive coverage"
+            )
+        elif plugin == "battery_v1" and "battery_powered" not in declared_features:
+            undeclared_message = "battery_v1 requires battery_powered architecture"
+        elif plugin == "arm_gravity_v1" and (
+            not declared_actuators or not scoped_actuators
+        ):
+            undeclared_message = (
+                "arm_gravity_v1 requires declared actuators and explicit actuator coverage"
+            )
+        elif plugin == "thermal_duty_v1" and (
+            len(scoped_drives) + len(scoped_actuators) != 1
+        ):
+            undeclared_message = (
+                "thermal_duty_v1 must cover exactly one declared drive or actuator"
+            )
+        if undeclared_message is not None:
+            diagnostics.append(
+                Diagnostic(
+                    "PHY.ANALYSIS.UNDECLARED_SCOPE",
+                    "indeterminate",
+                    f"analyses[{index}].covers",
+                    undeclared_message,
+                )
+            )
+
+        for drive in sorted(scoped_drives - declared_drives):
+            diagnostics.append(
+                Diagnostic(
+                    "PHY.ANALYSIS.UNDECLARED_SCOPE",
+                    "indeterminate",
+                    f"analyses[{index}].covers",
+                    f"analysis covers undeclared drive: {drive}",
+                )
+            )
+        for actuator in sorted(scoped_actuators - declared_actuators):
+            diagnostics.append(
+                Diagnostic(
+                    "PHY.ANALYSIS.UNDECLARED_SCOPE",
+                    "indeterminate",
+                    f"analyses[{index}].covers",
+                    f"analysis covers undeclared actuator: {actuator}",
+                )
+            )
+
+        if plugin != "arm_gravity_v1":
             continue
         joint_ids = {
             joint.get("id")
             for joint in analysis.get("inputs", {}).get("joints", [])
             if isinstance(joint, dict) and isinstance(joint.get("id"), str)
         }
-        covered_actuators = {
-            value[9:]
-            for value in analysis.get("covers", [])
-            if isinstance(value, str) and value.startswith("actuator:")
-        }
+        covered_actuators = scoped_actuators
         for actuator in sorted(covered_actuators - joint_ids):
             diagnostics.append(
                 Diagnostic(
@@ -89,15 +151,14 @@ def _analysis_coverage_diagnostics(data: dict[str, Any]) -> list[Diagnostic]:
                 )
             )
         for joint_id in sorted(joint_ids - declared_actuators):
-            if declared_actuators:
-                diagnostics.append(
-                    Diagnostic(
-                        "PHY.ANALYSIS.COVERAGE_MISMATCH",
-                        "indeterminate",
-                        f"analyses[{index}].inputs.joints",
-                        f"arm analysis contains undeclared actuator joint: {joint_id}",
-                    )
+            diagnostics.append(
+                Diagnostic(
+                    "PHY.ANALYSIS.COVERAGE_MISMATCH",
+                    "indeterminate",
+                    f"analyses[{index}].inputs.joints",
+                    f"arm analysis contains undeclared actuator joint: {joint_id}",
                 )
+            )
     drive_units = architecture.get("drive_units", [])
     if isinstance(drive_units, list) and drive_units:
         quantities = {
@@ -133,6 +194,127 @@ def _analysis_coverage_diagnostics(data: dict[str, Any]) -> list[Diagnostic]:
                         f"declared driven wheel count {declared_count:g} does not match {len(drive_units)} drive responsibilities",
                     )
                 )
+    return diagnostics
+
+
+def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]:
+    """Bind analysis ratings to the exact component serving each responsibility."""
+
+    diagnostics: list[Diagnostic] = []
+    quantities = {
+        item.get("id"): item
+        for item in data.get("quantities", [])
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    components = [
+        item
+        for item in data.get("components", [])
+        if isinstance(item, dict) and item.get("state") != "missing"
+    ]
+
+    def component_for(responsibility: str, role: str) -> str | None:
+        matches = [
+            str(item.get("id"))
+            for item in components
+            if item.get("role") == role
+            and responsibility in item.get("bindings", [])
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    def check_owner(
+        analysis_index: int,
+        inputs: dict[str, Any],
+        field: str,
+        responsibility: str,
+        role: str,
+        nested_path: str = "",
+    ) -> None:
+        reference = inputs.get(field)
+        if not isinstance(reference, str) or not reference.startswith("quantity:"):
+            return
+        quantity = quantities.get(reference[9:])
+        component_id = component_for(responsibility, role)
+        expected_owner = f"component:{component_id}" if component_id is not None else None
+        if quantity is None or expected_owner is None or quantity.get("owner") != expected_owner:
+            field_path = f"analyses[{analysis_index}].inputs{nested_path}.{field}"
+            diagnostics.append(
+                Diagnostic(
+                    "PHY.ANALYSIS.RATING_OWNER",
+                    "indeterminate",
+                    field_path,
+                    f"{field} must be owned by the unique {role} bound to {responsibility}",
+                )
+            )
+
+    for index, analysis in enumerate(data.get("analyses", [])):
+        if not isinstance(analysis, dict):
+            continue
+        plugin = analysis.get("plugin")
+        inputs = analysis.get("inputs", {})
+        covers = analysis.get("covers", [])
+        if not isinstance(inputs, dict) or not isinstance(covers, list):
+            continue
+        scoped = [
+            value
+            for value in covers
+            if isinstance(value, str)
+            and (value.startswith("drive:") or value.startswith("actuator:"))
+        ]
+        if plugin == "drivetrain_v1" and len(scoped) == 1:
+            responsibility = scoped[0]
+            for field in (
+                "motor_continuous_torque_nm",
+                "motor_peak_torque_nm",
+                "motor_max_speed_rad_s",
+            ):
+                check_owner(index, inputs, field, responsibility, "traction_motor")
+            for field in ("gear_ratio", "efficiency"):
+                check_owner(index, inputs, field, responsibility, "reducer")
+            check_owner(index, inputs, "wheel_radius_m", responsibility, "wheel")
+        elif plugin == "battery_v1":
+            responsibility = "feature:battery_powered"
+            for field in (
+                "voltage_v",
+                "max_continuous_current_a",
+                "max_peak_current_a",
+                "usable_energy_j",
+            ):
+                check_owner(index, inputs, field, responsibility, "battery")
+        elif plugin == "arm_gravity_v1":
+            joints = inputs.get("joints", [])
+            if not isinstance(joints, list):
+                continue
+            for joint_index, joint in enumerate(joints):
+                if not isinstance(joint, dict) or not isinstance(joint.get("id"), str):
+                    continue
+                responsibility = f"actuator:{joint['id']}"
+                nested = f".joints[{joint_index}]"
+                check_owner(
+                    index,
+                    joint,
+                    "rated_continuous_torque_nm",
+                    responsibility,
+                    "motor",
+                    nested,
+                )
+                check_owner(
+                    index,
+                    joint,
+                    "brake_holding_torque_nm",
+                    responsibility,
+                    "brake",
+                    nested,
+                )
+        elif plugin == "thermal_duty_v1" and len(scoped) == 1:
+            responsibility = scoped[0]
+            role = "traction_motor" if responsibility.startswith("drive:") else "motor"
+            for field in (
+                "winding_resistance_ohm",
+                "on_current_a",
+                "thermal_resistance_k_per_w",
+                "max_winding_temperature_k",
+            ):
+                check_owner(index, inputs, field, responsibility, role)
     return diagnostics
 
 
@@ -310,6 +492,8 @@ def evaluate_contract(path: Path) -> tuple[Report | None, list[str]]:
         report.add(diagnostic)
     for diagnostic in _analysis_coverage_diagnostics(data):
         report.add(diagnostic)
+    for diagnostic in _analysis_rating_owner_diagnostics(data):
+        report.add(diagnostic)
 
     contract_dir = path.parent
     observations: dict[str, Any] = {}
@@ -366,7 +550,9 @@ def evaluate_contract(path: Path) -> tuple[Report | None, list[str]]:
     for analysis in data.get("analyses", []):
         resolved = _resolved_analysis_inputs(analysis, quantities, report)
         result = run_plugin(str(analysis.get("plugin")), resolved)
-        report.analyses.append(_analysis_dict(result))
+        analysis_record = _analysis_dict(result)
+        analysis_record["analysis_id"] = str(analysis.get("id"))
+        report.analyses.append(analysis_record)
         for diagnostic in result.diagnostics:
             report.add(diagnostic)
 
