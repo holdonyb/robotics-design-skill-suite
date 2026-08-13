@@ -37,7 +37,7 @@ class AssuranceUnitTests(unittest.TestCase):
             to_si(5, "torque")
 
     def test_bool_nan_infinity_and_unknown_unit_fail_closed(self):
-        for value in (True, float("nan"), float("inf"), -float("inf")):
+        for value in (True, float("nan"), float("inf"), -float("inf"), 10**1000):
             with self.subTest(value=value):
                 with self.assertRaises(QuantityError):
                     to_si({"value": value, "unit": "N*m"}, "torque")

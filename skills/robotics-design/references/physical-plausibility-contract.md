@@ -66,7 +66,10 @@ quantity references for role-approved limits. The evidence must support that
 exact component, carry the same URL and observation date, and source every
 declared component limit. The runtime parses the bounded JSON snapshot and
 compares its ID, manufacturer, part number, and typed limit values to the
-contract. Calculated, simulated, bench, or task evidence cannot stand in for a
+contract. Catalog roots, records, role limit names, and typed `value`/`unit`
+objects are recursively closed. Oversized integer literals, non-finite values,
+and numeric conversion overflow fail closed with diagnostics. Calculated,
+simulated, bench, or task evidence cannot stand in for a
 parsed vendor-source record. Catalog values require exact part provenance; a similar
 product family or remembered rating is assumed evidence.
 

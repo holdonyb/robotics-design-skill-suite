@@ -16,6 +16,7 @@ from .units import QuantityError, to_si
 UNSAFE_XML = re.compile(r"<!\s*(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
 MAX_DECLARED_JSON_BYTES = 5 * 1024 * 1024
 MAX_DECLARED_JSON_DEPTH = 64
+MAX_DECLARED_JSON_INTEGER_DIGITS = 308
 
 
 def _diagnostic(code: str, severity: str, path: str, message: str) -> Diagnostic:
@@ -224,6 +225,18 @@ def observe_declared_json(
     def reject_constant(value: str) -> Any:
         raise ValueError(f"non-finite JSON number is forbidden: {value}")
 
+    class DeclaredJsonNumberError(ValueError):
+        pass
+
+    def bounded_int(value: str) -> int:
+        digits = value.lstrip("-")
+        if len(digits) > MAX_DECLARED_JSON_INTEGER_DIGITS:
+            raise DeclaredJsonNumberError(
+                "JSON integer exceeds "
+                f"{MAX_DECLARED_JSON_INTEGER_DIGITS} decimal digits"
+            )
+        return int(value)
+
     def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         result: dict[str, Any] = {}
         for key, value in pairs:
@@ -236,8 +249,18 @@ def observe_declared_json(
         data = json.loads(
             text,
             parse_constant=reject_constant,
+            parse_int=bounded_int,
             object_pairs_hook=unique_object,
         )
+    except DeclaredJsonNumberError as exc:
+        return None, [
+            _diagnostic(
+                "ARTIFACT.JSON_NUMBER",
+                "error",
+                str(path),
+                f"invalid declared JSON number: {exc}",
+            )
+        ]
     except (json.JSONDecodeError, ValueError, RecursionError) as exc:
         return None, [
             _diagnostic("ARTIFACT.JSON", "error", str(path), f"invalid declared JSON: {exc}")
@@ -275,7 +298,10 @@ def observe_declared_json(
         if isinstance(value, bool):
             return False
         if isinstance(value, (int, float)):
-            return not math.isfinite(float(value))
+            try:
+                return not math.isfinite(float(value))
+            except OverflowError:
+                return True
         if isinstance(value, dict):
             return any(has_nonfinite(item) for item in value.values())
         if isinstance(value, list):

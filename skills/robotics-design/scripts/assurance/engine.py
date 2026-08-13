@@ -9,7 +9,7 @@ from typing import Any
 
 from .analyses import AnalysisResult, run_plugin
 from .artifacts import compare_observations, observe_declared_json, observe_urdf
-from .contract import load_contract
+from .contract import ROLE_LIMIT_DIMENSIONS, load_contract
 from .ledger import validate_ledger
 from .model import Diagnostic, EvidenceLevel, Report
 from .plugin_contracts import required_analysis_coverage
@@ -394,6 +394,11 @@ def _component_catalog_diagnostics(
         reject(f"{base}.components", "component catalog components must be a list")
         return diagnostics
     by_id: dict[str, dict[str, Any]] = {}
+    components_by_id = {
+        str(component.get("id")): component
+        for component in components
+        if component.get("source_evidence") == f"evidence:{evidence.get('id')}"
+    }
     for record_index, record in enumerate(records):
         record_path = f"{base}.components[{record_index}]"
         if not isinstance(record, dict):
@@ -412,6 +417,46 @@ def _component_catalog_diagnostics(
             reject(f"{record_path}.id", f"duplicate component catalog id: {record_id}")
             continue
         by_id[record_id] = record
+        component = components_by_id.get(record_id)
+        if component is None:
+            reject(record_path, "catalog record does not map to a supported verified component")
+            continue
+        snapshot_limits = record.get("limits")
+        if not isinstance(snapshot_limits, dict):
+            reject(f"{record_path}.limits", "catalog limits must be an object")
+            continue
+        role = component.get("role")
+        allowed_limits = ROLE_LIMIT_DIMENSIONS.get(str(role), {})
+        unknown_limits = sorted(set(snapshot_limits) - set(allowed_limits))
+        if unknown_limits:
+            reject(
+                f"{record_path}.limits",
+                f"catalog limits has unsupported fields for role {role}: "
+                + ", ".join(unknown_limits),
+            )
+        for limit_name, typed_value in sorted(snapshot_limits.items()):
+            value_path = f"{record_path}.limits.{limit_name}"
+            if not isinstance(typed_value, dict):
+                reject(value_path, "catalog limit must be a typed value/unit object")
+                continue
+            unknown_typed = sorted(set(typed_value) - {"value", "unit"})
+            missing_typed = sorted({"value", "unit"} - set(typed_value))
+            if unknown_typed:
+                reject(
+                    value_path,
+                    "catalog typed limit has unknown fields: " + ", ".join(unknown_typed),
+                )
+            if missing_typed:
+                reject(
+                    value_path,
+                    "catalog typed limit is missing fields: " + ", ".join(missing_typed),
+                )
+            expected_dimension = allowed_limits.get(limit_name)
+            if expected_dimension is not None:
+                try:
+                    to_si(typed_value, expected_dimension, value_path)
+                except QuantityError as exc:
+                    reject(value_path, str(exc))
 
     evidence_ref = f"evidence:{evidence.get('id')}"
     for component in components:

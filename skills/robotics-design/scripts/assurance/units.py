@@ -59,7 +59,10 @@ def to_si(record: Any, expected_dimension: str, path: str = "quantity") -> float
     unit = record.get("unit")
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         raise QuantityError(f"{path}.value must be a finite number")
-    numeric = float(value)
+    try:
+        numeric = float(value)
+    except OverflowError as exc:
+        raise QuantityError(f"{path}.value must be a finite number") from exc
     if not math.isfinite(numeric):
         raise QuantityError(f"{path}.value must be a finite number")
     if not isinstance(unit, str) or not unit:
@@ -72,7 +75,10 @@ def to_si(record: Any, expected_dimension: str, path: str = "quantity") -> float
         raise QuantityError(
             f"{path}: expected {expected_dimension}, got {dimension} from {unit}"
         )
-    result = numeric * factor + offset
+    try:
+        result = numeric * factor + offset
+    except OverflowError as exc:
+        raise QuantityError(f"{path}: converted value is not finite") from exc
     if not math.isfinite(result):
         raise QuantityError(f"{path}: converted value is not finite")
     return result

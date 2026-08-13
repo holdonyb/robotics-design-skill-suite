@@ -51,7 +51,9 @@ calculated, simulated, and test labels cannot substitute for catalog parsing.
 The bounded JSON snapshot records schema version, locator, observation date,
 and component ID/manufacturer/part number/typed limits. Runtime validation
 compares every declared component limit to that hash-bound snapshot in SI
-units. Every limit is a role-approved `quantity:ID` reference owned by that
+units. Catalog roots, component records, role limit names, and typed limit
+objects are recursively closed; a typed limit contains exactly `value` and
+`unit`. Every limit is a role-approved `quantity:ID` reference owned by that
 component and sourced from that same evidence.
 
 Architecture contains string lists: `features`, `drive_units`, `actuators`, `moving_cables`,

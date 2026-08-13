@@ -229,6 +229,42 @@ class AssuranceEngineTests(unittest.TestCase):
             )
         )
 
+    def test_component_catalog_limits_are_recursively_closed(self):
+        mutations = (
+            lambda catalog: catalog["components"][0]["limits"].update(
+                hidden_rating={"value": 1, "unit": "V"}
+            ),
+            lambda catalog: catalog["components"][0]["limits"]["nominal_voltage"].update(
+                hidden_note="trust me"
+            ),
+        )
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    root = Path(temp_dir)
+                    contract, _ = write_fixture(root)
+                    catalog_path = root / "catalog.json"
+                    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+                    mutate(catalog)
+                    catalog_path.write_text(
+                        json.dumps(catalog, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+                    data = json.loads(contract.read_text(encoding="utf-8"))
+                    data["evidence"][0]["source"]["sha256"] = hashlib.sha256(
+                        catalog_path.read_bytes()
+                    ).hexdigest()
+                    contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    report, errors = evaluate_contract(contract)
+                self.assertEqual(errors, [])
+                self.assertFalse(report.promotable)
+                self.assertTrue(
+                    any(
+                        item.code == "EVIDENCE.COMPONENT_CATALOG"
+                        for item in report.diagnostics
+                    )
+                )
+
     def test_analysis_rating_must_equal_verified_component_limit(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
