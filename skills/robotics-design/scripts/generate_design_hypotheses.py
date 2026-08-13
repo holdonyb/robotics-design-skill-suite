@@ -56,22 +56,17 @@ def main(argv: list[str] | None = None) -> int:
     candidate_count = result["candidate_count"]
     accepted_count = result["accepted_count"]
     receipt = result["bundle_manifest_sha256"]
+    front_count = result["pareto_front_count"]
     print(
         f"bundle={args.out.resolve()} candidates={candidate_count} "
-        f"accepted={accepted_count} manifest_sha256={receipt}"
+        f"accepted={accepted_count} fronts={front_count} manifest_sha256={receipt}"
     )
     if accepted_count == 0:
-        rejected = next(
-            (
-                item
-                for item in result["candidates"]
-                if item["status"] not in {"accepted", "alias"}
-            ),
-            None,
-        )
-        if rejected is not None:
+        diagnostic = result.get("earliest_blocking_diagnostic")
+        if isinstance(diagnostic, dict):
             print(
-                f"BLOCKED: candidate={rejected['candidate_id']} status={rejected['status']}",
+                f"BLOCKED: code={diagnostic['code']} path={diagnostic['path']} "
+                f"message={diagnostic['message']}",
                 file=sys.stderr,
             )
         return 1

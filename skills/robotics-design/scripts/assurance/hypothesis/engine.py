@@ -327,6 +327,7 @@ def run_space(
     lineage: list[CandidateLineage] = []
     vectors: dict[str, ObjectiveVector] = {}
     canonical_keys: dict[str, str] = {}
+    blocking_diagnostics: list[dict[str, str]] = []
     accepted_count = 0
 
     try:
@@ -364,6 +365,25 @@ def run_space(
                 physical = _physical_stage(stages)
                 report = _report(physical)
                 nominal_passed = physical is not None and physical.status == "passed"
+                if physical is not None:
+                    for diagnostic in physical.to_dict().get("diagnostics", []):
+                        if (
+                            isinstance(diagnostic, dict)
+                            and diagnostic.get("severity") in {"error", "indeterminate"}
+                            and all(
+                                isinstance(diagnostic.get(field), str)
+                                and diagnostic[field]
+                                for field in ("code", "path", "message")
+                            )
+                        ):
+                            blocking_diagnostics.append(
+                                {
+                                    "stage": "physical_v030",
+                                    "code": diagnostic["code"],
+                                    "path": diagnostic["path"],
+                                    "message": diagnostic["message"],
+                                }
+                            )
                 hard_blocked = False
 
                 if report is not None and space["objectives"]:
@@ -591,6 +611,17 @@ def run_space(
         files["index.json"] = index
         receipt = write_bundle_with_receipt(output, files, force=force)
         index["bundle_manifest_sha256"] = receipt.manifest_sha256
+        index["pareto_front_count"] = len(pareto["fronts"])
+        if blocking_diagnostics:
+            index["earliest_blocking_diagnostic"] = sorted(
+                blocking_diagnostics,
+                key=lambda item: (
+                    item["stage"],
+                    item["code"],
+                    item["path"],
+                    item["message"],
+                ),
+            )[0]
         return index
     except EngineError:
         raise

@@ -124,6 +124,7 @@ class HypothesisCliTests(unittest.TestCase):
             result = _run(space, "--out", output, "--seed", 1)
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertIn("accepted=1", result.stdout)
+            self.assertIn("fronts=0", result.stdout)
             self.assertNotIn("Traceback", result.stdout + result.stderr)
 
     def test_exit_one_for_no_accepted_candidate_and_prints_receipt(self):
@@ -133,7 +134,12 @@ class HypothesisCliTests(unittest.TestCase):
             result = _run(space, "--out", root.parent / (root.name + "-out"), "--seed", 1)
             self.assertEqual(1, result.returncode, result.stderr)
             self.assertIn("accepted=0", result.stdout)
+            self.assertIn("fronts=0", result.stdout)
             self.assertRegex(result.stdout, r"manifest_sha256=[0-9a-f]{64}")
+            self.assertRegex(
+                result.stderr,
+                r"BLOCKED: code=\S+ path=\S+ message=.+",
+            )
             self.assertNotIn("Traceback", result.stdout + result.stderr)
 
     def test_invalid_input_and_output_collision_exit_two_without_traceback(self):
