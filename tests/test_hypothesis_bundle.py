@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 import sys
+import json
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,22 @@ class BundleTests(unittest.TestCase):
             write_bundle(output, {"index.json": {"schema_version": 1}})
             (output / "extra.txt").write_text("x", encoding="utf-8")
             self.assertTrue(validate_bundle(output))
+
+    def test_index_is_hash_bound_by_external_manifest(self):
+        with tempfile.TemporaryDirectory() as raw:
+            output = Path(raw) / "out"
+            write_bundle(
+                output,
+                {"index.json": {"schema_version": 1, "accepted_count": 1}},
+            )
+            index = json.loads((output / "index.json").read_text(encoding="utf-8"))
+            index["accepted_count"] = 999
+            from assurance.hypothesis.canonical import canonical_bytes
+
+            (output / "index.json").write_bytes(canonical_bytes(index))
+            self.assertTrue(
+                any("stale hash: index.json" in item for item in validate_bundle(output))
+            )
 
     def test_path_escape_noncanonical_and_missing_are_rejected(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -82,8 +99,35 @@ class BundleTests(unittest.TestCase):
     def test_nonempty_output_requires_force(self):
         with tempfile.TemporaryDirectory() as raw:
             output = Path(raw) / "out"; output.mkdir(); (output / "old.txt").write_text("old")
-            with self.assertRaisesRegex(BundleError, "non-empty"):
+            with self.assertRaisesRegex(BundleError, "already exists"):
                 write_bundle(output, {"index.json": {"schema_version": 1}})
+
+    def test_empty_existing_output_is_also_a_collision(self):
+        with tempfile.TemporaryDirectory() as raw:
+            output = Path(raw) / "out"
+            output.mkdir()
+            with self.assertRaisesRegex(BundleError, "already exists"):
+                write_bundle(output, {"index.json": {"schema_version": 1}})
+
+    def test_nonforce_publication_race_preserves_third_party_output(self):
+        with tempfile.TemporaryDirectory() as raw:
+            output = Path(raw) / "out"
+            from assurance.hypothesis import bundle
+            original_rename = bundle._rename_absent
+
+            def inject_race(source, destination):
+                if source.name.startswith(".hypothesis-txn-"):
+                    output.mkdir()
+                    (output / "third-party.txt").write_text("owned elsewhere")
+                return original_rename(source, destination)
+
+            with mock.patch(
+                "assurance.hypothesis.bundle._rename_absent", inject_race
+            ), self.assertRaisesRegex(BundleError, "race|already exists"):
+                write_bundle(output, {"index.json": {"schema_version": 1}})
+            self.assertEqual(
+                "owned elsewhere", (output / "third-party.txt").read_text()
+            )
 
     def test_force_restore_old_output_when_publication_fails(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -93,7 +137,7 @@ class BundleTests(unittest.TestCase):
                 if source.name.startswith(".hypothesis-txn-"):
                     raise OSError("injected publish failure")
                 return original(source, destination)
-            with mock.patch.object(Path, "replace", fail_transaction), self.assertRaisesRegex(BundleError, "publish"):
+            with mock.patch("assurance.hypothesis.bundle._rename_absent", side_effect=OSError("injected publish failure")), self.assertRaisesRegex(BundleError, "publish"):
                 write_bundle(output, {"index.json": {"schema_version": 1}}, force=True)
             self.assertEqual("old", (output / "old.txt").read_text())
 

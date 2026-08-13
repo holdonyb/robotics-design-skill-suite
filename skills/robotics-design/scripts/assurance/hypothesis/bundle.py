@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
+import sys
 import uuid
+import ctypes
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
@@ -76,8 +79,14 @@ def _path(value: object) -> str:
 
 
 def _manifest(index: object) -> dict[str, str]:
-    if not isinstance(index, dict) or not isinstance(index.get("files"), list):
-        raise BundleError("index.json requires files manifest")
+    if (
+        not isinstance(index, dict)
+        or set(index) != {"schema_version", "files"}
+        or index.get("schema_version") != 1
+        or type(index.get("schema_version")) is not int
+        or not isinstance(index.get("files"), list)
+    ):
+        raise BundleError("manifest.json requires schema_version 1 and files")
     if len(index["files"]) + 1 > _MAX_FILES:
         raise BundleError("bundle file count exceeds maximum")
     result: dict[str, str] = {}
@@ -88,8 +97,8 @@ def _manifest(index: object) -> dict[str, str]:
         digest = item["sha256"]
         if not isinstance(digest, str) or _SHA256.fullmatch(digest) is None:
             raise BundleError("manifest sha256 is invalid")
-        if path == "index.json":
-            raise BundleError("manifest must not contain index.json")
+        if path == "manifest.json":
+            raise BundleError("manifest must not contain manifest.json")
         if path in result:
             raise BundleError("manifest has duplicate path")
         result[path] = digest
@@ -104,9 +113,8 @@ def validate_bundle(root: str | Path) -> list[str]:
     try:
         if not root.is_dir() or root.is_symlink():
             return ["bundle root is invalid"]
-        index_data = (root / "index.json").read_bytes()
-        index = _load(index_data)
-        manifest = _manifest(index)
+        manifest_data = (root / "manifest.json").read_bytes()
+        manifest = _manifest(_load(manifest_data))
         actual: dict[str, str] = {}
         total_bytes = 0
         for item in root.rglob("*"):
@@ -126,7 +134,7 @@ def validate_bundle(root: str | Path) -> list[str]:
                 if canonical_bytes(parsed) != data:
                     errors.append(f"noncanonical file: {relative}")
                 actual[relative] = _hash(data)
-        expected = set(manifest) | {"index.json"}
+        expected = set(manifest) | {"manifest.json"}
         if set(actual) != expected:
             errors.append("bundle files do not match manifest")
         for path, digest in manifest.items():
@@ -135,6 +143,37 @@ def validate_bundle(root: str | Path) -> list[str]:
     except (OSError, BundleError, OverflowError, RecursionError, TypeError, ValueError) as exc:
         errors.append(str(exc))
     return sorted(set(errors))
+
+
+def _rename_absent(source: Path, target: Path) -> None:
+    """Atomically rename a directory only when the destination is absent."""
+
+    if os.name == "nt":
+        source.rename(target)
+        return
+    if sys.platform.startswith("linux"):
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = getattr(libc, "renameat2", None)
+        if renameat2 is None:
+            raise BundleError("atomic no-replace publication is unavailable")
+        renameat2.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        ]
+        renameat2.restype = ctypes.c_int
+        encoded_source = os.fsencode(source)
+        encoded_target = os.fsencode(target)
+        result = renameat2(-100, encoded_source, -100, encoded_target, 1)
+        if result != 0:
+            error = ctypes.get_errno()
+            if error == 17:
+                raise BundleError("output publication race: target already exists")
+            raise OSError(error, os.strerror(error), str(target))
+        return
+    raise BundleError("atomic no-replace publication is unavailable on this platform")
 
 
 def write_bundle(
@@ -150,8 +189,8 @@ def write_bundle(
         raise BundleError("bundle requires index.json")
     if len(files) > _MAX_FILES:
         raise BundleError("bundle file count exceeds maximum")
-    if target.exists() and (not target.is_dir() or any(target.iterdir())) and not force:
-        raise BundleError("output already exists and is non-empty")
+    if target.exists() and not force:
+        raise BundleError("output already exists")
 
     prepared: dict[str, bytes] = {}
     for raw_path, value in files.items():
@@ -169,6 +208,16 @@ def write_bundle(
         if path != "index.json"
     ]
     prepared["index.json"] = canonical_bytes(index)
+    manifest = {
+        "schema_version": 1,
+        "files": [
+            {"path": path, "sha256": _hash(data)}
+            for path, data in sorted(prepared.items())
+        ],
+    }
+    prepared["manifest.json"] = canonical_bytes(manifest)
+    if len(prepared) > _MAX_FILES:
+        raise BundleError("bundle file count exceeds maximum")
     if sum(len(data) for data in prepared.values()) > _MAX_BYTES:
         raise BundleError("bundle total size exceeds maximum")
 
@@ -185,10 +234,18 @@ def write_bundle(
         errors = validate_bundle(transaction)
         if errors:
             raise BundleError("bundle verification failed: " + "; ".join(errors))
-        if target.exists():
+        if force and target.exists():
             target.replace(backup)
             moved_backup = True
-        transaction.replace(target)
+        if force:
+            _rename_absent(transaction, target)
+        else:
+            try:
+                _rename_absent(transaction, target)
+            except (FileExistsError, PermissionError) as exc:
+                raise BundleError(
+                    "output publication race: target already exists"
+                ) from exc
         published = True
         if backup.exists():
             shutil.rmtree(backup)
