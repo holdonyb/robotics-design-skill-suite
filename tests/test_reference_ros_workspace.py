@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "2a4b3feb4abfdab1912b0daa2abbc5b7ead89b1fea53ac3a65f60f3368c204f0"
+ROS_MANIFEST_RECEIPT = "a63f84ed631f9af21c3a9a80d033799b9e04d68d9262733ecb1d85e7341c40c9"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -209,14 +209,23 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         self.assertNotIn("action_ns: arm_controller/", moveit_controllers)
         move_group = text(moveit / "launch" / "move_group.launch.py")
         self.assertIn("moveit_configs_utils", move_group)
-        self.assertIn('get_package_share_directory("jx_mobile_manipulator_description")', move_group)
-        self.assertIn('"urdf" / "reference_mobile_manipulator.urdf.xacro"', move_group)
-        self.assertIn('.robot_description(file_path=description_xacro)', move_group)
+        self.assertIn('get_package_share_directory("jx_mobile_manipulator_moveit_config")', move_group)
+        self.assertIn('"config" / "reference_mobile_manipulator.urdf"', move_group)
+        self.assertIn('.robot_description(file_path=description_urdf)', move_group)
         self.assertIn("planning_pipelines", move_group)
-        moveit_xacro = text(moveit / "config" / "reference_mobile_manipulator.urdf.xacro")
-        # The launch mapping owns this argument.  Redeclaring it in the wrapper
-        # conflicts with MoveItConfigsBuilder's xacro expansion in Jazzy.
-        self.assertNotIn('<xacro:arg name="use_sim"', moveit_xacro)
+        def normalized_xml(path):
+            def walk(node):
+                return (
+                    node.tag,
+                    tuple(sorted(node.attrib.items())),
+                    tuple(walk(child) for child in node),
+                )
+            return walk(ET.parse(path).getroot())
+
+        self.assertEqual(
+            normalized_xml(ROOT / "reference" / "mobile-manipulator" / "robot.urdf"),
+            normalized_xml(moveit / "config" / "reference_mobile_manipulator.urdf"),
+        )
         ompl = text(moveit / "config" / "ompl_planning.yaml")
         # Jazzy scopes planner plugins under the selected `ompl` pipeline and
         # accepts a vector, rather than the retired scalar `planning_plugin`.

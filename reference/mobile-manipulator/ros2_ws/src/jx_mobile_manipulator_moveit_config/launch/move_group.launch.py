@@ -9,9 +9,9 @@ from pathlib import Path
 
 def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
-    description_xacro = Path(get_package_share_directory("jx_mobile_manipulator_description")) / "urdf" / "reference_mobile_manipulator.urdf.xacro"
+    description_urdf = Path(get_package_share_directory("jx_mobile_manipulator_moveit_config")) / "config" / "reference_mobile_manipulator.urdf"
     config = (MoveItConfigsBuilder("reference_mobile_manipulator", package_name="jx_mobile_manipulator_moveit_config")
-              .robot_description(file_path=description_xacro)
+              .robot_description(file_path=description_urdf)
               .robot_description_semantic(file_path="config/reference_mobile_manipulator.srdf")
               .robot_description_kinematics(file_path="config/kinematics.yaml")
               .joint_limits(file_path="config/joint_limits.yaml")
