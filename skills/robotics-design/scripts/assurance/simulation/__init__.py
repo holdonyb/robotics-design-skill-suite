@@ -18,6 +18,7 @@ from .scenario import CompiledScenario, ScenarioError, compile_scenarios, load_s
 from .trace import TraceError, publish_trace_bundle, replay_trace_bundle
 from .backend import BackendError, BackendMetric, BackendResult, compare_backends, evaluate_independent_dynamics
 from .calibration import CalibrationError, CalibrationResult, fit_calibration, load_calibration_dataset
+from .training import PolicyResult, TrainingError, evaluate_policy, validate_training_contract
 
 __all__ = [
     "EVIDENCE_LEVELS",
@@ -49,4 +50,8 @@ __all__ = [
     "CalibrationResult",
     "fit_calibration",
     "load_calibration_dataset",
+    "PolicyResult",
+    "TrainingError",
+    "evaluate_policy",
+    "validate_training_contract",
 ]
