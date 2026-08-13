@@ -89,6 +89,26 @@ class ObjectiveVectorTests(unittest.TestCase):
         self.assertIn("match", vector.reasons["candidate"])
         with self.assertRaisesRegex(ValueError, "match mapping key"):
             pareto_fronts({"candidate-" + "b" * 24: extract_vector(candidate, contract(), report(), OBJECTIVES)}, {item["id"]: item["direction"] for item in OBJECTIVES})
+        mismatched_contract = contract(); mismatched_contract["candidate_id"] = "candidate-" + "b" * 24
+        vector = extract_vector(candidate, mismatched_contract, report(), OBJECTIVES)
+        self.assertFalse(vector.eligible)
+        self.assertIn("contract.candidate_id", vector.reasons["candidate"])
+
+    def test_metadata_mixed_keys_and_huge_integers_fail_closed(self):
+        bad_report = report(); bad_report["metadata"] = []
+        vector = extract_vector(
+            "candidate-" + "a" * 24,
+            contract(),
+            bad_report,
+            [{"id": "evidence", "source": "evidence:minimum-level", "direction": "max"}],
+        )
+        self.assertFalse(vector.eligible)
+        self.assertIn("metadata", vector.reasons["evidence"])
+        with self.assertRaisesRegex(ValueError, "candidate identifiers"):
+            pareto_fronts({"a": {"x": 1}, 1: {"x": 1}}, {"x": "min"})
+        result = pareto_fronts({"huge": {"x": 10**1000}, "valid": {"x": 1}}, {"x": "min"})
+        self.assertEqual((("valid",),), result.fronts)
+        self.assertEqual(("huge",), result.ineligible)
 
     def test_malformed_report_diagnostics_are_ineligible_not_tracebacks(self):
         for diagnostics in (None, "wrong"):

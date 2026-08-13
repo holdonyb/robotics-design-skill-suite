@@ -67,7 +67,10 @@ class ParetoResult:
 def _scalar(value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("objective value must be a finite scalar")
-    result = float(value)
+    try:
+        result = float(value)
+    except (OverflowError, TypeError, ValueError):
+        raise ValueError("objective value must be a finite scalar") from None
     if not math.isfinite(result):
         raise ValueError("objective value must be a finite scalar")
     return result
@@ -114,7 +117,10 @@ def _extract(source: str, contract: object, report: object) -> float:
             value = value[part]
         return _scalar(value)
     if source == "evidence:minimum-level":
-        level = report.get("metadata", {}).get("minimum_evidence_level")
+        metadata = report.get("metadata")
+        if not isinstance(metadata, dict):
+            raise ValueError("report metadata are invalid")
+        level = metadata.get("minimum_evidence_level")
         if level not in _EVIDENCE_ORDINAL:
             raise ValueError("minimum evidence level is missing or invalid")
         return _EVIDENCE_ORDINAL[level]
@@ -146,6 +152,8 @@ def extract_vector(candidate_id: object, contract: object, report: object, objec
         reasons["candidate"] = "report diagnostics are invalid"
     elif report.get("candidate_id") is not None and report.get("candidate_id") != candidate:
         reasons["candidate"] = "report.candidate_id must match candidate_id"
+    elif isinstance(contract, dict) and contract.get("candidate_id") is not None and contract.get("candidate_id") != candidate:
+        reasons["candidate"] = "contract.candidate_id must match candidate_id"
     elif any(item["severity"] in {"error", "indeterminate"} for item in diagnostics):
         reasons["candidate"] = "report.promotable conflicts with blocking diagnostics"
     for item in declarations:
@@ -167,7 +175,10 @@ def pareto_fronts(vectors: Mapping[str, object], directions: Mapping[str, str]) 
         raise ValueError("directions must be min or max")
     eligible: dict[str, dict[str, float]] = {}
     ineligible: list[str] = []
-    for candidate in sorted(vectors):
+    candidate_keys = list(vectors)
+    if any(not isinstance(candidate, str) or not candidate for candidate in candidate_keys):
+        raise ValueError("vector candidate identifiers must be non-empty strings")
+    for candidate in sorted(candidate_keys):
         if not isinstance(candidate, str) or not candidate:
             raise ValueError("vector candidate identifiers must be non-empty strings")
         value = vectors[candidate]
@@ -185,7 +196,7 @@ def pareto_fronts(vectors: Mapping[str, object], directions: Mapping[str, str]) 
         try:
             if set(raw) != set(ordered_directions): raise ValueError()
             eligible[candidate] = {key: _scalar(raw[key]) for key in ordered_directions}
-        except ValueError:
+        except (OverflowError, TypeError, ValueError):
             ineligible.append(candidate)
     def dominates(left: str, right: str) -> bool:
         pairs = ((eligible[left][key], eligible[right][key], ordered_directions[key]) for key in ordered_directions)
