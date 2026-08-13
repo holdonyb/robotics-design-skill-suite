@@ -14,9 +14,11 @@ ROS 2, and simulation skills to audited commits.
   release status are complete.
 - Pre-release branch: `feature/v040-hypothesis-engine`.
 - Candidate version: `0.4.0` in `manifest.json`.
-- v0.4 implementation through Task 11: `348f4ef` through `6b738e5`.
-- v0.4 public PR, matrix CI, merge, annotated tag, GitHub Release, merged-commit
-  verification, and controlled local-skill refresh are still open Task 12 gates.
+- v0.4 release candidate head: `0e8cdcc` on public draft pull request `#4`.
+- Fresh local dual-version tests, GitHub matrix CI, the fresh staged install,
+  and whole-release adversarial review are complete. Merge, annotated tag,
+  GitHub Release, public tag verification, and controlled local-skill refresh
+  remain open Task 12 gates.
 - Third-party source locks are unchanged from v0.3.0.
 
 ## v0.4 Candidate Capability
@@ -63,8 +65,8 @@ changes promotion. The pinned pre-release bundle receipt is
 
 On 2026-08-13, before Task 12 release publication:
 
-- Python 3.11.2 full suite: 292/292 passed at the Task 12 candidate head;
-- bundled Python 3.12.13 full suite: 292/292 passed at the Task 12 candidate
+- Python 3.11.2 full suite: 293/293 passed at the Task 12 candidate head;
+- bundled Python 3.12.13 full suite: 293/293 passed at the Task 12 candidate
   head;
 - distribution validation: 10 skills and 3 pinned sources valid;
 - installer dry run: complete 10-skill plan;
@@ -80,11 +82,22 @@ On 2026-08-13, before Task 12 release publication:
 - release hardening reproduced interrupted and malformed codeload responses;
   the installer now retries three times, validates ZIP/CRC before accepting a
   source, removes partial files, and reports exhaustion without a traceback.
+- the whole-release adversarial review at `d431688` found no Critical,
+  Important, or Minor issues; its engineering release-candidate verdict was
+  APPROVED, with only the then-unexecuted external release gates left open;
+- GitHub Actions run `31714792180` passed the Ubuntu/Windows × Python 3.11/3.12
+  matrix plus the `release-install` job at `0e8cdcc` (the parallel push run
+  passed independently as well);
+- the GitHub runner fresh-install evidence contains 10/10 skills, 9/9 upstream
+  licenses, OpenAI's official validator pinned to `openai/skills@49f948f`, no
+  bytecode/partial/transaction residue, a generated `host-runtime.md`, and an
+  exact full-file/hash match for the installed `robotics-design` skill.
 
-These are pre-release branch results. GitHub matrix CI, merged-commit checks,
-public tag checks, and fresh release installation remain open until executed.
-The current host repeatedly lost the 8.67 MiB pinned text-to-cad response over
-codeload and Git smart protocol; no incomplete checkout or archive was accepted.
+These are pre-release branch results. Merged-commit checks, public tag checks,
+and local refresh remain open until executed. The current host repeatedly lost
+the 8.67 MiB pinned text-to-cad response over codeload and Git smart protocol;
+no incomplete checkout or archive was accepted, so the retained fresh-install
+evidence was produced on the clean GitHub runner instead.
 
 ## Claim Boundary and Open Engineering Risks
 

@@ -177,6 +177,9 @@ class PublicHygieneTests(unittest.TestCase):
             "PyYAML==6.0.3",
             "quick_validate.py",
             "UPSTREAM_LICENSE",
+            "license_path",
+            "raw.githubusercontent.com",
+            "license content mismatch",
             "__pycache__",
             "host-runtime.md",
             "assurance/hypothesis/engine.py",
@@ -208,6 +211,14 @@ class PublicHygieneTests(unittest.TestCase):
         ):
             self.assertIn(gate, audit)
         self.assertIn("OPEN", audit)
+        for evidence in (
+            "0e8cdcc",
+            "31714792180",
+            "10/10 skills",
+            "9/9 upstream licenses",
+            "whole-release adversarial review",
+        ):
+            self.assertIn(evidence, status + audit)
 
 
 if __name__ == "__main__":
