@@ -27,6 +27,7 @@ _ROOT_FIELDS = {"schema_version", "generator", "geometry_source", "physical_sour
 _SOURCE_FIELDS = {"path", "sha256"}
 _OUTPUT_FIELDS = {"path", "sha256", "source_sha256", "physical_source_sha256", "contract_source_sha256", "assumptions_source_sha256"}
 _GENERATOR = {"name": "reference-model-generator", "version": "0.5.0"}
+_MAX_MANIFEST_BYTES = 5 * 1024 * 1024
 
 
 def _sha256(path: Path) -> str:
@@ -53,6 +54,58 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise ValueError(f"duplicate JSON key: {key}")
         result[key] = value
     return result
+
+
+def _geometry_schema_errors(geometry: object) -> list[str]:
+    errors: list[str] = []
+
+    def closed(value: object, fields: set[str], path: str) -> dict[str, Any] | None:
+        if not isinstance(value, dict) or set(value) != fields:
+            errors.append(f"geometry {path} fields are not closed")
+            return None
+        return value
+
+    def records(value: object, fields: set[str], path: str, count: int) -> list[dict[str, Any]]:
+        if not isinstance(value, list) or len(value) != count:
+            errors.append(f"geometry {path} must contain exactly {count} records")
+            return []
+        result = []
+        for index, item in enumerate(value):
+            observed = closed(item, fields, f"{path}[{index}]")
+            if observed is not None:
+                result.append(observed)
+        return result
+
+    root = closed(
+        geometry,
+        {"schema_version", "robot_name", "units", "assumptions", "base", "wheels", "arm_links", "arm_joints", "tool", "sensors", "ros2_control", "moveit"},
+        "root",
+    )
+    if root is None:
+        return errors
+    if root.get("schema_version") != 1 or type(root.get("schema_version")) is not int:
+        errors.append("geometry schema_version must be integer 1")
+    closed(root.get("units"), {"angle", "length", "mass"}, "units")
+    base = closed(root.get("base"), {"link", "size_m", "origin_xyz_m", "arm_mount", "physical_owner"}, "base")
+    if base is not None:
+        closed(base.get("arm_mount"), {"radius_m", "height_m", "origin_xyz_m"}, "base.arm_mount")
+    records(root.get("wheels"), {"link", "joint", "origin_xyz_m", "axis", "radius_m", "width_m"}, "wheels", 2)
+    records(root.get("arm_links"), {"link", "length_m", "radius_m", "physical_owner"}, "arm_links", 6)
+    records(
+        root.get("arm_joints"),
+        {"joint", "parent", "child", "origin_xyz_m", "axis", "lower_rad", "upper_rad", "effort_nm", "velocity_rad_s"},
+        "arm_joints",
+        6,
+    )
+    closed(root.get("tool"), {"link", "parent", "joint", "origin_xyz_m"}, "tool")
+    records(root.get("sensors"), {"name", "type", "parent", "frame", "update_rate_hz"}, "sensors", 1)
+    closed(
+        root.get("ros2_control"),
+        {"plugin", "arm_command_interfaces", "arm_state_interfaces", "wheel_command_interfaces", "wheel_state_interfaces"},
+        "ros2_control",
+    )
+    closed(root.get("moveit"), {"group", "base_link", "tip_link", "home_rad"}, "moveit")
+    return errors
 
 
 def _positive_number(value: object) -> bool:
@@ -248,17 +301,29 @@ def _semantic_errors(
     return errors
 
 
-def validate_artifact_manifest(root: str | Path) -> list[str]:
+def validate_artifact_manifest(
+    root: str | Path,
+    *,
+    manifest_sha256: str | None = None,
+) -> list[str]:
     """Validate exact files, hashes, symlink policy, and cross-artifact semantics."""
 
     base = Path(root)
     manifest_path = base / "simulation" / "artifact-manifest.json"
     try:
+        if manifest_path.stat().st_size > _MAX_MANIFEST_BYTES:
+            return ["artifact manifest exceeds maximum size of 5 MiB"]
         manifest_bytes = manifest_path.read_bytes()
         manifest = json.loads(manifest_bytes.decode("utf-8"), object_pairs_hook=_unique_object)
-    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError, ValueError) as exc:
         return [f"cannot load artifact manifest: {exc}"]
     errors: list[str] = []
+    try:
+        validate_sha256(manifest_sha256, "manifest_sha256")
+        if manifest_sha256 != hashlib.sha256(manifest_bytes).hexdigest():
+            errors.append("artifact manifest does not match its external receipt SHA-256")
+    except ValueError as exc:
+        errors.append(f"external receipt is required: {exc}")
     if not isinstance(manifest, dict):
         return ["artifact manifest root must be an object"]
     if set(manifest) != _ROOT_FIELDS:
@@ -295,6 +360,10 @@ def validate_artifact_manifest(root: str | Path) -> list[str]:
         geometry = json.loads(geometry_path.read_text(encoding="utf-8"), object_pairs_hook=_unique_object)
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
         errors.append(f"cannot validate geometry source: {exc}")
+        return sorted(set(errors))
+    geometry_errors = _geometry_schema_errors(geometry)
+    errors.extend(geometry_errors)
+    if geometry_errors:
         return sorted(set(errors))
 
     if not isinstance(physical_source, dict) or set(physical_source) != _SOURCE_FIELDS:

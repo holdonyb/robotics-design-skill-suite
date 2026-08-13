@@ -32,6 +32,7 @@ EXPECTED_OUTPUTS = {
     "model/generated/package.xml",
     "model/generated/CMakeLists.txt",
 }
+EXPECTED_MANIFEST_SHA256 = "cb61a6b975212b779db919cf12b8eeffaddb1ab6b8d18e738f42482311c17c16"
 
 
 def sha256(path):
@@ -86,6 +87,14 @@ class SimulationArtifactTests(unittest.TestCase):
     def manifest(self, root):
         return json.loads((root / "simulation" / "artifact-manifest.json").read_text(encoding="utf-8"))
 
+    def validate(self, root, *, accept_current_manifest=False):
+        receipt = (
+            sha256(root / "simulation" / "artifact-manifest.json")
+            if accept_current_manifest
+            else EXPECTED_MANIFEST_SHA256
+        )
+        return validate_artifact_manifest(root, manifest_sha256=receipt)
+
     def rehash(self, root, relative):
         manifest_path = root / "simulation" / "artifact-manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -108,7 +117,7 @@ class SimulationArtifactTests(unittest.TestCase):
             for path in second.rglob("*") if path.is_file()
         }
         self.assertEqual(first_files, second_files)
-        self.assertEqual(validate_artifact_manifest(first), [])
+        self.assertEqual(self.validate(first), [])
         manifest = self.manifest(first)
         self.assertEqual({item["path"] for item in manifest["outputs"]}, EXPECTED_OUTPUTS)
         geometry_sha = sha256(first / "model" / "geometry.json")
@@ -121,19 +130,19 @@ class SimulationArtifactTests(unittest.TestCase):
             self.generate(root)
             urdf = root / "model" / "generated" / "reference_mobile_manipulator.urdf"
             urdf.write_text(urdf.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-            self.assertTrue(any("SHA-256" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("SHA-256" in item for item in self.validate(root)))
 
             self.generate(root)
             extra = root / "model" / "generated" / "manual.txt"
             extra.write_text("manual\n", encoding="utf-8")
-            self.assertTrue(any("extra file" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("extra file" in item for item in self.validate(root)))
 
             self.generate(root)
             geometry = root / "model" / "geometry.json"
             data = json.loads(geometry.read_text(encoding="utf-8"))
             data["base"]["size_m"][0] = 0.81
             geometry.write_bytes(canonical_bytes(data))
-            self.assertTrue(any("geometry source SHA-256" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("geometry source SHA-256" in item for item in self.validate(root)))
 
             if hasattr(os, "symlink"):
                 self.generate(root)
@@ -146,7 +155,7 @@ class SimulationArtifactTests(unittest.TestCase):
                 except OSError:
                     pass
                 else:
-                    self.assertTrue(any("symlink" in item for item in validate_artifact_manifest(root)))
+                    self.assertTrue(any("symlink" in item for item in self.validate(root)))
 
     def test_manifest_rejects_duplicate_keys_and_physical_or_contract_source_drift(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -155,17 +164,17 @@ class SimulationArtifactTests(unittest.TestCase):
             manifest_path = root / "simulation" / "artifact-manifest.json"
             payload = manifest_path.read_text(encoding="utf-8")
             manifest_path.write_text(payload.replace('"schema_version":1', '"schema_version":1,"schema_version":1', 1), encoding="utf-8")
-            self.assertTrue(any("duplicate JSON key" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("duplicate JSON key" in item for item in self.validate(root, accept_current_manifest=True)))
 
             self.generate(root)
             physical = root / "robot.urdf"
             physical.write_text(physical.read_text(encoding="utf-8").replace('mass value="100"', 'mass value="101"', 1), encoding="utf-8", newline="\n")
-            self.assertTrue(any("physical source SHA-256" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("physical source SHA-256" in item for item in self.validate(root)))
 
             self.generate(root)
             contract = root / "design-contract.json"
             contract.write_text(contract.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-            self.assertTrue(any("contract source SHA-256" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("contract source SHA-256" in item for item in self.validate(root)))
 
             self.generate(root)
             assumptions = root / "assumptions.json"
@@ -177,7 +186,7 @@ class SimulationArtifactTests(unittest.TestCase):
             for output in manifest["outputs"]:
                 output["assumptions_source_sha256"] = sha256(assumptions)
             (root / "simulation" / "artifact-manifest.json").write_bytes(canonical_bytes(manifest))
-            self.assertTrue(any("wheel dynamics" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("wheel dynamics" in item for item in self.validate(root, accept_current_manifest=True)))
 
             self.generate(root)
             assumptions = root / "assumptions.json"
@@ -189,7 +198,31 @@ class SimulationArtifactTests(unittest.TestCase):
             for output in manifest["outputs"]:
                 output["assumptions_source_sha256"] = sha256(assumptions)
             (root / "simulation" / "artifact-manifest.json").write_bytes(canonical_bytes(manifest))
-            self.assertTrue(any("contract source does not hash-bind assumptions" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("contract source does not hash-bind assumptions" in item for item in self.validate(root, accept_current_manifest=True)))
+
+            self.generate(root)
+            geometry = root / "model" / "geometry.json"
+            data = json.loads(geometry.read_text(encoding="utf-8"))
+            data["unowned_interface_change"] = {"enabled": True}
+            geometry.write_bytes(canonical_bytes(data))
+            manifest = self.manifest(root)
+            manifest["geometry_source"]["sha256"] = sha256(geometry)
+            for output in manifest["outputs"]:
+                output["source_sha256"] = sha256(geometry)
+            (root / "simulation" / "artifact-manifest.json").write_bytes(canonical_bytes(manifest))
+            self.assertTrue(any("geometry" in item and "fields" in item for item in self.validate(root, accept_current_manifest=True)))
+
+            self.generate(root)
+            geometry = root / "model" / "geometry.json"
+            data = json.loads(geometry.read_text(encoding="utf-8"))
+            data["base"]["size_m"][0] = 0.81
+            geometry.write_bytes(canonical_bytes(data))
+            manifest = self.manifest(root)
+            manifest["geometry_source"]["sha256"] = sha256(geometry)
+            for output in manifest["outputs"]:
+                output["source_sha256"] = sha256(geometry)
+            (root / "simulation" / "artifact-manifest.json").write_bytes(canonical_bytes(manifest))
+            self.assertTrue(any("external receipt" in item for item in self.validate(root)))
 
     def test_manifest_requires_canonical_bytes_and_fixed_generator_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -197,13 +230,19 @@ class SimulationArtifactTests(unittest.TestCase):
             self.generate(root)
             path = root / "simulation" / "artifact-manifest.json"
             path.write_text(json.dumps(self.manifest(root), indent=2) + "\n", encoding="utf-8", newline="\n")
-            self.assertTrue(any("canonical" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("canonical" in item for item in self.validate(root, accept_current_manifest=True)))
 
             self.generate(root)
             manifest = self.manifest(root)
             manifest["generator"]["version"] = "attacker"
             path.write_bytes(canonical_bytes(manifest))
-            self.assertTrue(any("generator" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("generator" in item for item in self.validate(root, accept_current_manifest=True)))
+
+            self.generate(root)
+            manifest = self.manifest(root)
+            manifest["generator"]["version"] = "attacker"
+            path.write_bytes(canonical_bytes(manifest))
+            self.assertTrue(any("external receipt" in item for item in self.validate(root)))
 
     def test_rehashed_urdf_joint_transmission_collision_and_mass_drift_are_rejected(self):
         def wrong_axis(root):
@@ -242,7 +281,8 @@ class SimulationArtifactTests(unittest.TestCase):
                 ET.indent(document.getroot(), space="  ")
                 path.write_bytes(ET.tostring(document.getroot(), encoding="utf-8", xml_declaration=True) + b"\n")
                 self.rehash(root, relative)
-                self.assertTrue(any(expected in item for item in validate_artifact_manifest(root)), validate_artifact_manifest(root))
+                errors = self.validate(root, accept_current_manifest=True)
+                self.assertTrue(any(expected in item for item in errors), errors)
 
     def test_rehashed_srdf_and_bridge_policy_drift_are_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -254,7 +294,7 @@ class SimulationArtifactTests(unittest.TestCase):
             text = text.replace("</robot>", '<disable_collisions link1="base_link" link2="tool0" reason="Manual"/></robot>')
             path.write_text(text, encoding="utf-8", newline="\n")
             self.rehash(root, relative)
-            self.assertTrue(any("disabled collision" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("disabled collision" in item for item in self.validate(root, accept_current_manifest=True)))
 
             self.generate(root)
             relative = "model/generated/reference_mobile_manipulator.srdf"
@@ -264,7 +304,7 @@ class SimulationArtifactTests(unittest.TestCase):
             ET.indent(document.getroot(), space="  ")
             path.write_bytes(ET.tostring(document.getroot(), encoding="utf-8", xml_declaration=True) + b"\n")
             self.rehash(root, relative)
-            self.assertTrue(any("disabled collision" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("disabled collision" in item for item in self.validate(root, accept_current_manifest=True)))
 
             self.generate(root)
             relative = "model/generated/bridge.yaml"
@@ -272,7 +312,7 @@ class SimulationArtifactTests(unittest.TestCase):
             text = path.read_text(encoding="utf-8").replace("/clock", "/missing_clock")
             path.write_text(text, encoding="utf-8", newline="\n")
             self.rehash(root, relative)
-            self.assertTrue(any("/clock" in item for item in validate_artifact_manifest(root)))
+            self.assertTrue(any("/clock" in item for item in self.validate(root, accept_current_manifest=True)))
 
     def test_rehashed_sdf_joint_and_inertia_drift_are_rejected(self):
         attacks = (
@@ -293,11 +333,11 @@ class SimulationArtifactTests(unittest.TestCase):
                 ET.indent(document.getroot(), space="  ")
                 path.write_bytes(ET.tostring(document.getroot(), encoding="utf-8", xml_declaration=True) + b"\n")
                 self.rehash(root, relative)
-                errors = validate_artifact_manifest(root)
+                errors = self.validate(root, accept_current_manifest=True)
                 self.assertTrue(any(f"SDF" in item and expected in item for item in errors), errors)
 
     def test_tracked_reference_bundle_is_current_and_lf_only(self):
-        self.assertEqual(validate_artifact_manifest(REFERENCE), [])
+        self.assertEqual(self.validate(REFERENCE), [])
         manifest = self.manifest(REFERENCE)
         for output in manifest["outputs"]:
             path = REFERENCE / output["path"]
