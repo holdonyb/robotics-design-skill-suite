@@ -15,7 +15,7 @@ description, ROS 2, and simulation skills to audited commits.
   CI, merge, tag, and GitHub Release complete.
 - v1 architecture and autonomy boundary: `0e03e58`.
 - v0.3 implementation plan: `f0ca0a0`, with portable command fix `ccc1697`.
-- Physical-assurance implementation: `b975a3e` through `9471b19`.
+- Physical-assurance implementation: `b975a3e` through `501fbd5`.
 - Local-delta classification: `b2c5b95`; no active installed skill was
   overwritten during classification or implementation.
 - Third-party source locks remain unchanged from `v0.2.0`.
@@ -58,10 +58,10 @@ assumptions satisfy the implemented conservative equations.
 
 ## Latest Verified Evidence
 
-On 2026-08-13, at release-candidate implementation commit `9471b19`:
+On 2026-08-13, at release-candidate implementation commit `501fbd5`:
 
-- Python 3.11 full repository suite: 130/130 passed;
-- bundled Python 3.12.13 full repository suite: 130/130 passed;
+- Python 3.11 full repository suite: 132/132 passed;
+- bundled Python 3.12.13 full repository suite: 132/132 passed;
 - `scripts/validate.py`: 10 skills and 3 pinned sources valid;
 - `scripts/install.py --dry-run`: complete 10-skill plan with no writes;
 - reference physical CLI: exit `1` as designed, report emitted, only
@@ -72,7 +72,7 @@ On 2026-08-13, at release-candidate implementation commit `9471b19`:
   and passed the complete reference-robot tests;
 - fresh pinned-source network install artifact: 10 skills installed into a new
   ignored destination with a generated Python 3.12 host overlay and the exact
-  `artifacts.py` hash from `9471b19`;
+  `units.py` hash from `501fbd5`;
 - official skill validator using UTF-8 mode: 10/10 installed skills valid;
 - fresh install retained 9/9 upstream-license copies and contained zero
   `__pycache__`, `.pyc`, `.pyo`, or transaction-residue paths.
@@ -80,7 +80,8 @@ On 2026-08-13, at release-candidate implementation commit `9471b19`:
 Independent adversarial reviews exposed vacuous analysis coverage,
 cross-responsibility rating reuse, missing per-motor thermal coverage, and
 forgeable verified-part provenance, oversized numeric inputs, and open nested
-catalog fields; commits through `9471b19` remediate those findings with
+catalog fields and open typed quantity objects; commits through `501fbd5`
+remediate those findings with
 semantic catalog parsing, exact limit binding, bounded integers, and recursive
 closed schemas. Immutable
 re-review of this commit, GitHub CI, merge, tag, and release
