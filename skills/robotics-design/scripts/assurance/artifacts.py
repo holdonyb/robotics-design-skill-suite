@@ -238,7 +238,7 @@ def observe_declared_json(
             parse_constant=reject_constant,
             object_pairs_hook=unique_object,
         )
-    except (json.JSONDecodeError, ValueError) as exc:
+    except (json.JSONDecodeError, ValueError, RecursionError) as exc:
         return None, [
             _diagnostic("ARTIFACT.JSON", "error", str(path), f"invalid declared JSON: {exc}")
         ]
@@ -268,6 +268,27 @@ def observe_declared_json(
                 "error",
                 str(path),
                 f"declared JSON exceeds nesting depth {MAX_DECLARED_JSON_DEPTH}",
+            )
+        ]
+
+    def has_nonfinite(value: Any) -> bool:
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, (int, float)):
+            return not math.isfinite(float(value))
+        if isinstance(value, dict):
+            return any(has_nonfinite(item) for item in value.values())
+        if isinstance(value, list):
+            return any(has_nonfinite(item) for item in value)
+        return False
+
+    if has_nonfinite(data):
+        return None, [
+            _diagnostic(
+                "ARTIFACT.JSON_NUMBER",
+                "error",
+                str(path),
+                "declared JSON contains a non-finite number",
             )
         ]
     return data, []

@@ -112,6 +112,21 @@ def validate_ledger(contract: dict[str, Any]) -> list[Diagnostic]:
                     + ", ".join(sorted(actuator_bindings)),
                 )
             )
+        drive_bindings = [
+            value
+            for value in bindings
+            if _nonempty(value) and value.startswith("drive:")
+        ] if isinstance(bindings, list) else []
+        if role in {"traction_motor", "reducer", "wheel", "bearing"} and len(drive_bindings) > 1:
+            diagnostics.append(
+                Diagnostic(
+                    "BOM.MULTI_DRIVE_COMPONENT",
+                    "error",
+                    f"{path}.bindings",
+                    f"component {component_id} cannot serve multiple drive units: "
+                    + ", ".join(sorted(drive_bindings)),
+                )
+            )
 
         interfaces = item.get("interfaces", [])
         if isinstance(interfaces, list):

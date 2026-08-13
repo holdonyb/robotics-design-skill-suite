@@ -162,6 +162,21 @@ class AssuranceLedgerTests(unittest.TestCase):
             any(item.code == "BOM.MULTI_ACTUATOR_COMPONENT" for item in diagnostics)
         )
 
+    def test_left_and_right_drive_load_paths_cannot_share_physical_parts(self):
+        data = valid_contract()
+        data["architecture"]["features"] = ["differential_drive"]
+        data["components"] = [
+            component("MOTOR", "traction_motor", bindings=["drive:left", "drive:right"]),
+            component("REDUCER", "reducer", bindings=["drive:left", "drive:right"]),
+            component("WHEEL", "wheel", bindings=["drive:left", "drive:right"]),
+            component("BEARING", "bearing", bindings=["drive:left", "drive:right"]),
+            component("DRIVER", "motor_driver", bindings=["drive:left", "drive:right"]),
+        ]
+        diagnostics = validate_ledger(data)
+        self.assertTrue(
+            any(item.code == "BOM.MULTI_DRIVE_COMPONENT" for item in diagnostics)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

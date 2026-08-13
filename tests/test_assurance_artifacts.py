@@ -111,6 +111,11 @@ class AssuranceArtifactTests(unittest.TestCase):
             self.assertIsNone(observation)
             self.assertTrue(any(item.code == "ARTIFACT.JSON" for item in diagnostics))
 
+            path.write_text('{"x": 1e400}', encoding="utf-8")
+            observation, diagnostics = observe_declared_json(path)
+            self.assertIsNone(observation)
+            self.assertTrue(any(item.code == "ARTIFACT.JSON_NUMBER" for item in diagnostics))
+
     def test_joint_limit_drift_and_missing_observation_are_reported(self):
         data = valid_contract()
         data["quantities"] = [
