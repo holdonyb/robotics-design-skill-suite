@@ -37,7 +37,10 @@ Bare physical numbers and inferred units are invalid. Supported evidence
 levels are `assumed`, `generated`, `parsed`, `calculated`, `simulated`,
 `bench-tested`, `integrated-hardware-tested`, `task-validated`, and
 `certified`. These levels order evidence strength; they never automatically
-upgrade a claim.
+upgrade a claim. A quantity cannot declare a stronger level than the evidence
+record selected as its source. Reports include declared-level counts and the
+minimum quantity evidence level so a clean calculation cannot hide an assumed
+dependency.
 
 ## Component and load-path completeness
 
@@ -101,10 +104,18 @@ or regenerative charge acceptance.
 
 ### `stability_v1`
 
-The current plug-in computes the signed minimum distance from projected center
-of mass to a rectangular support boundary. A negative margin fails. This is a
-static screen, not proof for acceleration, slope transitions, compliance,
-suspension, tire deformation, collision impulse, or manipulation dynamics.
+The current plug-in projects center of mass along gravity using declared COM
+height and base-frame x/y support-plane slopes:
+
+```text
+x_projected = x_com + h_com * tan(slope_x)
+y_projected = y_com + h_com * tan(slope_y)
+margin = min(distance from projected COM to each rectangular support bound)
+```
+
+A negative margin fails. This is a rigid-contact static screen, not proof for
+acceleration, slope transitions, compliance, suspension, tire deformation,
+collision impulse, or manipulation dynamics.
 
 ### `arm_gravity_v1`
 
