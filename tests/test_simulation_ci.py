@@ -33,6 +33,7 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn("generate_launch_description", gate)
         self.assertIn('ros2 launch --debug jx_mobile_manipulator_moveit_config move_group.launch.py', gate)
         self.assertIn('require_running "${pids[1]}" "$EVIDENCE/move_group.log"', gate)
+        self.assertIn('grep -q "You can start planning now!" "$EVIDENCE/move_group.log"', gate)
         self.assertIn('require_running "${pids[2]}" "$EVIDENCE/nav2.log"', gate)
         self.assertLess(
             gate.index("run colcon --log-base"),

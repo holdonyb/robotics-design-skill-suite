@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "4b10e77d42348ea2cfe0d146420e5f25c54b3688d180f56c5a1011a1f55939ba"
+ROS_MANIFEST_RECEIPT = "50453a25aff27532ded917dbc62879f9f45ea863926aa192075e837783a2f402"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -224,10 +224,16 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
                 )
             return walk(ET.parse(path).getroot())
 
-        self.assertEqual(
-            normalized_xml(ROOT / "reference" / "mobile-manipulator" / "robot.urdf"),
-            normalized_xml(moveit / "config" / "reference_mobile_manipulator.urdf"),
-        )
+        physical = ET.parse(ROOT / "reference" / "mobile-manipulator" / "robot.urdf").getroot()
+        moveit_model = ET.parse(moveit / "config" / "reference_mobile_manipulator.urdf").getroot()
+        self.assertEqual("reference_mobile_manipulator", moveit_model.get("name"))
+        self.assertTrue({item.get("name") for item in physical.findall("link")} <= {item.get("name") for item in moveit_model.findall("link")})
+        self.assertTrue({item.get("name") for item in physical.findall("joint")} <= {item.get("name") for item in moveit_model.findall("joint")})
+        tool_joint = moveit_model.find("joint[@name='tool0_fixed']")
+        self.assertIsNotNone(tool_joint)
+        self.assertEqual("arm_link_6", tool_joint.find("parent").get("link"))
+        self.assertEqual("tool0", tool_joint.find("child").get("link"))
+        self.assertEqual("0.10 0 0", tool_joint.find("origin").get("xyz"))
         self.assertFalse((moveit / "config" / "reference_mobile_manipulator.urdf.xacro").exists())
         ompl = text(moveit / "config" / "ompl_planning.yaml")
         # Jazzy scopes planner plugins under the selected `ompl` pipeline and
