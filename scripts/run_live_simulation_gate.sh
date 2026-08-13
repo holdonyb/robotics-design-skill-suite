@@ -62,6 +62,8 @@ require_active_controller "diff_drive_controller"
 timeout 30s ros2 launch jx_mobile_manipulator_moveit_config move_group.launch.py > "$EVIDENCE/move_group.log" 2>&1 & pids+=("$!")
 timeout 30s ros2 launch jx_mobile_manipulator_nav navigation.launch.py > "$EVIDENCE/nav2.log" 2>&1 & pids+=("$!")
 sleep 10
+require_running "${pids[1]}" "$EVIDENCE/move_group.log"
+require_running "${pids[2]}" "$EVIDENCE/nav2.log"
 ros2 node list | tee "$EVIDENCE/consumer-nodes.txt"
 grep -q move_group "$EVIDENCE/consumer-nodes.txt"
 grep -Eq 'controller_server|planner_server' "$EVIDENCE/consumer-nodes.txt"
