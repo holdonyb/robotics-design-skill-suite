@@ -79,24 +79,34 @@ def _analysis_coverage_diagnostics(data: dict[str, Any]) -> list[Diagnostic]:
         }
         undeclared_message: str | None = None
         if plugin == "drivetrain_v1" and (
-            "differential_drive" not in declared_features or len(scoped_drives) != 1
+            "differential_drive" not in declared_features
+            or len(scoped_drives) != 1
+            or bool(scoped_actuators)
         ):
             undeclared_message = (
-                "drivetrain_v1 requires differential_drive architecture and exactly one drive responsibility"
+                "drivetrain_v1 requires differential_drive architecture, exactly one drive responsibility, and no actuator scope"
             )
         elif plugin == "stability_v1" and (
-            "differential_drive" not in declared_features or not scoped_drives
+            "differential_drive" not in declared_features
+            or not scoped_drives
+            or bool(scoped_actuators)
         ):
             undeclared_message = (
-                f"{plugin} requires differential_drive architecture and explicit drive coverage"
+                f"{plugin} requires differential_drive architecture, explicit drive coverage, and no actuator scope"
             )
-        elif plugin == "battery_v1" and "battery_powered" not in declared_features:
-            undeclared_message = "battery_v1 requires battery_powered architecture"
-        elif plugin == "arm_gravity_v1" and (
-            not declared_actuators or not scoped_actuators
+        elif plugin == "battery_v1" and (
+            "battery_powered" not in declared_features
+            or bool(scoped_drives)
+            or bool(scoped_actuators)
         ):
             undeclared_message = (
-                "arm_gravity_v1 requires declared actuators and explicit actuator coverage"
+                "battery_v1 requires battery_powered architecture and no drive or actuator scope"
+            )
+        elif plugin == "arm_gravity_v1" and (
+            not declared_actuators or not scoped_actuators or bool(scoped_drives)
+        ):
+            undeclared_message = (
+                "arm_gravity_v1 requires declared actuators, explicit actuator coverage, and no drive scope"
             )
         elif plugin == "thermal_duty_v1" and (
             len(scoped_drives) + len(scoped_actuators) != 1
@@ -212,9 +222,9 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
         if isinstance(item, dict) and item.get("state") != "missing"
     ]
 
-    def component_for(responsibility: str, role: str) -> str | None:
+    def component_for(responsibility: str, role: str) -> dict[str, Any] | None:
         matches = [
-            str(item.get("id"))
+            item
             for item in components
             if item.get("role") == role
             and responsibility in item.get("bindings", [])
@@ -227,13 +237,15 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
         field: str,
         responsibility: str,
         role: str,
+        limit_name: str,
         nested_path: str = "",
     ) -> None:
         reference = inputs.get(field)
         if not isinstance(reference, str) or not reference.startswith("quantity:"):
             return
         quantity = quantities.get(reference[9:])
-        component_id = component_for(responsibility, role)
+        component = component_for(responsibility, role)
+        component_id = component.get("id") if component is not None else None
         expected_owner = f"component:{component_id}" if component_id is not None else None
         if quantity is None or expected_owner is None or quantity.get("owner") != expected_owner:
             field_path = f"analyses[{analysis_index}].inputs{nested_path}.{field}"
@@ -245,6 +257,22 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
                     f"{field} must be owned by the unique {role} bound to {responsibility}",
                 )
             )
+            return
+        if component is not None and component.get("state") in {
+            "verified_part",
+            "qualified_substitute",
+        }:
+            limits = component.get("limits", {})
+            if not isinstance(limits, dict) or limits.get(limit_name) != reference:
+                field_path = f"analyses[{analysis_index}].inputs{nested_path}.{field}"
+                diagnostics.append(
+                    Diagnostic(
+                        "PHY.ANALYSIS.RATING_LIMIT",
+                        "indeterminate",
+                        field_path,
+                        f"{field} must equal the {limit_name} limit of component:{component_id}",
+                    )
+                )
 
     for index, analysis in enumerate(data.get("analyses", [])):
         if not isinstance(analysis, dict):
@@ -254,32 +282,40 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
         covers = analysis.get("covers", [])
         if not isinstance(inputs, dict) or not isinstance(covers, list):
             continue
-        scoped = [
-            value
+        scoped_drives = {
+            value[6:]
             for value in covers
-            if isinstance(value, str)
-            and (value.startswith("drive:") or value.startswith("actuator:"))
+            if isinstance(value, str) and value.startswith("drive:")
+        }
+        scoped_actuators = {
+            value[9:]
+            for value in covers
+            if isinstance(value, str) and value.startswith("actuator:")
+        }
+        scoped = [
+            *(f"drive:{value}" for value in sorted(scoped_drives)),
+            *(f"actuator:{value}" for value in sorted(scoped_actuators)),
         ]
-        if plugin == "drivetrain_v1" and len(scoped) == 1:
-            responsibility = scoped[0]
-            for field in (
-                "motor_continuous_torque_nm",
-                "motor_peak_torque_nm",
-                "motor_max_speed_rad_s",
+        if plugin == "drivetrain_v1" and len(scoped_drives) == 1:
+            responsibility = f"drive:{next(iter(scoped_drives))}"
+            for field, limit_name in (
+                ("motor_continuous_torque_nm", "continuous_torque"),
+                ("motor_peak_torque_nm", "peak_torque"),
+                ("motor_max_speed_rad_s", "max_speed"),
             ):
-                check_owner(index, inputs, field, responsibility, "traction_motor")
+                check_owner(index, inputs, field, responsibility, "traction_motor", limit_name)
             for field in ("gear_ratio", "efficiency"):
-                check_owner(index, inputs, field, responsibility, "reducer")
-            check_owner(index, inputs, "wheel_radius_m", responsibility, "wheel")
+                check_owner(index, inputs, field, responsibility, "reducer", field)
+            check_owner(index, inputs, "wheel_radius_m", responsibility, "wheel", "radius")
         elif plugin == "battery_v1":
             responsibility = "feature:battery_powered"
-            for field in (
-                "voltage_v",
-                "max_continuous_current_a",
-                "max_peak_current_a",
-                "usable_energy_j",
+            for field, limit_name in (
+                ("voltage_v", "nominal_voltage"),
+                ("max_continuous_current_a", "continuous_current"),
+                ("max_peak_current_a", "peak_current"),
+                ("usable_energy_j", "usable_energy"),
             ):
-                check_owner(index, inputs, field, responsibility, "battery")
+                check_owner(index, inputs, field, responsibility, "battery", limit_name)
         elif plugin == "arm_gravity_v1":
             joints = inputs.get("joints", [])
             if not isinstance(joints, list):
@@ -295,6 +331,7 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
                     "rated_continuous_torque_nm",
                     responsibility,
                     "motor",
+                    "continuous_torque",
                     nested,
                 )
                 check_owner(
@@ -303,18 +340,132 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
                     "brake_holding_torque_nm",
                     responsibility,
                     "brake",
+                    "holding_torque",
                     nested,
                 )
         elif plugin == "thermal_duty_v1" and len(scoped) == 1:
             responsibility = scoped[0]
             role = "traction_motor" if responsibility.startswith("drive:") else "motor"
-            for field in (
-                "winding_resistance_ohm",
-                "on_current_a",
-                "thermal_resistance_k_per_w",
-                "max_winding_temperature_k",
+            for field, limit_name in (
+                ("winding_resistance_ohm", "winding_resistance"),
+                ("on_current_a", "continuous_current"),
+                ("thermal_resistance_k_per_w", "thermal_resistance"),
+                ("max_winding_temperature_k", "max_winding_temperature"),
             ):
-                check_owner(index, inputs, field, responsibility, role)
+                check_owner(index, inputs, field, responsibility, role, limit_name)
+    return diagnostics
+
+
+def _component_catalog_diagnostics(
+    snapshot: dict[str, Any],
+    evidence: dict[str, Any],
+    components: list[dict[str, Any]],
+    quantities: dict[str, dict[str, Any]],
+    evidence_index: int,
+) -> list[Diagnostic]:
+    """Validate a bounded, hash-bound component catalog snapshot."""
+
+    diagnostics: list[Diagnostic] = []
+    base = f"evidence[{evidence_index}].source"
+
+    def reject(path: str, message: str) -> None:
+        diagnostics.append(
+            Diagnostic("EVIDENCE.COMPONENT_CATALOG", "indeterminate", path, message)
+        )
+
+    allowed_root = {"schema_version", "locator", "observed_date", "components"}
+    unknown_root = sorted(set(snapshot) - allowed_root)
+    if unknown_root:
+        reject(base, "component catalog has unknown fields: " + ", ".join(unknown_root))
+    if snapshot.get("schema_version") != 1 or isinstance(
+        snapshot.get("schema_version"), bool
+    ):
+        reject(f"{base}.schema_version", "component catalog schema_version must be 1")
+    if snapshot.get("locator") != evidence.get("locator"):
+        reject(f"{base}.locator", "component catalog locator must match evidence locator")
+    if snapshot.get("observed_date") != evidence.get("observed_date"):
+        reject(
+            f"{base}.observed_date",
+            "component catalog observed_date must match evidence observed_date",
+        )
+
+    records = snapshot.get("components")
+    if not isinstance(records, list):
+        reject(f"{base}.components", "component catalog components must be a list")
+        return diagnostics
+    by_id: dict[str, dict[str, Any]] = {}
+    for record_index, record in enumerate(records):
+        record_path = f"{base}.components[{record_index}]"
+        if not isinstance(record, dict):
+            reject(record_path, "component catalog record must be an object")
+            continue
+        unknown = sorted(
+            set(record) - {"id", "manufacturer", "part_number", "limits"}
+        )
+        if unknown:
+            reject(record_path, "component catalog record has unknown fields: " + ", ".join(unknown))
+        record_id = record.get("id")
+        if not isinstance(record_id, str) or not record_id:
+            reject(f"{record_path}.id", "component catalog record id must be non-empty")
+            continue
+        if record_id in by_id:
+            reject(f"{record_path}.id", f"duplicate component catalog id: {record_id}")
+            continue
+        by_id[record_id] = record
+
+    evidence_ref = f"evidence:{evidence.get('id')}"
+    for component in components:
+        if component.get("source_evidence") != evidence_ref:
+            continue
+        component_id = str(component.get("id"))
+        record = by_id.get(component_id)
+        component_path = f"{base}.components.{component_id}"
+        if record is None:
+            reject(component_path, "verified component is missing from catalog snapshot")
+            continue
+        for field in ("manufacturer", "part_number"):
+            if record.get(field) != component.get(field):
+                reject(
+                    f"{component_path}.{field}",
+                    f"catalog {field} must match component:{component_id}",
+                )
+        snapshot_limits = record.get("limits")
+        if not isinstance(snapshot_limits, dict):
+            reject(f"{component_path}.limits", "catalog limits must be an object")
+            continue
+        declared_limits = component.get("limits", {})
+        if not isinstance(declared_limits, dict):
+            continue
+        for limit_name, reference in sorted(declared_limits.items()):
+            limit_path = f"{component_path}.limits.{limit_name}"
+            if limit_name not in snapshot_limits:
+                reject(limit_path, "declared component limit is missing from catalog snapshot")
+                continue
+            if not isinstance(reference, str) or not reference.startswith("quantity:"):
+                continue
+            quantity = quantities.get(reference[9:])
+            if quantity is None:
+                continue
+            try:
+                declared_value = to_si(
+                    quantity.get("value"),
+                    str(quantity.get("dimension")),
+                    f"{reference}.value",
+                )
+                snapshot_value = to_si(
+                    snapshot_limits[limit_name],
+                    str(quantity.get("dimension")),
+                    limit_path,
+                )
+            except QuantityError as exc:
+                reject(limit_path, str(exc))
+                continue
+            tolerance = max(1e-12, abs(declared_value) * 1e-12)
+            if abs(snapshot_value - declared_value) > tolerance:
+                reject(
+                    limit_path,
+                    f"catalog limit differs from {reference} by {abs(snapshot_value - declared_value):.12g} SI",
+                )
     return diagnostics
 
 
@@ -516,16 +667,39 @@ def evaluate_contract(path: Path) -> tuple[Report | None, list[str]]:
             if observation is not None:
                 observations[str(artifact.get("id"))] = observation
 
+    quantities = {
+        item["id"]: item
+        for item in data.get("quantities", [])
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    components = [
+        item for item in data.get("components", []) if isinstance(item, dict)
+    ]
     evidence_records = data.get("evidence", [])
     valid_evidence = 0
     for index, evidence in enumerate(evidence_records):
-        _, valid = _resolve_file(
+        evidence_path, valid = _resolve_file(
             contract_dir,
             evidence.get("source", {}),
             f"evidence[{index}].source",
             report,
         )
-        if valid:
+        semantic_valid = valid
+        if valid and evidence_path is not None and evidence.get("kind") == "component_catalog_v1":
+            snapshot, catalog_parse_diagnostics = observe_declared_json(evidence_path)
+            for diagnostic in catalog_parse_diagnostics:
+                report.add(diagnostic)
+            if snapshot is None:
+                semantic_valid = False
+            else:
+                catalog_diagnostics = _component_catalog_diagnostics(
+                    snapshot, evidence, components, quantities, index
+                )
+                for diagnostic in catalog_diagnostics:
+                    report.add(diagnostic)
+                if catalog_diagnostics:
+                    semantic_valid = False
+        if semantic_valid:
             valid_evidence += 1
     report.metadata["evidence_coverage"] = f"{valid_evidence}/{len(evidence_records)}"
     level_counts: dict[str, int] = {}
@@ -542,11 +716,6 @@ def evaluate_contract(path: Path) -> tuple[Report | None, list[str]]:
     for diagnostic in compare_observations(data, observations):
         report.add(diagnostic)
 
-    quantities = {
-        item["id"]: item
-        for item in data.get("quantities", [])
-        if isinstance(item, dict) and isinstance(item.get("id"), str)
-    }
     for analysis in data.get("analyses", []):
         resolved = _resolved_analysis_inputs(analysis, quantities, report)
         result = run_plugin(str(analysis.get("plugin")), resolved)

@@ -55,8 +55,14 @@ def write_fixture(root, plugin=None):
             "dimension": dimension,
             "value": {"value": value, "unit": unit},
             "owner": owner,
-            "source": "evidence:EV-URDF",
-            "evidence_level": "parsed",
+            "source": (
+                "evidence:EV-CATALOG"
+                if owner.startswith("component:")
+                else "evidence:EV-ASSUMPTIONS"
+            ),
+            "evidence_level": (
+                "parsed" if owner.startswith("component:") else "assumed"
+            ),
         }
         for quantity_id, dimension, value, unit, owner in quantity_specs
     ]
@@ -78,24 +84,70 @@ def write_fixture(root, plugin=None):
             "part_number": f"FIX-{component_id}",
             "source_url": "https://example.com/catalog",
             "source_date": "2026-08-13",
-            "source_evidence": "evidence:EV-URDF",
+            "source_evidence": "evidence:EV-CATALOG",
             "limits": {name: f"quantity:{quantity_id}" for name, quantity_id in limits.items()},
+            "supports_claims": ["REQ-PAYLOAD"],
         }
         for component_id, role, limits in component_specs
     ]
+    quantities_by_id = {item["id"]: item for item in data["quantities"]}
+    catalog = root / "catalog.json"
+    catalog.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "locator": "https://example.com/catalog",
+                "observed_date": "2026-08-13",
+                "components": [
+                    {
+                        "id": component["id"],
+                        "manufacturer": component["manufacturer"],
+                        "part_number": component["part_number"],
+                        "limits": {
+                            name: quantities_by_id[reference[9:]]["value"]
+                            for name, reference in component["limits"].items()
+                        },
+                    }
+                    for component in data["components"]
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    catalog_digest = hashlib.sha256(catalog.read_bytes()).hexdigest()
+    assumptions = root / "assumptions.json"
+    assumptions.write_text('{"fixture":"battery-demand"}\n', encoding="utf-8")
+    assumptions_digest = hashlib.sha256(assumptions.read_bytes()).hexdigest()
     data["evidence"] = [
         {
-            "id": "EV-URDF",
+            "id": "EV-CATALOG",
+            "kind": "component_catalog_v1",
             "level": "parsed",
-            "source": {"path": "robot.urdf", "sha256": digest},
+            "source": {"path": "catalog.json", "sha256": catalog_digest},
             "locator": "https://example.com/catalog",
             "observed_date": "2026-08-13",
             "supports": [
-                "artifact:robot-model",
-                *(f"quantity:{item['id']}" for item in data["quantities"]),
+                *(
+                    f"quantity:{item['id']}"
+                    for item in data["quantities"]
+                    if item["owner"].startswith("component:")
+                ),
                 *(f"component:{item['id']}" for item in data["components"]),
             ],
-        }
+        },
+        {
+            "id": "EV-ASSUMPTIONS",
+            "level": "assumed",
+            "source": {"path": "assumptions.json", "sha256": assumptions_digest},
+            "supports": [
+                f"quantity:{item['id']}"
+                for item in data["quantities"]
+                if item["owner"] == "project:system"
+            ],
+        },
     ]
     data["analyses"] = [
         {
@@ -140,10 +192,10 @@ class AssuranceEngineTests(unittest.TestCase):
         report = json.loads(serialize_report(first))
         self.assertEqual(report["metadata"]["schema_version"], 1)
         self.assertRegex(report["metadata"]["contract_sha256"], r"^[0-9a-f]{64}$")
-        self.assertEqual(report["metadata"]["evidence_coverage"], "1/1")
-        self.assertEqual(report["metadata"]["minimum_evidence_level"], "parsed")
+        self.assertEqual(report["metadata"]["evidence_coverage"], "2/2")
+        self.assertEqual(report["metadata"]["minimum_evidence_level"], "assumed")
         self.assertEqual(
-            report["metadata"]["evidence_level_counts"], {"parsed": 11}
+            report["metadata"]["evidence_level_counts"], {"assumed": 3, "parsed": 8}
         )
 
     def test_changed_artifact_invalidates_hash_bound_evidence(self):
@@ -155,6 +207,42 @@ class AssuranceEngineTests(unittest.TestCase):
         self.assertFalse(report.promotable)
         codes = {item.code for item in report.diagnostics}
         self.assertIn("EVIDENCE.STALE_ARTIFACT", codes)
+
+    def test_verified_component_catalog_requires_semantic_snapshot(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            contract, _ = write_fixture(root)
+            catalog = root / "catalog.json"
+            catalog.write_text('{"arbitrary":"self-asserted evidence"}\n', encoding="utf-8")
+            data = json.loads(contract.read_text(encoding="utf-8"))
+            data["evidence"][0]["source"]["sha256"] = hashlib.sha256(
+                catalog.read_bytes()
+            ).hexdigest()
+            contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            report, errors = evaluate_contract(contract)
+        self.assertEqual(errors, [])
+        self.assertFalse(report.promotable)
+        self.assertTrue(
+            any(
+                item.code == "EVIDENCE.COMPONENT_CATALOG"
+                for item in report.diagnostics
+            )
+        )
+
+    def test_analysis_rating_must_equal_verified_component_limit(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            contract, _ = write_fixture(root)
+            data = json.loads(contract.read_text(encoding="utf-8"))
+            battery = next(item for item in data["components"] if item["id"] == "BATTERY")
+            battery["limits"].pop("nominal_voltage")
+            contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            report, errors = evaluate_contract(contract)
+        self.assertEqual(errors, [])
+        self.assertFalse(report.promotable)
+        self.assertTrue(
+            any(item.code == "PHY.ANALYSIS.RATING_LIMIT" for item in report.diagnostics)
+        )
 
     def test_unknown_analysis_plugin_is_indeterminate(self):
         with tempfile.TemporaryDirectory() as temp_dir:

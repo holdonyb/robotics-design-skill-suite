@@ -252,9 +252,12 @@ class AssuranceContractTests(unittest.TestCase):
                 "source_date": "2026-08-13",
                 "source_evidence": "evidence:EV-URDF",
                 "limits": {"continuous_torque": "quantity:Q-RATING"},
+                "supports_claims": ["REQ-PAYLOAD"],
             }
         )
         data["quantities"][2]["owner"] = f"component:{component['id']}"
+        data["quantities"][2]["evidence_level"] = "parsed"
+        data["evidence"][0]["kind"] = "component_catalog_v1"
         data["evidence"][0]["supports"].append(f"component:{component['id']}")
         self.assertEqual(validate_contract(data), [])
 
@@ -311,7 +314,7 @@ class AssuranceContractTests(unittest.TestCase):
         data["evidence"][0]["supports"].append(f"component:{component['id']}")
         data["evidence"][0]["level"] = "assumed"
         errors = validate_contract(data)
-        self.assertTrue(any("must be parsed or stronger" in error for error in errors))
+        self.assertTrue(any("parsed or certified provenance" in error for error in errors))
 
         data["evidence"][0]["level"] = "parsed"
         data["evidence"][0]["locator"] = "https://example.com/another-part"
@@ -322,6 +325,27 @@ class AssuranceContractTests(unittest.TestCase):
         data["evidence"][0]["observed_date"] = "2026-08-12"
         errors = validate_contract(data)
         self.assertTrue(any("observed_date must match component source_date" in error for error in errors))
+
+    def test_verified_component_requires_claim_edge_and_catalog_provenance(self):
+        data = valid_contract()
+        component = data["components"][0]
+        component.update(
+            {
+                "state": "verified_part",
+                "manufacturer": "Example Robotics",
+                "part_number": "M-100",
+                "source_url": "https://example.com/M-100",
+                "source_date": "2026-08-13",
+                "source_evidence": "evidence:EV-URDF",
+                "limits": {"continuous_torque": "quantity:Q-RATING"},
+            }
+        )
+        data["quantities"][2]["owner"] = f"component:{component['id']}"
+        data["evidence"][0]["supports"].append(f"component:{component['id']}")
+        errors = validate_contract(data)
+        self.assertTrue(any("supports_claims must be a non-empty" in error for error in errors))
+        self.assertTrue(any("source evidence kind must be component_catalog_v1" in error for error in errors))
+        self.assertTrue(any("limit quantity evidence_level must be parsed or certified" in error for error in errors))
 
     def test_malformed_architecture_and_supports_are_actionable_not_tracebacks(self):
         data = valid_contract()

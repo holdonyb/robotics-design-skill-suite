@@ -121,6 +121,7 @@ RECORD_FIELDS = {
     "evidence": frozenset(
         {
             "id",
+            "kind",
             "level",
             "source",
             "locator",
@@ -435,23 +436,28 @@ def validate_contract(data: Any) -> list[str]:
                 errors.append(
                     f"components[{index}].bindings references unknown architecture responsibility: {binding}"
                 )
-        if "supports_claims" in item:
+        component_state = item.get("state")
+        verified_component = isinstance(component_state, str) and component_state in {
+            "verified_part",
+            "qualified_substitute",
+        }
+        if "supports_claims" in item or verified_component:
             supported_claims = _string_list(
                 item.get("supports_claims"),
                 f"components[{index}].supports_claims",
                 errors,
             )
+            if verified_component and not supported_claims:
+                errors.append(
+                    f"components[{index}].supports_claims must be a non-empty claim edge for verified components"
+                )
             for claim_id in supported_claims:
                 if claim_id not in requirement_ids:
                     errors.append(
                         f"components[{index}].supports_claims references unknown "
                         f"requirement: {claim_id}"
                     )
-        component_state = item.get("state")
-        if isinstance(component_state, str) and component_state in {
-            "verified_part",
-            "qualified_substitute",
-        }:
+        if verified_component:
             source_url = item.get("source_url")
             if not _is_safe_http_url(source_url):
                 errors.append(
@@ -486,9 +492,16 @@ def validate_contract(data: Any) -> list[str]:
                     component_level = EvidenceLevel(component_evidence.get("level"))
                 except (TypeError, ValueError):
                     component_level = None
-                if component_level is not None and component_level < EvidenceLevel.PARSED:
+                if component_evidence.get("kind") != "component_catalog_v1":
                     errors.append(
-                        f"components[{index}].source_evidence must be parsed or stronger"
+                        f"components[{index}].source evidence kind must be component_catalog_v1"
+                    )
+                if component_level not in {
+                    EvidenceLevel.PARSED,
+                    EvidenceLevel.CERTIFIED,
+                }:
+                    errors.append(
+                        f"components[{index}].source_evidence must use parsed or certified provenance evidence"
                     )
                 if component_evidence.get("locator") != source_url:
                     errors.append(
@@ -534,6 +547,17 @@ def validate_contract(data: Any) -> list[str]:
                     if source_evidence is not None and quantity.get("source") != source_evidence:
                         errors.append(
                             f"{limit_path} quantity must use the component source evidence {source_evidence}"
+                        )
+                    try:
+                        limit_level = EvidenceLevel(quantity.get("evidence_level"))
+                    except (TypeError, ValueError):
+                        limit_level = None
+                    if limit_level not in {
+                        EvidenceLevel.PARSED,
+                        EvidenceLevel.CERTIFIED,
+                    }:
+                        errors.append(
+                            f"{limit_path} limit quantity evidence_level must be parsed or certified"
                         )
                     expected_dimension = role_schema.get(limit_name)
                     if (

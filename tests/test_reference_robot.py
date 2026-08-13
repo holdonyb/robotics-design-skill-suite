@@ -187,6 +187,7 @@ class ReferenceRobotTests(unittest.TestCase):
         )
         drive = next(item for item in data["analyses"] if item["id"] == "AN-DRIVE-R")
         drive["inputs"]["motor_continuous_torque_nm"] = "quantity:Q-MOTOR-CONTINUOUS-TORQUE-L"
+        drive["covers"].append("actuator:joint_1")
         with tempfile.TemporaryDirectory() as temp_dir:
             temp = Path(temp_dir)
             for source_name in ("robot.urdf", "assumptions.json"):

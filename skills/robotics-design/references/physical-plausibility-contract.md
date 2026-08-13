@@ -60,10 +60,14 @@ Architecture declarations create mandatory component responsibilities.
 `missing` is an explicit error. `engineering_placeholder` is useful during
 exploration but cannot support a promoted claim. `verified_part` and
 `qualified_substitute` require manufacturer, part number, absolute source
-URL/date, hash-bound source evidence at `parsed` level or stronger, and
-component-owned quantity references for role-approved limits. The evidence
-must support that exact component, carry the same URL and observation date,
-and source every declared component limit. Catalog values require exact part provenance; a similar
+URL/date, a hash-bound `component_catalog_v1` snapshot at exactly `parsed` or
+`certified` level, a non-empty promoted-claim edge, and component-owned
+quantity references for role-approved limits. The evidence must support that
+exact component, carry the same URL and observation date, and source every
+declared component limit. The runtime parses the bounded JSON snapshot and
+compares its ID, manufacturer, part number, and typed limit values to the
+contract. Calculated, simulated, bench, or task evidence cannot stand in for a
+parsed vendor-source record. Catalog values require exact part provenance; a similar
 product family or remembered rating is assumed evidence.
 
 An incomplete drive example is a wheel and motor without its reducer, bearing,
@@ -80,7 +84,9 @@ outputs, signed margins, diagnostics, version, and `calculated` evidence level.
 Coverage is bidirectional: architecture responsibilities require applicable
 analyses, and an analysis may cover only declared responsibilities. Drive,
 battery, arm, and thermal ratings must be owned by the exact component whose
-responsibility is being evaluated. Every drive and actuator requires a separate
+responsibility is being evaluated and must equal its corresponding named
+component limit. Extra unrelated scopes are invalid and cannot suppress owner
+checks. Every drive and actuator requires a separate
 thermal-duty instance.
 
 ### `drivetrain_v1`

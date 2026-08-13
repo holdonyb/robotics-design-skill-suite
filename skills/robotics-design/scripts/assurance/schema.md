@@ -44,10 +44,15 @@ physical load path instead of inheriting a global role checkbox.
 States are `verified_part`, `qualified_substitute`, `engineering_placeholder`,
 or `missing`. Verified and substitute records additionally use manufacturer,
 part number, absolute HTTP(S) source URL, ISO source date, `source_evidence`,
-limits and supported claims. The evidence record must be `parsed` or stronger,
-explicitly support the component, bind the same URL and observation date, and
-hash the captured local source. Every limit is a role-approved `quantity:ID`
-reference owned by that component and sourced from that same evidence.
+limits and supported claims. Verified and substitute components require a
+non-empty `supports_claims` edge. Their evidence `kind` is exactly
+`component_catalog_v1`, with evidence level exactly `parsed` or `certified`;
+calculated, simulated, and test labels cannot substitute for catalog parsing.
+The bounded JSON snapshot records schema version, locator, observation date,
+and component ID/manufacturer/part number/typed limits. Runtime validation
+compares every declared component limit to that hash-bound snapshot in SI
+units. Every limit is a role-approved `quantity:ID` reference owned by that
+component and sourced from that same evidence.
 
 Architecture contains string lists: `features`, `drive_units`, `actuators`, `moving_cables`,
 and `claimed_safety_functions`. The ledger maps these declarations to mandatory
@@ -69,10 +74,12 @@ are forbidden. Known plug-ins close both input shape and expected dimensions.
 Architecture-derived plug-in coverage and reciprocal plug-in-to-architecture
 scope checks are required. Each drive and actuator requires its own thermal
 analysis, and drivetrain/arm/battery rating inputs must be owned by the exact
-covered component. A physical contract with no applicable analysis is
+covered component and equal the corresponding named `limits` reference. Known
+plug-ins reject unrelated coverage types instead of skipping checks when an
+extra scope is present. A physical contract with no applicable analysis is
 indeterminate.
 
-Evidence has `id`, `level`, a path/SHA-256 `source`, and unique `supports`
+Evidence has `id`, optional semantic `kind`, `level`, a path/SHA-256 `source`, and unique `supports`
 references. Optional `locator` and `observed_date` record the external URL and
 capture date; they are mandatory through the component provenance edge for
 verified parts and qualified substitutes. Every quantity's selected evidence source must explicitly include
