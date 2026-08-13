@@ -9,10 +9,10 @@ description, ROS 2, and simulation skills to audited commits.
 
 ## Live State
 
-- Public release: `v0.2.0` on `main` at `d41de54`.
-- Active release-candidate branch: `feature/v030-physical-plausibility`.
-- Candidate manifest version: `0.3.0`; it is not a public release until review,
-  CI, merge, tag, and GitHub Release complete.
+- Public release: `v0.3.0`, annotated tag and GitHub Release at merged `main`
+  commit `a728e29`.
+- v0.3 pull request: `#2`, merged after Ubuntu/Windows × Python 3.11/3.12
+  checks passed.
 - v1 architecture and autonomy boundary: `0e03e58`.
 - v0.3 implementation plan: `f0ca0a0`, with portable command fix `ccc1697`.
 - Physical-assurance implementation: `b975a3e` through `501fbd5`.
@@ -20,9 +20,9 @@ description, ROS 2, and simulation skills to audited commits.
   overwritten during classification or implementation.
 - Third-party source locks remain unchanged from `v0.2.0`.
 
-## v0.3 Candidate Capability
+## v0.3 Released Capability
 
-The candidate adds a closed schema-v1 design contract and deterministic
+The release adds a closed schema-v1 design contract and deterministic
 physical evidence report with:
 
 - explicit SI-normalized quantities, single ownership, evidence source and
@@ -58,7 +58,8 @@ assumptions satisfy the implemented conservative equations.
 
 ## Latest Verified Evidence
 
-On 2026-08-13, at release-candidate implementation commit `501fbd5`:
+On 2026-08-13, at implementation commit `501fbd5` and merged release commit
+`a728e29`:
 
 - Python 3.11 full repository suite: 132/132 passed;
 - bundled Python 3.12.13 full repository suite: 132/132 passed;
@@ -76,6 +77,14 @@ On 2026-08-13, at release-candidate implementation commit `501fbd5`:
 - official skill validator using UTF-8 mode: 10/10 installed skills valid;
 - fresh install retained 9/9 upstream-license copies and contained zero
   `__pycache__`, `.pyc`, `.pyo`, or transaction-residue paths.
+- pull-request and annotated-tag CI each passed all four Ubuntu/Windows ×
+  Python 3.11/3.12 jobs;
+- annotated tag `v0.3.0` resolves to `a728e29`, and the public tag
+  `manifest.json` blob matches the local tag blob exactly;
+- GitHub Release `v0.3.0` is public, non-draft, and non-prerelease;
+- the active local `robotics-design` skill was refreshed from the verified
+  release staging artifact; its validator and core hash check passed. The prior
+  skill remains in ignored reversible backup storage.
 
 Independent adversarial reviews exposed vacuous analysis coverage,
 cross-responsibility rating reuse, missing per-motor thermal coverage, and
@@ -84,9 +93,7 @@ catalog fields and open typed quantity objects; commits through `501fbd5`
 remediate those findings with
 semantic catalog parsing, exact limit binding, bounded integers, and recursive
 closed schemas. Final independent adversarial review of `833b0b9` found no
-Critical, Important, or Minor issues and returned Ready to merge: Yes. GitHub
-CI, merge, tag, and release evidence are still pending and must not be reported
-as complete.
+Critical, Important, or Minor issues and returned Ready to merge: Yes.
 
 ## Run and Validate
 
@@ -141,8 +148,10 @@ report with all 13 analysis instances passing.
 
 ## Next Action
 
-Publish the v0.3 pull request and require green Ubuntu/Windows × Python
-3.11/3.12 GitHub CI before merge, tag, and release.
+Start v0.4 in an isolated branch: implement bounded design hypotheses,
+parameter/uncertainty sets, deterministic expansion and pruning, counterexample
+search, repair traces, and reproducible evidence bundles on top of the v0.3
+physical gate.
 
 ## Durable Design Sources
 
