@@ -85,10 +85,15 @@ only blocker is `BOM.PLACEHOLDER_BLOCKS_CLAIM`, every objective is complete,
 and no hard counterexample exists. Root and owner-correct repair candidates use
 the same rule. Screening never accepts or promotes a candidate.
 
-Repairs start from the deterministic earliest blocking diagnostic, must match
-its `owner_prefix`, create a child with parent/rule lineage, reject repeated
-content and cycles, and rerun the failed stage plus downstream dependencies.
-An unrelated controller edit cannot repair a motor-rating failure.
+Repairs start from the deterministic earliest repairable blocking diagnostic
+and must match its `owner_prefix`. The public reference policy ignores
+`BOM.PLACEHOLDER_BLOCKS_CLAIM` only while correcting another declared physical
+fault; that placeholder remains visible and keeps the child unpromoted. Any
+unrepairable non-placeholder blocker prevents repair, so the engine never skips
+a safety or unsupported-physics failure merely to apply a later rule. A repair
+creates a child with parent/rule lineage, rejects repeated content and cycles,
+and reruns the failed stage plus downstream dependencies. An unrelated
+controller edit cannot repair a motor-rating failure.
 
 ## Evidence bundle and verification
 

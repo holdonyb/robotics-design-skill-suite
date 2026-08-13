@@ -138,6 +138,8 @@ class RoboticsDesignBehaviorTests(unittest.TestCase):
             "validate_bundle",
             "owner_prefix",
             "screening-pareto.json",
+            "BOM.PLACEHOLDER_BLOCKS_CLAIM",
+            "unrepairable non-placeholder blocker",
             "Exit `0`",
             "Exit `1`",
             "Exit `2`",
