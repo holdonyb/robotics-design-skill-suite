@@ -48,18 +48,23 @@ satisfy the implemented conservative equations.
 
 ## Latest Verified Evidence
 
-On 2026-08-13, before the release-version commit:
+On 2026-08-13, at release-candidate commit `b411b2d`:
 
-- Python 3.11 full repository suite: 102/102 passed;
+- Python 3.11 full repository suite: 103/103 passed;
+- Python 3.12.12 full repository suite: 103/103 passed;
 - focused routing and public-hygiene suite: 18/18 passed;
 - `scripts/validate.py`: 10 skills and 3 pinned sources valid;
 - `scripts/install.py --dry-run`: complete 10-skill plan with no writes;
 - reference physical CLI: exit `1` as designed, report emitted, only
   `BOM.PLACEHOLDER_BLOCKS_CLAIM` diagnostics;
 - `git diff --check`: clean.
+- fresh pinned-source network install: 10 skills installed into a new ignored
+  destination with a generated Python 3.12 host overlay;
+- official skill validator using UTF-8 mode: 10/10 installed skills valid;
+- fresh install retained 9/9 upstream-license copies and contained zero
+  `__pycache__`, `.pyc`, `.pyo`, or transaction-residue paths.
 
-Fresh Python 3.12, network-install, official installed-skill validation,
-independent adversarial review, GitHub CI, merge, tag, and release evidence are
+Independent adversarial review, GitHub CI, merge, tag, and release evidence are
 still pending and must not be reported as complete.
 
 ## Run and Validate
