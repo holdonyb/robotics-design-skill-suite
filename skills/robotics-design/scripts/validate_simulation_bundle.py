@@ -109,27 +109,36 @@ def _samples_for(scenario, *, failed: bool) -> tuple[TraceSample, TraceSample]:
     terminal = 0.1 if failed else 0.001
     width = len(scenario.joint_order)
     return (
-        TraceSample(0, (0.0,) * width, {"mode": "start"}),
-        TraceSample(scenario.stop["at_ns"], (terminal,) * width, {"mode": "duration_elapsed"}),
+        TraceSample(0, (0.0,) * width, {"mode": "start", "left_wheel_rad_s": 1.0, "right_wheel_rad_s": 1.0}),
+        TraceSample(scenario.stop["at_ns"] // 2, (terminal / 2,) * width, {"mode": "running", "left_wheel_rad_s": 1.0, "right_wheel_rad_s": 1.0}),
+        TraceSample(scenario.stop["at_ns"], (terminal,) * width, {"mode": "duration_elapsed", "left_wheel_rad_s": 1.0, "right_wheel_rad_s": 1.0}),
     )
 
 
-def _backend_input(scenario) -> dict[str, object]:
+def _backend_input(replay: dict[str, Any]) -> dict[str, object]:
+    """Use receipt-validated replay samples as the backend-consumer input."""
+    samples = replay["samples"]
+    try:
+        timestamps = [item["timestamp_ns"] for item in samples]
+        left = [item["state"]["left_wheel_rad_s"] for item in samples]
+        right = [item["state"]["right_wheel_rad_s"] for item in samples]
+    except (KeyError, TypeError) as exc:
+        raise BenchmarkError(f"replayed trace lacks required wheel state: {exc}") from None
     return {
-        "model_sha256": scenario.model_sha256,
-        "trajectory_sha256": scenario.trajectory_sha256,
+        "model_sha256": replay["model_sha256"],
+        "trajectory_sha256": replay["trajectory_sha256"],
         "units": "si",
-        "timestamps_ns": [0, 1_000_000_000, 2_000_000_000],
-        "left_wheel_rad_s": [1.0, 1.0, 1.0],
-        "right_wheel_rad_s": [1.0, 1.0, 1.0],
+        "timestamps_ns": timestamps,
+        "left_wheel_rad_s": left,
+        "right_wheel_rad_s": right,
         "wheel_radius_m": 0.1,
         "wheel_separation_m": 0.5,
         "wheel_speed_limit_rad_s": 2.0,
         "mass_kg": 100.0,
         "slope_rad": 0.0,
         "brake_deceleration_m_s2": 1.0,
-        "joint_final_rad": [0.0] * len(scenario.joint_order),
-        "joint_target_rad": [0.0] * len(scenario.joint_order),
+        "joint_final_rad": replay["samples"][-1]["positions"],
+        "joint_target_rad": [0.0] * len(replay["joint_order"]),
         "joint_error_limit_rad": 0.01,
     }
 
@@ -141,7 +150,7 @@ def _training_result(root: Path) -> dict[str, Any]:
         raise BenchmarkError("training contract is invalid: " + "; ".join(errors))
     result = evaluate_policy(
         contract,
-        lambda _: {"linear_m_s": 0.2, "angular_rad_s": 0.0, "mean_reward": 1.0},
+        lambda _: {"linear_m_s": 0.2, "angular_rad_s": 0.0, "final_joint_error_rad": 0.0},
         {
             "remaining_blockers": list(contract["physical_blockers"]),
             "hardware_promotable": False,
@@ -187,8 +196,9 @@ def run_reference_benchmark(
     passed = sum(item["status"] == "passed" for item in replayed)
     failed = len(replayed) - passed
 
-    primary = evaluate_trace_kinematics(_backend_input(scenarios[0]))
-    independent = evaluate_independent_dynamics(_backend_input(scenarios[0]))
+    backend_trace = _backend_input(replayed[0])
+    primary = evaluate_trace_kinematics(backend_trace)
+    independent = evaluate_independent_dynamics(backend_trace)
     tolerances = {metric.name: 1e-9 for metric in primary.metrics}
     comparison = compare_backends(primary, independent, tolerances).status
     calibration = fit_calibration(

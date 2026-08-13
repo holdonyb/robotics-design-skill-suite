@@ -40,7 +40,7 @@ class TrainingTests(unittest.TestCase):
         physical = physical_receipt()
         def policy(observation):
             observation["scan_m"] = 999
-            return {"linear_m_s": 0.2, "angular_rad_s": 0.1, "mean_reward": 1.0}
+            return {"linear_m_s": 0.2, "angular_rad_s": 0.1, "final_joint_error_rad": 0.0}
         result = evaluate_policy(contract(), policy, physical)
         self.assertEqual("simulated", result.evidence_level)
         self.assertEqual("not_justified", result.status)
@@ -63,8 +63,8 @@ class TrainingTests(unittest.TestCase):
                 value = contract(); mutate(value)
                 self.assertTrue(any(expected in item for item in validate_training_contract(value)))
         for callback, expected in (
-            (lambda x: {"linear_m_s": float("nan"), "angular_rad_s": 0.0, "mean_reward": 0.0}, "finite"),
-            (lambda x: {"linear_m_s": 9.0, "angular_rad_s": 0.0, "mean_reward": 0.0}, "constraint"),
+            (lambda x: {"linear_m_s": float("nan"), "angular_rad_s": 0.0, "final_joint_error_rad": 0.0}, "finite"),
+            (lambda x: {"linear_m_s": 9.0, "angular_rad_s": 0.0, "final_joint_error_rad": 0.0}, "constraint"),
             (lambda x: {"linear_m_s": 0.0}, "fields"),
             (lambda x: (_ for _ in ()).throw(RuntimeError("bad")), "callback"),
         ):
@@ -73,7 +73,7 @@ class TrainingTests(unittest.TestCase):
                     evaluate_policy(contract(), callback, physical_receipt())
 
     def test_physical_blocker_receipt_is_required_and_can_never_authorize_hardware(self):
-        callback = lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0, "mean_reward": 0.0}
+        callback = lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0, "final_joint_error_rad": 0.0}
         for physical, expected in (
             ({"remaining_blockers": [], "hardware_promotable": False}, "blockers"),
             ({"remaining_blockers": ["BOM.PLACEHOLDER_BLOCKS_CLAIM"], "hardware_promotable": True}, "hardware"),
@@ -98,7 +98,7 @@ class TrainingTests(unittest.TestCase):
                 self.assertTrue(any(expected in item for item in validate_training_contract(value)))
 
     def test_policy_identity_and_blocker_order_are_stable(self):
-        callback = lambda x: {"linear_m_s": 0.2, "angular_rad_s": -0.1, "mean_reward": 1.0}
+        callback = lambda x: {"linear_m_s": 0.2, "angular_rad_s": -0.1, "final_joint_error_rad": 0.0}
         first = evaluate_policy(contract(), callback, physical_receipt())
         second = evaluate_policy(contract(), callback, physical_receipt())
         self.assertEqual(first.policy_id, second.policy_id)
@@ -109,7 +109,7 @@ class TrainingTests(unittest.TestCase):
 
         def callback(observation):
             seen.append((observation["phase"], observation["seed"], observation["fault_id"]))
-            return {"linear_m_s": 0.2, "angular_rad_s": 0.0, "mean_reward": 1.0}
+            return {"linear_m_s": 0.2, "angular_rad_s": 0.0, "final_joint_error_rad": 0.0}
 
         result = evaluate_policy(contract(), callback, physical_receipt())
         self.assertEqual(
@@ -128,11 +128,14 @@ class TrainingTests(unittest.TestCase):
 
     def test_rejects_baseline_regression_and_budget_excess(self):
         with self.assertRaisesRegex(TrainingError, "baseline"):
-            evaluate_policy(contract(), lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0, "mean_reward": -1.0}, physical_receipt())
+            evaluate_policy(contract(), lambda x: {"linear_m_s": -0.1, "angular_rad_s": 0.0, "final_joint_error_rad": 0.0}, physical_receipt())
         value = contract()
         value["budgets"]["episodes"] = 5
         with self.assertRaisesRegex(TrainingError, "episodes"):
-            evaluate_policy(value, lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0, "mean_reward": 1.0}, physical_receipt())
+            evaluate_policy(value, lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0, "final_joint_error_rad": 0.0}, physical_receipt())
+
+        with self.assertRaisesRegex(TrainingError, "constraint"):
+            evaluate_policy(contract(), lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0, "final_joint_error_rad": 1.0}, physical_receipt())
 
 
 if __name__ == "__main__":

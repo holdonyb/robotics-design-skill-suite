@@ -267,20 +267,28 @@ def evaluate_policy(
 
     accepted_results = []
     for index, result in enumerate(results):
-        if not isinstance(result, dict) or set(result) != {*_ACTION_FIELDS, "mean_reward"}:
+        if not isinstance(result, dict) or set(result) != {
+            *_ACTION_FIELDS,
+            "final_joint_error_rad",
+        }:
             raise TrainingError("callback action fields are invalid")
         linear = _finite(result["linear_m_s"], "callback linear")
         angular = _finite(result["angular_rad_s"], "callback angular")
-        reported_reward = _finite(result["mean_reward"], "callback mean_reward")
-        accepted_results.append((linear, angular, reported_reward))
+        joint_error = _finite(result["final_joint_error_rad"], "callback final_joint_error_rad")
+        accepted_results.append((linear, angular, joint_error))
     constraints = checked_contract["hard_constraints"]
-    for linear, angular, _ in accepted_results:
+    for linear, angular, joint_error in accepted_results:
         if (
             abs(linear) > constraints["max_linear_m_s"]
             or abs(angular) > constraints["max_angular_rad_s"]
+            or abs(joint_error) > constraints["max_joint_error_rad"]
         ):
             raise TrainingError("callback violates hard constraint")
-    reward = sum(item[2] for item in accepted_results) / len(accepted_results)
+    reward = sum(
+        checked_contract["reward_weights"]["progress"] * linear
+        + checked_contract["reward_weights"]["energy"] * abs(angular)
+        for linear, angular, _ in accepted_results
+    ) / len(accepted_results)
     reward = _finite(reward, "mean_reward")
     if reward < checked_contract["baseline_mean_reward"]:
         raise TrainingError("callback regresses baseline_mean_reward")

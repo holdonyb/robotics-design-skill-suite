@@ -29,6 +29,12 @@ class ReferenceSimulationTests(unittest.TestCase):
         self.assertEqual(9, report["passed_scenarios"])
         self.assertEqual(1, report["failed_scenarios"])
 
+    def test_backend_cross_check_consumes_replayed_wheel_trace(self):
+        report = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")
+        first = report["replays"][0]
+        self.assertEqual(3, len(first["samples"]))
+        self.assertEqual(1.0, first["samples"][0]["state"]["left_wheel_rad_s"])
+
 
 if __name__ == "__main__":
     unittest.main()
