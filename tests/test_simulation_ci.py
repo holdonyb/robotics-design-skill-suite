@@ -35,6 +35,7 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn('require_running "${pids[1]}" "$EVIDENCE/move_group.log"', gate)
         self.assertIn('grep -q "You can start planning now!" "$EVIDENCE/move_group.log"', gate)
         self.assertIn('require_running "${pids[2]}" "$EVIDENCE/nav2.log"', gate)
+        self.assertIn("bt_navigator|behavior_server", gate)
         self.assertLess(
             gate.index("run colcon --log-base"),
             gate.index('source "$WORKSPACE/install/setup.bash"'),

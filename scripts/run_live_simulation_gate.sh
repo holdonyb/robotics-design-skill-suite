@@ -76,6 +76,7 @@ grep -q "You can start planning now!" "$EVIDENCE/move_group.log"
 ros2 node list | tee "$EVIDENCE/consumer-nodes.txt"
 grep -q move_group "$EVIDENCE/consumer-nodes.txt"
 grep -Eq 'controller_server|planner_server' "$EVIDENCE/consumer-nodes.txt"
+grep -Eq 'bt_navigator|behavior_server' "$EVIDENCE/consumer-nodes.txt"
 
 run python3 "$ROOT/skills/robotics-design/scripts/validate_simulation_bundle.py" --reference-root "$REFERENCE" > "$EVIDENCE/portable-benchmark.json"
 cp "$REFERENCE/simulation/environment-lock.json" "$EVIDENCE/environment-lock.json"

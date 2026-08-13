@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "50453a25aff27532ded917dbc62879f9f45ea863926aa192075e837783a2f402"
+ROS_MANIFEST_RECEIPT = "cb474133f0af2edab8b91735b1f20a97899accbc6763f1702e068440dbf6ad1e"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -259,8 +259,10 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         self.assertIn("nav2_bringup", nav_launch)
         self.assertIn("bringup_launch.py", nav_launch)
         self.assertIn('"map": map_file', nav_launch)
-        self.assertIn('"use_localization": "true"', nav_launch)
+        self.assertIn('"use_localization": "True"', nav_launch)
+        self.assertIn('"use_sim_time": "True"', nav_launch)
         self.assertIn('"use_composition": "False"', nav_launch)
+        self.assertNotIn("LaunchConfiguration", nav_launch)
         self.assertIn("cmd_vel_out_topic: /diff_drive_controller/cmd_vel", nav_params)
         self.assertNotIn("cmd_vel_topic:", nav_params)
 
