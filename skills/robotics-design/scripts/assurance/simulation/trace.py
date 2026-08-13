@@ -87,6 +87,12 @@ def replay_trace_bundle(root: str | Path, manifest_sha256: str) -> SimulationRes
     if errors:
         raise TraceError("trace bundle is invalid: " + "; ".join(errors))
     scenario_data, trace = _read_json(target / "scenario.json"), _read_json(target / "trace.json")
+    scenario_fields = {
+        "scenario_id", "version", "model_sha256", "trajectory_sha256", "environment_sha256",
+        "seed", "duration_ns", "joint_order", "parameters", "faults", "metrics", "stop",
+    }
+    if set(scenario_data) != scenario_fields:
+        raise TraceError("scenario.json has unknown fields or missing required fields")
     required_trace = {"schema_version", "scenario_sha256", "joint_order", "samples"}
     if set(trace) != required_trace or trace["schema_version"] != 1:
         raise TraceError("trace.json fields are not closed")
@@ -125,15 +131,13 @@ def replay_trace_bundle(root: str | Path, manifest_sha256: str) -> SimulationRes
     samples = tuple(TraceSample(item.get("timestamp_ns"), tuple(item.get("positions", ())), item.get("state")) if isinstance(item, dict) else None for item in trace["samples"])
     if any(sample is None for sample in samples):
         raise TraceError("trace samples must be objects")
-    duration = scenario_data.get("duration_ns")
-    if type(duration) is not int or not samples or samples[0].timestamp_ns != 0 or samples[-1].timestamp_ns != duration:
-        raise TraceError("trace timestamps do not match scenario duration")
-    previous = -1
-    width = len(trace["joint_order"])
-    for sample in samples:
-        if len(sample.positions) != width or sample.timestamp_ns <= previous:
-            raise TraceError("trace sample width or monotonic timestamp is invalid")
-        previous = sample.timestamp_ns
+    try:
+        replay_spec = CompiledScenario(
+            checked.spec, checked.metrics, checked.stop, trace["scenario_sha256"]
+        )
+        samples = _validate_samples(replay_spec, samples)
+    except (TypeError, ValueError, TraceError) as exc:
+        raise TraceError(f"trace sample validation failed: {exc}") from None
     metrics = []
     for metric in scenario_data.get("metrics", []):
         name, limit, direction = metric["name"], float(metric["limit"]), metric["direction"]
@@ -147,4 +151,7 @@ def replay_trace_bundle(root: str | Path, manifest_sha256: str) -> SimulationRes
         metrics.append(MetricResult(name, metric["unit"], "passed" if passed else "failed", value, limit, {"direction": direction}))
     status = "passed" if all(metric.status == "passed" for metric in metrics) else "failed"
     trace_sha = hashlib.sha256(canonical_bytes(trace)).hexdigest()
-    return SimulationResult(scenario_data["scenario_id"], status, "simulated", scenario_data["model_sha256"], scenario_data["trajectory_sha256"], scenario_data["environment_sha256"], trace_sha, tuple(trace["joint_order"]), samples, tuple(metrics), ())
+    try:
+        return SimulationResult(scenario_data["scenario_id"], status, "simulated", scenario_data["model_sha256"], scenario_data["trajectory_sha256"], scenario_data["environment_sha256"], trace_sha, tuple(trace["joint_order"]), samples, tuple(metrics), ())
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise TraceError(f"cannot construct replay result: {exc}") from None

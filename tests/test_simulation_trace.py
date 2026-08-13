@@ -84,6 +84,42 @@ class SimulationTraceTests(unittest.TestCase):
             with self.assertRaisesRegex(TraceError, "unit is invalid"):
                 replay_trace_bundle(poisoned, receipt.manifest_sha256)
 
+    def test_replay_rejects_unknown_promotion_field_and_irregular_or_oversized_samples(self):
+        with tempfile.TemporaryDirectory() as raw:
+            from assurance.hypothesis.canonical import canonical_bytes
+            from assurance.hypothesis.bundle import write_bundle_with_receipt
+            import hashlib
+
+            target = Path(raw) / "trace"
+            publish_trace_bundle(target, self.scenario(), self.samples())
+            scenario = json.loads((target / "scenario.json").read_text(encoding="utf-8"))
+            trace = json.loads((target / "trace.json").read_text(encoding="utf-8"))
+            for mutate, expected in (
+                (lambda data: scenario.__setitem__("promoted_hardware", True), "unknown fields"),
+                (lambda data: data["samples"].__setitem__(1, {"timestamp_ns": 100_000_000, "positions": [0.0] * 6, "state": {}}) or data["samples"].append({"timestamp_ns": 1_000_000_000, "positions": [0.0] * 6, "state": {}}), "sample period"),
+                (lambda data: data.__setitem__("samples", [{"timestamp_ns": index, "positions": [0.0] * 6, "state": {}} for index in range(10_001)]), "sample count"),
+            ):
+                with self.subTest(expected=expected):
+                    changed_scenario, changed_trace = copy.deepcopy(scenario), copy.deepcopy(trace)
+                    if expected == "unknown fields":
+                        changed_scenario["promoted_hardware"] = True
+                    elif expected == "sample period":
+                        changed_trace["samples"] = [
+                            {"timestamp_ns": 0, "positions": [0.0] * 6, "state": {}},
+                            {"timestamp_ns": 100_000_000, "positions": [0.0] * 6, "state": {}},
+                            {"timestamp_ns": 1_000_000_000, "positions": [0.0] * 6, "state": {}},
+                        ]
+                    else:
+                        changed_trace["samples"] = [
+                            {"timestamp_ns": index * 100_000, "positions": [0.0] * 6, "state": {}}
+                            for index in range(10_001)
+                        ]
+                    changed_trace["scenario_sha256"] = hashlib.sha256(canonical_bytes(changed_scenario)).hexdigest()
+                    poisoned = Path(raw) / expected.replace(" ", "-")
+                    receipt = write_bundle_with_receipt(poisoned, {"index.json": {"schema_version": 1, "kind": "simulation_trace"}, "scenario.json": changed_scenario, "trace.json": changed_trace})
+                    with self.assertRaisesRegex(TraceError, expected):
+                        replay_trace_bundle(poisoned, receipt.manifest_sha256)
+
 
 if __name__ == "__main__":
     unittest.main()
