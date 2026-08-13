@@ -307,6 +307,15 @@ class SimulationArtifactTests(unittest.TestCase):
                 self.assertNotIn(b"\r", payload)
                 self.assertTrue(payload.endswith(b"\n"))
                 self.assertFalse(payload.endswith(b"\n\n"))
+        attributes = subprocess.run(
+            ["git", "check-attr", "eol", "--", *sorted(EXPECTED_OUTPUTS - {"model/generated/reference_mobile_manipulator.step"})],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        )
+        self.assertTrue(all(line.endswith(": lf") for line in attributes.stdout.splitlines()))
 
 
 if __name__ == "__main__":
