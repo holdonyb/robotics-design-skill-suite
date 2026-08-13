@@ -11,6 +11,8 @@ from .model import (
     TraceSample,
     TrajectoryRecord,
 )
+from .admission import evaluate_simulation_admission
+from .schema import load_simulation_contract, validate_simulation_contract
 
 __all__ = [
     "EVIDENCE_LEVELS",
@@ -22,4 +24,7 @@ __all__ = [
     "SimulationResult",
     "TraceSample",
     "TrajectoryRecord",
+    "evaluate_simulation_admission",
+    "load_simulation_contract",
+    "validate_simulation_contract",
 ]
