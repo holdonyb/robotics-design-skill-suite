@@ -22,6 +22,7 @@ from .uncertainty import (
     search_counterexample,
 )
 from .objectives import ObjectiveVector, ParetoResult, extract_vector, pareto_fronts
+from .repair import RepairError, RepairTrace, repair, select_repair
 
 __all__ = [
     "CandidateDecision",
@@ -53,4 +54,8 @@ __all__ = [
     "ParetoResult",
     "extract_vector",
     "pareto_fronts",
+    "RepairError",
+    "RepairTrace",
+    "repair",
+    "select_repair",
 ]
