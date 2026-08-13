@@ -201,13 +201,25 @@ def validate_contract(data: Any) -> list[str]:
         str(data.get("candidate_id", ""))
     ):
         errors.append(f"candidate_id must match {ID.pattern}")
-    if data.get("status") not in STATUSES:
+    if not isinstance(data.get("status"), str) or data.get("status") not in STATUSES:
         errors.append("status must be one of: draft, promoted, rejected")
 
     collections = {
         name: _records(data, name, errors)
         for name in RECORD_FIELDS
     }
+    obligation_collections = (
+        "requirements",
+        "quantities",
+        "components",
+        "artifacts",
+        "analyses",
+        "evidence",
+    )
+    if not any(collections[name] for name in obligation_collections):
+        errors.append(
+            "physical contract must contain at least one engineering obligation"
+        )
 
     architecture = data.get("architecture")
     if not isinstance(architecture, dict):
@@ -249,7 +261,7 @@ def validate_contract(data: Any) -> list[str]:
     for name in ("requirements", "assumptions", "quantities"):
         for index, item in enumerate(collections[name]):
             owner = item.get("owner")
-            if owner not in known_owners:
+            if not isinstance(owner, str) or owner not in known_owners:
                 errors.append(
                     f"{name}[{index}].owner references unknown owner: {owner}"
                 )
@@ -263,7 +275,10 @@ def validate_contract(data: Any) -> list[str]:
         for field in ("statement", "owner", "validation", "decision_deadline"):
             if not _nonempty(item.get(field)):
                 errors.append(f"assumptions[{index}].{field} must be a non-empty string")
-        if item.get("confidence") not in CONFIDENCE:
+        if (
+            not isinstance(item.get("confidence"), str)
+            or item.get("confidence") not in CONFIDENCE
+        ):
             errors.append(
                 f"assumptions[{index}].confidence must be one of: high, low, medium"
             )
@@ -287,7 +302,10 @@ def validate_contract(data: Any) -> list[str]:
                 except QuantityError as exc:
                     errors.append(str(exc))
         source = item.get("source")
-        if source not in {f"evidence:{item_id}" for item_id in evidence_ids}:
+        if (
+            not isinstance(source, str)
+            or source not in {f"evidence:{item_id}" for item_id in evidence_ids}
+        ):
             errors.append(f"quantities[{index}].source references unknown evidence: {source}")
         try:
             EvidenceLevel(item.get("evidence_level"))
@@ -311,7 +329,10 @@ def validate_contract(data: Any) -> list[str]:
         for field in ("role", "state"):
             if not _nonempty(item.get(field)):
                 errors.append(f"components[{index}].{field} must be a non-empty string")
-        if item.get("state") not in COMPONENT_STATES:
+        if (
+            not isinstance(item.get("state"), str)
+            or item.get("state") not in COMPONENT_STATES
+        ):
             errors.append(
                 f"components[{index}].state must be a supported component state"
             )
@@ -360,9 +381,12 @@ def validate_contract(data: Any) -> list[str]:
 
     known_supports = {f"quantity:{item_id}" for item_id in quantity_ids}
     known_supports.update(f"artifact:{item_id}" for item_id in artifact_ids)
+    evidence_levels: dict[str, EvidenceLevel] = {}
     for index, item in enumerate(collections["evidence"]):
         try:
             level = EvidenceLevel(item.get("level"))
+            if _nonempty(item.get("id")):
+                evidence_levels[item["id"]] = level
         except (TypeError, ValueError):
             level = None
             errors.append(f"evidence[{index}].level is invalid")
@@ -396,6 +420,16 @@ def validate_contract(data: Any) -> list[str]:
         if evidence_id in evidence_supports and target not in evidence_supports[evidence_id]:
             errors.append(
                 f"quantities[{index}].source {source} does not support {target}"
+            )
+        try:
+            quantity_level = EvidenceLevel(item.get("evidence_level"))
+        except (TypeError, ValueError):
+            continue
+        source_level = evidence_levels.get(evidence_id)
+        if source_level is not None and quantity_level > source_level:
+            errors.append(
+                f"quantities[{index}].evidence_level {quantity_level.value} "
+                f"exceeds source evidence level {source_level.value}"
             )
 
     return sorted(set(errors))

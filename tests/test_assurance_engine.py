@@ -60,6 +60,10 @@ class AssuranceEngineTests(unittest.TestCase):
         self.assertEqual(report["metadata"]["schema_version"], 1)
         self.assertRegex(report["metadata"]["contract_sha256"], r"^[0-9a-f]{64}$")
         self.assertEqual(report["metadata"]["evidence_coverage"], "1/1")
+        self.assertEqual(report["metadata"]["minimum_evidence_level"], "parsed")
+        self.assertEqual(
+            report["metadata"]["evidence_level_counts"], {"parsed": 1}
+        )
 
     def test_changed_artifact_invalidates_hash_bound_evidence(self):
         with tempfile.TemporaryDirectory() as temp_dir:

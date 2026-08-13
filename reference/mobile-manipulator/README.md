@@ -26,4 +26,6 @@ promotion. The baseline runs drivetrain, battery/runtime, support-polygon
 stability, arm gravity/brake holding, and conservative steady-state winding
 thermal-duty checks. Thermal values remain assumptions until replaced with an
 exact motor curve, temperature-dependent resistance, thermal network, and
-bench data.
+bench data. Stability projects the declared center of mass on the declared
+five-degree slope; the fault corpus also includes a slope-induced support-bound
+violation.

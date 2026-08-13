@@ -121,6 +121,22 @@ class AssuranceContractTests(unittest.TestCase):
             any("quantities[0].value" in error and "object with value and unit" in error for error in validate_contract(data))
         )
 
+    def test_vacuous_physical_contract_is_rejected(self):
+        data = valid_contract()
+        for collection in (
+            "requirements",
+            "quantities",
+            "components",
+            "artifacts",
+            "analyses",
+            "evidence",
+        ):
+            data[collection] = []
+        self.assertIn(
+            "physical contract must contain at least one engineering obligation",
+            validate_contract(data),
+        )
+
     def test_certified_evidence_requires_external_authority(self):
         data = valid_contract()
         data["evidence"][0]["level"] = "certified"
@@ -132,6 +148,15 @@ class AssuranceContractTests(unittest.TestCase):
         self.assertIn(
             "evidence[0].certificate_id must be a non-empty string for certified evidence",
             errors,
+        )
+
+    def test_quantity_cannot_claim_stronger_level_than_its_source(self):
+        data = valid_contract()
+        data["quantities"][0]["evidence_level"] = "certified"
+        data["evidence"][0]["level"] = "assumed"
+        self.assertIn(
+            "quantities[0].evidence_level certified exceeds source evidence level assumed",
+            validate_contract(data),
         )
 
     def test_quantity_source_must_explicitly_support_that_quantity(self):
@@ -161,6 +186,21 @@ class AssuranceContractTests(unittest.TestCase):
         self.assertIn(
             "evidence[0].supports must be a list of non-empty strings", errors
         )
+
+    def test_valid_json_wrong_types_never_raise_tracebacks(self):
+        mutations = (
+            ("status", lambda data: data.update(status=[])),
+            ("requirement owner", lambda data: data["requirements"][0].update(owner=[])),
+            ("assumption confidence", lambda data: data["assumptions"][0].update(confidence=[])),
+            ("quantity source", lambda data: data["quantities"][0].update(source={})),
+            ("component state", lambda data: data["components"][0].update(state=[])),
+        )
+        for label, mutate in mutations:
+            with self.subTest(label=label):
+                data = valid_contract()
+                mutate(data)
+                errors = validate_contract(data)
+                self.assertTrue(errors)
 
     def test_unknown_fields_are_rejected_in_schema_one(self):
         data = valid_contract()

@@ -76,7 +76,7 @@ missing motor, reducer, bearing, driver, brake, power-protection element, or
 unsupported continuous/thermal rating.
 
 [`reference/mobile-manipulator`](reference/mobile-manipulator) is a
-differential-drive plus six-axis-arm regression fixture with 31 critical fault
+differential-drive plus six-axis-arm regression fixture with 32 critical fault
 mutations. Its component ratings are engineering assumptions, not a build or
 purchasing recommendation. It intentionally remains unpromoted until exact
 parts and stronger evidence replace every claim-driving placeholder. See the
@@ -130,7 +130,7 @@ python scripts/validate.py
 python scripts/install.py --dry-run
 ```
 
-Tests cover manifest integrity, pinned commits, transactional installation, host overlays, bytecode exclusion, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, public-data hygiene, physical contract/schema/units/evidence/component bindings, deterministic analysis reports, URDF drift, 31 critical physical faults, visual source hashes and landmark promotion, mission trajectory/contact traceability, and patent-aware routing boundaries.
+Tests cover manifest integrity, pinned commits, transactional installation, host overlays, bytecode exclusion, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, public-data hygiene, physical contract/schema/units/evidence/component bindings, deterministic analysis reports, URDF drift, 32 critical physical faults, visual source hashes and landmark promotion, mission trajectory/contact traceability, and patent-aware routing boundaries.
 
 ## Claim boundary
 

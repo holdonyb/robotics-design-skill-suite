@@ -38,8 +38,8 @@ physical evidence report with:
   `arm_gravity_v1`, and `thermal_duty_v1` analytical plug-ins;
 - deterministic JSON reporting and CLI exit codes: `0` promotable, `1`
   physical failure/indeterminate, `2` invalid invocation or contract;
-- a differential-drive plus six-axis-arm reference fixture with 31 critical
-  fault mutations.
+- a differential-drive plus six-axis-arm reference fixture with 32 critical
+  fault mutations, including slope-induced support-boundary violation.
 
 The reference candidate intentionally remains unpromoted. All 39 component
 records are engineering placeholders supporting the physical requirement; its

@@ -30,6 +30,8 @@ using `artifact:ID#normalized.path`; the drift gate compares it in SI units.
 Supported evidence levels are `assumed`, `generated`, `parsed`, `calculated`,
 `simulated`, `bench-tested`, `integrated-hardware-tested`, `task-validated`,
 and `certified`. Ordering supports comparison only; it never promotes a claim.
+The quantity level may equal or conservatively downgrade its source evidence
+level, but it may not exceed it.
 
 ## Components and architecture
 
@@ -47,6 +49,9 @@ ledger gate.
 Architecture contains string lists: `features`, `actuators`, `moving_cables`,
 and `claimed_safety_functions`. The ledger maps these declarations to mandatory
 component roles; absence from the schema never means absence from the robot.
+Unknown features or claimed safety functions remain structurally valid for
+forward transport but are physically indeterminate until a role contract is
+implemented.
 
 ## Artifacts, analyses, and evidence
 

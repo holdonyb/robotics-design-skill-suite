@@ -144,14 +144,22 @@ def validate_ledger(contract: dict[str, Any]) -> list[Diagnostic]:
                 )
 
         supports = item.get("supports_claims", [])
-        if state == "engineering_placeholder" and isinstance(supports, list) and supports:
+        if state == "engineering_placeholder" and (
+            (isinstance(supports, list) and supports)
+            or (isinstance(bindings, list) and bindings)
+        ):
+            affected = (
+                sorted(str(value) for value in supports)
+                if isinstance(supports, list) and supports
+                else sorted(str(value) for value in bindings)
+            )
             diagnostics.append(
                 Diagnostic(
                     "BOM.PLACEHOLDER_BLOCKS_CLAIM",
                     "indeterminate",
                     path,
-                    f"engineering placeholder {component_id} supports promoted claims: "
-                    + ", ".join(sorted(str(value) for value in supports)),
+                    f"engineering placeholder {component_id} supports claim-driving responsibilities: "
+                    + ", ".join(affected),
                 )
             )
         if state == "missing":
@@ -186,6 +194,29 @@ def validate_ledger(contract: dict[str, Any]) -> list[Diagnostic]:
             )
         )
     else:
+        for feature in sorted(architecture.get("features", [])):
+            if feature not in FEATURE_ROLES:
+                diagnostics.append(
+                    Diagnostic(
+                        "BOM.UNKNOWN_FEATURE",
+                        "indeterminate",
+                        "architecture.features",
+                        f"unsupported architecture feature has no role contract: {feature}",
+                    )
+                )
+        for safety_function in sorted(
+            architecture.get("claimed_safety_functions", [])
+        ):
+            if safety_function not in SAFETY_FUNCTION_ROLES:
+                diagnostics.append(
+                    Diagnostic(
+                        "BOM.UNKNOWN_SAFETY_FUNCTION",
+                        "indeterminate",
+                        "architecture.claimed_safety_functions",
+                        "unsupported safety function has no role contract: "
+                        + safety_function,
+                    )
+                )
         for source, roles in sorted(required_roles(architecture).items()):
             for role in sorted(roles - bound_roles.get(source, set())):
                 diagnostics.append(

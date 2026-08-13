@@ -1,0 +1,1 @@
+{"id":"slope-tip-over","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-SLOPE","value":{"value":30,"unit":"deg"}},"expected_diagnostic":"PHY.STABILITY.OUTSIDE_SUPPORT"}

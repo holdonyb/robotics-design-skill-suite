@@ -116,6 +116,9 @@ class AssuranceAnalysisTests(unittest.TestCase):
                 "support_max_y_m": 0.25,
                 "com_x_m": 0.1,
                 "com_y_m": 0.0,
+                "com_height_m": 0.5,
+                "slope_x_rad": 0.0,
+                "slope_y_rad": 0.0,
             },
         )
         self.assertAlmostEqual(inside.outputs["static_margin_m"], 0.2)
@@ -126,6 +129,26 @@ class AssuranceAnalysisTests(unittest.TestCase):
         self.assertTrue(
             any(item.code == "PHY.STABILITY.OUTSIDE_SUPPORT" for item in outside.diagnostics)
         )
+
+    def test_increasing_slope_cannot_increase_static_tip_margin(self):
+        inputs = {
+            "support_min_x_m": -0.3,
+            "support_max_x_m": 0.3,
+            "support_min_y_m": -0.25,
+            "support_max_y_m": 0.25,
+            "com_x_m": 0.0,
+            "com_y_m": 0.0,
+            "com_height_m": 0.5,
+            "slope_x_rad": 0.0,
+            "slope_y_rad": 0.0,
+        }
+        level = run_plugin("stability_v1", inputs)
+        inputs["slope_x_rad"] = math.radians(10.0)
+        sloped = run_plugin("stability_v1", inputs)
+        self.assertLess(
+            sloped.outputs["static_margin_m"], level.outputs["static_margin_m"]
+        )
+        self.assertGreater(sloped.outputs["projected_com_x_m"], 0.0)
 
     def test_arm_gravity_and_brake_holding_torque_are_checked(self):
         result = run_plugin(

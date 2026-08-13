@@ -101,6 +101,30 @@ class AssuranceLedgerTests(unittest.TestCase):
             )
         )
 
+    def test_bound_placeholder_cannot_bypass_gate_by_omitting_claims(self):
+        data = valid_contract()
+        data["architecture"]["features"] = []
+        data["components"][0]["bindings"] = ["actuator:joint_1"]
+        data["components"][0]["role"] = "motor"
+        data["components"][0].pop("supports_claims", None)
+        data["architecture"]["actuators"] = ["joint_1"]
+        diagnostics = validate_ledger(data)
+        self.assertTrue(
+            any(
+                item.code == "BOM.PLACEHOLDER_BLOCKS_CLAIM"
+                for item in diagnostics
+            )
+        )
+
+    def test_unknown_architecture_feature_and_safety_function_fail_closed(self):
+        data = valid_contract()
+        data["architecture"]["features"] = ["teleport_drive"]
+        data["architecture"]["claimed_safety_functions"] = ["magic_stop"]
+        diagnostics = validate_ledger(data)
+        codes = {item.code for item in diagnostics}
+        self.assertIn("BOM.UNKNOWN_FEATURE", codes)
+        self.assertIn("BOM.UNKNOWN_SAFETY_FUNCTION", codes)
+
     def test_duplicate_component_id_and_interface_are_reported(self):
         data = valid_contract()
         data["architecture"]["features"] = []

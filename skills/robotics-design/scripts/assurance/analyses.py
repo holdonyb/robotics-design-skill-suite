@@ -296,6 +296,9 @@ STABILITY_INPUTS = (
     "support_max_y_m",
     "com_x_m",
     "com_y_m",
+    "com_height_m",
+    "slope_x_rad",
+    "slope_y_rad",
 )
 
 
@@ -304,7 +307,8 @@ def _stability(inputs: dict[str, Any]) -> AnalysisResult:
     outputs: dict[str, Any] = {}
     assumptions = (
         "support polygon is represented by the declared axis-aligned conservative rectangle",
-        "center of mass is statically projected onto a level support plane",
+        "center of mass is statically projected along gravity onto the declared support plane",
+        "slope axes use the base-frame x and y directions with rigid support contact",
         "dynamic and contact disturbances require separate checks",
     )
     if diagnostics:
@@ -312,24 +316,39 @@ def _stability(inputs: dict[str, Any]) -> AnalysisResult:
     if (
         values["support_min_x_m"] >= values["support_max_x_m"]
         or values["support_min_y_m"] >= values["support_max_y_m"]
+        or values["com_height_m"] < 0.0
+        or abs(values["slope_x_rad"]) >= math.pi / 2.0
+        or abs(values["slope_y_rad"]) >= math.pi / 2.0
     ):
         diagnostics.append(
             _diagnostic(
                 "PHY.INPUT.DOMAIN",
                 "error",
                 "analyses.stability_v1.inputs",
-                "support bounds must have positive width and length",
+                "support bounds, COM height, or slope lie outside the stability validity domain",
             )
         )
         return AnalysisResult("stability_v1", "1", dict(values), outputs, tuple(diagnostics), assumptions)
+    projected_x = values["com_x_m"] + values["com_height_m"] * math.tan(
+        values["slope_x_rad"]
+    )
+    projected_y = values["com_y_m"] + values["com_height_m"] * math.tan(
+        values["slope_y_rad"]
+    )
     margins = (
-        values["com_x_m"] - values["support_min_x_m"],
-        values["support_max_x_m"] - values["com_x_m"],
-        values["com_y_m"] - values["support_min_y_m"],
-        values["support_max_y_m"] - values["com_y_m"],
+        projected_x - values["support_min_x_m"],
+        values["support_max_x_m"] - projected_x,
+        projected_y - values["support_min_y_m"],
+        values["support_max_y_m"] - projected_y,
     )
     margin = min(margins)
-    outputs["static_margin_m"] = margin
+    outputs.update(
+        {
+            "projected_com_x_m": projected_x,
+            "projected_com_y_m": projected_y,
+            "static_margin_m": margin,
+        }
+    )
     if margin < 0.0:
         diagnostics.append(
             _diagnostic(

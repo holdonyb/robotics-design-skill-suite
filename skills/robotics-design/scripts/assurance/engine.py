@@ -11,7 +11,7 @@ from .analyses import AnalysisResult, run_plugin
 from .artifacts import compare_observations, observe_urdf
 from .contract import load_contract
 from .ledger import validate_ledger
-from .model import Diagnostic, Report
+from .model import Diagnostic, EvidenceLevel, Report
 from .units import QuantityError, to_si
 
 
@@ -218,6 +218,16 @@ def evaluate_contract(path: Path) -> tuple[Report | None, list[str]]:
         if valid:
             valid_evidence += 1
     report.metadata["evidence_coverage"] = f"{valid_evidence}/{len(evidence_records)}"
+    level_counts: dict[str, int] = {}
+    declared_levels: list[EvidenceLevel] = []
+    for quantity in data.get("quantities", []):
+        level = EvidenceLevel(quantity["evidence_level"])
+        declared_levels.append(level)
+        level_counts[level.value] = level_counts.get(level.value, 0) + 1
+    report.metadata["evidence_level_counts"] = dict(sorted(level_counts.items()))
+    report.metadata["minimum_evidence_level"] = (
+        min(declared_levels).value if declared_levels else "none"
+    )
 
     for diagnostic in compare_observations(data, observations):
         report.add(diagnostic)
