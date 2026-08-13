@@ -234,11 +234,14 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
                 ]
                 for call in node_calls:
                     parameters = next((item.value for item in call.keywords if item.arg == "parameters"), None)
-                    if parameters is not None:
-                        segment = ast.get_source_segment(source, parameters) or ""
-                        self.assertIn("use_sim_time", segment)
-                    else:
-                        self.assertIn("use_sim_time", source)
+                    package = next((item.value.value for item in call.keywords if item.arg == "package" and isinstance(item.value, ast.Constant)), None)
+                    executable = next((item.value.value for item in call.keywords if item.arg == "executable" and isinstance(item.value, ast.Constant)), None)
+                    if (package, executable) == ("ros_gz_sim", "create"):
+                        self.assertIsNone(parameters, "Gazebo create is intentionally a one-shot CLI node")
+                        continue
+                    self.assertIsNotNone(parameters, "persistent ROS Node must declare use_sim_time")
+                    segment = ast.get_source_segment(source, parameters) or ""
+                    self.assertIn("use_sim_time", segment)
 
     def test_tf_ownership_and_command_chain_have_one_authority(self):
         controllers = text(SRC / "jx_mobile_manipulator_sim" / "config" / "controllers.yaml")
