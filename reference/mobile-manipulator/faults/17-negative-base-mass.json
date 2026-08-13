@@ -1,0 +1,1 @@
+{"id":"negative-base-mass","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-BASE-MASS","value":{"value":-1,"unit":"kg"}},"expected_diagnostic":"PHY.INPUT.DOMAIN"}

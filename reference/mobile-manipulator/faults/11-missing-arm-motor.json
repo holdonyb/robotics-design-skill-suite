@@ -1,0 +1,1 @@
+{"id":"missing-arm-motor","critical":true,"mutation":{"op":"set_component_missing","role":"motor"},"expected_diagnostic":"BOM.MISSING_ROLE"}

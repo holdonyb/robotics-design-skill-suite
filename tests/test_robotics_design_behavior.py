@@ -13,6 +13,9 @@ MISSION_CONTRACT = (
 PATENT_CONTRACT = (
     ROOT / "skills" / "robotics-design" / "references" / "patent-design-around.md"
 )
+PHYSICAL_CONTRACT = (
+    ROOT / "skills" / "robotics-design" / "references" / "physical-plausibility-contract.md"
+)
 
 
 class RoboticsDesignBehaviorTests(unittest.TestCase):
@@ -86,6 +89,28 @@ class RoboticsDesignBehaviorTests(unittest.TestCase):
         ):
             self.assertIn(required, text.lower())
         self.assertIn("FTO", text)
+
+    def test_component_selection_and_feasibility_route_through_physical_contract(self):
+        text = SKILL.read_text(encoding="utf-8")
+        self.assertIn("references/physical-plausibility-contract.md", text)
+        self.assertIn(
+            "before selecting components or claiming physical feasibility", text
+        )
+        self.assertIn("validate_design_contract.py", text)
+
+    def test_physical_contract_blocks_incomplete_load_paths_and_premature_simulation(self):
+        self.assertTrue(PHYSICAL_CONTRACT.is_file())
+        text = PHYSICAL_CONTRACT.read_text(encoding="utf-8")
+        for clause in (
+            "motor, reducer, bearing, and motor driver",
+            "Analytical gates run before simulation or training",
+            "evidence level",
+            "failure report",
+            "engineering_placeholder",
+            "thermal_duty_v1",
+            "simulation cannot replace",
+        ):
+            self.assertIn(clause, text)
 
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Compile Python
-        run: python -m compileall -q scripts tests
+        run: python -m compileall -q scripts tests skills/robotics-design/scripts
       - name: Run tests
         run: python -m unittest discover -s tests -v
       - name: Validate distribution

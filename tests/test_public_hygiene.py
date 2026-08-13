@@ -19,9 +19,14 @@ REQUIRED = {
     "skills/robotics-design/references/visualization-contract.md",
     "skills/robotics-design/references/mission-animation-contract.md",
     "skills/robotics-design/references/patent-design-around.md",
+    "skills/robotics-design/references/physical-plausibility-contract.md",
+    "skills/robotics-design/scripts/validate_design_contract.py",
+    "reference/mobile-manipulator/design-contract.json",
+    "reference/mobile-manipulator/robot.urdf",
     "skills/robotics-design/scripts/validate_visual_manifest.py",
     "skills/robotics-design/scripts/validate_mission_animation_manifest.py",
     ".github/workflows/ci.yml",
+    ".gitattributes",
 }
 TEXT_SUFFIXES = {".md", ".py", ".json", ".yml", ".yaml", ".txt"}
 FORBIDDEN = {
@@ -46,6 +51,36 @@ def deployable_text_files():
 
 
 class PublicHygieneTests(unittest.TestCase):
+    def test_hash_bound_text_has_checkout_stable_lf_attributes(self):
+        completed = subprocess.run(
+            [
+                "git", "check-attr", "eol", "--",
+                "reference/mobile-manipulator/robot.urdf",
+                "reference/mobile-manipulator/assumptions.json",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        )
+        lines = [line for line in completed.stdout.splitlines() if line]
+        self.assertEqual(len(lines), 2)
+        self.assertTrue(all(line.endswith("eol: lf") for line in lines), lines)
+
+    def test_local_delta_record_has_no_unresolved_disposition(self):
+        record = (ROOT / "docs/research/2026-08-13-active-local-delta.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("unclassified", record.lower())
+        for disposition in (
+            "promote_with_tests",
+            "superseded_by_v020_review_fix",
+            "host_only",
+            "generated_drop",
+        ):
+            self.assertIn(disposition, record)
+
     def test_required_release_files_exist(self):
         missing = sorted(item for item in REQUIRED if not (ROOT / item).is_file())
         self.assertEqual(missing, [])
@@ -109,6 +144,13 @@ class PublicHygieneTests(unittest.TestCase):
             self.assertIn(phrase, chinese)
         self.assertIn("mission-animation", source_lock)
         self.assertIn("patent-aware", source_lock)
+
+    def test_ci_compiles_local_skill_runtime_before_tests(self):
+        ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "python -m compileall -q scripts tests skills/robotics-design/scripts",
+            ci,
+        )
 
 
 if __name__ == "__main__":

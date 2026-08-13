@@ -1,0 +1,1 @@
+{"id":"missing-brake","critical":true,"mutation":{"op":"set_component_missing","role":"brake"},"expected_diagnostic":"BOM.MISSING_ROLE"}

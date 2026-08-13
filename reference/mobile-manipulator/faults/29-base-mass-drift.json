@@ -1,0 +1,1 @@
+{"id":"base-mass-drift","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-BASE-MASS","value":{"value":99,"unit":"kg"}},"expected_diagnostic":"DRIFT.VALUE"}

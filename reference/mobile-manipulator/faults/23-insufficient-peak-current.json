@@ -1,0 +1,1 @@
+{"id":"insufficient-peak-current","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-MAX-PEAK-CURRENT","value":{"value":20,"unit":"A"}},"expected_diagnostic":"PHY.POWER.PEAK_CURRENT"}

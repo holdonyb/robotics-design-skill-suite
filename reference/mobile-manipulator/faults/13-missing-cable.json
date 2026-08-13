@@ -1,0 +1,1 @@
+{"id":"missing-cable","critical":true,"mutation":{"op":"set_component_missing","role":"cable"},"expected_diagnostic":"BOM.MISSING_ROLE"}

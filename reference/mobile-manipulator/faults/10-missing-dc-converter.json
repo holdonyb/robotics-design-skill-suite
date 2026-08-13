@@ -1,0 +1,1 @@
+{"id":"missing-dc-converter","critical":true,"mutation":{"op":"set_component_missing","role":"dc_converter"},"expected_diagnostic":"BOM.MISSING_ROLE"}

@@ -1,0 +1,1 @@
+{"id":"joint-limit-drift","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-J1-UPPER","value":{"value":2,"unit":"rad"}},"expected_diagnostic":"DRIFT.VALUE"}

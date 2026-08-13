@@ -1,0 +1,1 @@
+{"id":"arm-torque-overload","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-ARM-CONTINUOUS-TORQUE-J2","value":{"value":50,"unit":"N*m"}},"expected_diagnostic":"PHY.ARM.CONTINUOUS_TORQUE"}

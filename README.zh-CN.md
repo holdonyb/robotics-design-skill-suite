@@ -55,6 +55,18 @@ $urdf 审查这个机器人描述的坐标系、轴、限位、惯量和消费�
 $sdf 创建 Gazebo Harmonic 世界，并列出所有没有执行的验证门禁。
 ```
 
+## 物理可信门禁
+
+0.3.0 版在常规仿真或训练之前增加封闭、机器可读的设计契约。它把带明确单位的物理量绑定到证据，把组件逐项绑定到左右驱动及各关节责任，把每个分析输入锁定到期望物理维度，校验工件哈希、URDF 责任量与受限声明式 JSON 观察量漂移，并为驱动、电池/续航、静态稳定性、机械臂重力/抱闸保持以及保守稳态绕组热占空比输出确定性诊断与有符号裕量。
+
+```bash
+python skills/robotics-design/scripts/validate_design_contract.py path/to/design-contract.json --report evidence.json
+```
+
+退出码 `0` 只表示声明的契约在当前证据等级下通过了已经实现的解析筛选。缺失或占位部件、过期证据、非法单位、不完整的执行器/载荷路径、缺少架构推导的分析覆盖以及失败或不确定的分析都会阻止晋级。仿真不能补上缺失的电机、减速器、轴承、驱动器、制动器、供电保护部件，也不能替代缺失的连续或热能力证据。
+
+[`reference/mobile-manipulator`](reference/mobile-manipulator) 是“差速底盘 + 六轴机械臂”的回归工装，包含 32 个关键故障变体。其中的组件额定值都是工程假设，不是制造或采购推荐；在精确部件和更强证据替换所有影响结论的占位项之前，它会故意保持不可晋级。完整约束见 [`physical-plausibility-contract.md`](skills/robotics-design/references/physical-plausibility-contract.md)。
+
 ## 结构保真的机器人效果图
 
 0.2.0 版禁止图像生成模型悄悄改写机器人的机构。拓扑与姿态必须由 CAD、URDF、SDF 或等价的确定性模型负责；生成图只允许改变材质、表面处理、颜色、光照、背景和不接触机器人的环境内容。
@@ -103,7 +115,7 @@ python scripts/validate.py
 python scripts/install.py --dry-run
 ```
 
-测试覆盖清单完整性、固定 commit、事务式安装、host overlay、bytecode 排除、许可证保留、Codex frontmatter 规范化、拒绝覆盖、ZIP 路径穿越保护、公开内容卫生、视觉源文件哈希与 landmark 门禁、任务轨迹/接触 trace，以及专利感知路由边界。
+测试覆盖清单完整性、固定 commit、事务式安装、host overlay、bytecode 排除、许可证保留、Codex frontmatter 规范化、拒绝覆盖、ZIP 路径穿越保护、公开内容卫生、物理契约/单位/证据/逐责任组件绑定、确定性分析报告、URDF 漂移、32 个关键物理故障、视觉源文件哈希与 landmark 门禁、任务轨迹/接触 trace，以及专利感知路由边界。
 
 ## 能力边界
 

@@ -1,0 +1,1 @@
+{"id":"missing-connector","critical":true,"mutation":{"op":"set_component_missing","role":"connector"},"expected_diagnostic":"BOM.MISSING_ROLE"}

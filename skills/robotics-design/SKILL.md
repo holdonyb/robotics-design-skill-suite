@@ -13,13 +13,14 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 
 1. Recover project constraints, existing artifacts, target consumers, and validation commands.
 2. Read `references/design-contract.md`; establish requirements, assumptions, quantity ownership, and acceptance evidence before interface-driving geometry or code.
-3. For any generated product, task, concept, or marketing image of the robot, read `references/visualization-contract.md` before creating references or prompts.
-4. For a task, product, or demonstration animation, read `references/mission-animation-contract.md` before creating trajectories, keyframes, renders, or video.
-5. For patent study, design-around, freedom-to-operate screening, or competitor-inspired mechanisms, read `references/patent-design-around.md` before freezing topology or interfaces.
-6. Load each required sub-skill from the router before editing its artifact.
-7. Run the relevant gates in `references/validation-gates.md`.
-8. Use `references/authority-map.md` for method selection, `references/runtime.md` for environment setup, and `references/source-lock.md` for supply-chain review.
-9. If `references/host-runtime.md` exists, read it for this installation's runtime executable and destination; never copy those host values into project artifacts.
+3. Read `references/physical-plausibility-contract.md` before selecting components or claiming physical feasibility; create the machine-readable contract and run its analytical gate before simulation or training.
+4. For any generated product, task, concept, or marketing image of the robot, read `references/visualization-contract.md` before creating references or prompts.
+5. For a task, product, or demonstration animation, read `references/mission-animation-contract.md` before creating trajectories, keyframes, renders, or video.
+6. For patent study, design-around, freedom-to-operate screening, or competitor-inspired mechanisms, read `references/patent-design-around.md` before freezing topology or interfaces.
+7. Load each required sub-skill from the router before editing its artifact.
+8. Run the relevant gates in `references/validation-gates.md`.
+9. Use `references/authority-map.md` for method selection, `references/runtime.md` for environment setup, and `references/source-lock.md` for supply-chain review.
+10. If `references/host-runtime.md` exists, read it for this installation's runtime executable and destination; never copy those host values into project artifacts.
 
 ## Capability Router
 
@@ -27,7 +28,7 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 |---|---|---|
 | Requirements, architecture, budgets, tradeoffs, verification | `$robotics-design` | Maintain one design contract and verification matrix. |
 | Parametric parts, assemblies, brackets, enclosures, STEP, collision geometry | `$cad` | CAD owns geometry and controlled datums. |
-| Purchasable motors, servos, bearings, fasteners, electronics | `$step-parts`, then `$cad` | Record exact identity and source; otherwise use a documented envelope. |
+| Purchasable motors, servos, reducers, bearings, brakes, drivers, batteries, electronics | `references/physical-plausibility-contract.md`, then `$step-parts` and `$cad` | Bind exact parts to architecture responsibilities and verify ratings; otherwise retain an unpromoted engineering placeholder. |
 | DXF profiles, panels, drawings, cut layouts | `$dxf`; also `$cad` when derived from 3D | Keep 2D output linked to owning geometry. |
 | Visual review of STEP, URDF, SDF, SRDF, DXF, GLB, STL, 3MF | `$cad-viewer` | Return review evidence or report viewer failure. |
 | Photorealistic, product, task, concept, or marketing robot renders | Deterministic CAD/URDF/SDF owner, then `$imagegen` when available | The deterministic model owns topology and pose; image generation may change appearance and environment only. |
@@ -46,18 +47,22 @@ If a required sub-skill is unavailable, name the missing capability and continue
 1. Separate requirements into environment/hazards, envelope/workspace, payload/reach, motion/accuracy, duty cycle, power/thermal/compute, sensing/actuation, safety, interfaces, serviceability, and target versions.
 2. Turn missing interface-driving numbers into numbered assumptions with confidence, affected artifacts, owner, validation method, deadline, and change trigger.
 3. Assign one source of truth per quantity. Downstream mirrors must record their source and drift check.
-4. Freeze envelopes, datums, support polygon, swept volumes, interfaces, and budgets before detail CAD.
-5. Derive URDF frames and joints from controlled datums. Add SDF and SRDF semantics only after upstream contracts exist. Integrate ROS 2 against named, versioned interfaces.
-6. When a communication render is required, pose the authoritative deterministic model, render visible joint/interface references, perform an appearance-only image-to-image pass, then validate its visual manifest before promotion.
-7. When a mission animation is required, plan and validate one trajectory/contact trace, then render robot transforms directly from its accepted samples.
-8. Validate syntax/schema, semantics, cross-artifact invariants, consumer loading, integrated simulation, then hardware. A generator, build, launch, or plausible-looking image alone is not proof of correctness.
-9. Repair the owning artifact, regenerate explicit dependents, and rerun failed plus regression gates:
+4. Bind every declared actuator, power path, moving cable, and safety function to complete component records. A joint is not physically complete merely because it exists in URDF.
+5. Run `python skills/robotics-design/scripts/validate_design_contract.py path/to/design-contract.json --report evidence.json`; preserve its evidence level, signed margins, and failure report.
+6. Freeze envelopes, datums, support polygon, swept volumes, interfaces, and budgets before detail CAD.
+7. Derive URDF frames and joints from controlled datums. Add SDF and SRDF semantics only after upstream contracts and applicable analytical physical gates pass. Integrate ROS 2 against named, versioned interfaces.
+8. When a communication render is required, pose the authoritative deterministic model, render visible joint/interface references, perform an appearance-only image-to-image pass, then validate its visual manifest before promotion.
+9. When a mission animation is required, plan and validate one trajectory/contact trace, then render robot transforms directly from its accepted samples.
+10. Validate syntax/schema, semantics, cross-artifact invariants, consumer loading, integrated simulation, then hardware. A generator, build, launch, or plausible-looking image alone is not proof of correctness.
+11. Repair the owning artifact, regenerate explicit dependents, and rerun failed plus regression gates:
 
 `spec -> model -> simulate/test -> collect trace -> diagnose earliest violated contract -> minimal repair -> rerun -> promote verified pattern`
 
 ## Hard Gates
 
 - Never present assumed dimensions, inertias, limits, payloads, friction, or test evidence as measured fact.
+- Never promote a declared actuator without explicitly bound motor, reducer, bearing, motor driver, interfaces, ratings, provenance, and load path. Simulation cannot supply a missing component.
+- Never begin nominal simulation or training promotion while an applicable analytical physical gate is failed or indeterminate. Fault-injection runs must preserve the upstream failure.
 - Never claim certification, functional safety, human-safe operation, braking, endurance, payload, or stability without the required analysis and physical evidence.
 - Navigation lidar and depth cameras are not protective safety devices unless the exact components and architecture are certified for that role.
 - Never ask a generative model to articulate, repose, unfold, or reconfigure a robot. Change the pose in CAD, URDF, SDF, or an equivalent deterministic source and render a new reference.
@@ -69,4 +74,4 @@ If a required sub-skill is unavailable, name the missing capability and continue
 
 ## Completion Contract
 
-Report artifacts and owners, assumptions, exact validation evidence, drift checks, skipped gates, remaining risks, visual manifest status when renders are included, mission-animation manifest status and trajectory identity when motion is included, patent claim-map status and legal-review boundary when patent constraints affected architecture, and the boundary between generated, parsed, consumer-loaded, simulated, bench-measured, field-verified, and certified claims.
+Report artifacts and owners, assumptions, component/load-path completeness, exact validation evidence, evidence level, signed analytical margins, the physical failure report, drift checks, skipped gates, remaining risks, visual manifest status when renders are included, mission-animation manifest status and trajectory identity when motion is included, patent claim-map status and legal-review boundary when patent constraints affected architecture, and the boundary between assumed, generated, parsed, calculated, simulated, bench-tested, integrated-hardware-tested, task-validated, and certified claims.

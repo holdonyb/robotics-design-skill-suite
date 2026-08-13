@@ -55,6 +55,34 @@ $urdf Review this robot description for frame, axis, limit, inertia, and consume
 $sdf Build a Gazebo Harmonic world and identify every validation gate that was not run.
 ```
 
+## Physical plausibility gate
+
+Version 0.3.0 adds a closed, machine-readable design contract before nominal
+simulation or training. It binds explicit-unit quantities to evidence, binds
+components to explicit left/right drive and per-joint responsibilities, closes
+each plug-in input to an expected physical dimension, checks artifact hashes,
+owned URDF observations, and bounded declared-JSON observations, and emits deterministic diagnostics and signed
+margins for drivetrain, battery/runtime, static stability, arm gravity/brake
+holding, and conservative steady-state winding thermal duty.
+
+```bash
+python skills/robotics-design/scripts/validate_design_contract.py path/to/design-contract.json --report evidence.json
+```
+
+Exit `0` means only that the declared contract passes the implemented
+analytical screens at its recorded evidence levels. Missing or placeholder
+parts, stale evidence, invalid units, incomplete actuator/load paths, and
+missing architecture-derived analysis coverage, failed or indeterminate analyses block promotion. Simulation cannot replace a
+missing motor, reducer, bearing, driver, brake, power-protection element, or
+unsupported continuous/thermal rating.
+
+[`reference/mobile-manipulator`](reference/mobile-manipulator) is a
+differential-drive plus six-axis-arm regression fixture with 32 critical fault
+mutations. Its component ratings are engineering assumptions, not a build or
+purchasing recommendation. It intentionally remains unpromoted until exact
+parts and stronger evidence replace every claim-driving placeholder. See the
+full [`physical-plausibility-contract.md`](skills/robotics-design/references/physical-plausibility-contract.md).
+
 ## Structure-preserving robot renders
 
 Version 0.2.0 prevents image generation from silently changing a robot's mechanism. CAD, URDF, SDF, or an equivalent deterministic model must own topology and pose. A generated image may change materials, surface finish, color, lighting, background, and non-contact environment context only.
@@ -103,7 +131,7 @@ python scripts/validate.py
 python scripts/install.py --dry-run
 ```
 
-Tests cover manifest integrity, pinned commits, transactional installation, host overlays, bytecode exclusion, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, public-data hygiene, visual source hashes and landmark promotion, mission trajectory/contact traceability, and patent-aware routing boundaries.
+Tests cover manifest integrity, pinned commits, transactional installation, host overlays, bytecode exclusion, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, public-data hygiene, physical contract/schema/units/evidence/component bindings, deterministic analysis reports, URDF drift, 32 critical physical faults, visual source hashes and landmark promotion, mission trajectory/contact traceability, and patent-aware routing boundaries.
 
 ## Claim boundary
 

@@ -1,0 +1,1 @@
+{"id":"com-outside-support","critical":true,"mutation":{"op":"set_quantity_value","id":"Q-COM-X","value":{"value":0.5,"unit":"m"}},"expected_diagnostic":"PHY.STABILITY.OUTSIDE_SUPPORT"}
