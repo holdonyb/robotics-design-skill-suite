@@ -21,6 +21,9 @@ class SimulationCiTests(unittest.TestCase):
         for token in ("xacro", "colcon test", "gz sim", "ros2_control", "move_group", "nav2", "timeout", "trap", "validate_simulation_bundle.py", "kill -0", "joint_state_broadcaster.*active", "arm_controller.*active", "diff_drive_controller.*active"):
             self.assertIn(token, gate)
         self.assertLess(gate.index("source /opt/ros/jazzy/setup.bash"), gate.index('test "${ROS_DISTRO:-}" = "jazzy"'))
+        self.assertIn('"$WORKSPACE/build"', gate)
+        self.assertIn('"$WORKSPACE/install"', gate)
+        self.assertIn('"$WORKSPACE/log"', gate)
         self.assertLess(
             gate.index("run colcon build --base-paths"),
             gate.index('source "$WORKSPACE/install/setup.bash"'),
