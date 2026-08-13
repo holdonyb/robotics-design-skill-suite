@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "e833ea8f7803ee28bac1d7697ceec4c61464c45b7d1c700153a39ce96dc7d1cb"
+ROS_MANIFEST_RECEIPT = "85a19bebf3cf93be94f49dd897a176516fb7706edece8a44b2a8756b4685ca8f"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -212,7 +212,10 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         self.assertIn('mappings={"use_sim": "false"}', move_group)
         self.assertIn("planning_pipelines", move_group)
         ompl = text(moveit / "config" / "ompl_planning.yaml")
-        self.assertIn("planning_plugin: ompl_interface/OMPLPlanner", ompl)
+        # Jazzy scopes planner plugins under the selected `ompl` pipeline and
+        # accepts a vector, rather than the retired scalar `planning_plugin`.
+        self.assertRegex(ompl, r"planning_plugins:\s*\n\s+- ompl_interface/OMPLPlanner")
+        self.assertNotIn("planning_plugin:", ompl)
         # MoveIt Jazzy declares adapter parameters as string arrays.  YAML folded
         # scalars deserialize as a single string and crash move_group at startup.
         self.assertRegex(ompl, r"request_adapters:\s*\n\s+- ")
