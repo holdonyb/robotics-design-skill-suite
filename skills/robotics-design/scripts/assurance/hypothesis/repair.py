@@ -147,6 +147,52 @@ def _checked_rule(rule: object) -> dict[str, Any]:
     return result
 
 
+def _preserves_replacement_obligations(
+    contract: dict[str, Any], target: str, replacement: object
+) -> None:
+    if target.startswith("component:"):
+        before = _record(contract, "components", target.removeprefix("component:"))
+        obligation_fields = {
+            "role", "state", "interfaces", "source_evidence", "limits",
+            "supports_claims", "bindings",
+        }
+    elif target.startswith("evidence:"):
+        before = _record(contract, "evidence", target.removeprefix("evidence:"))
+        obligation_fields = {
+            "kind", "level", "source", "supports", "authority", "certificate_id",
+        }
+    else:
+        return
+    if not isinstance(replacement, dict):
+        raise RepairError(f"whole replacement for {target} must be an object")
+    for field_name in sorted(obligation_fields & set(before)):
+        if field_name not in replacement:
+            raise RepairError(
+                f"repair replacement for {target} deletes obligation field {field_name}"
+            )
+    for list_field in ("interfaces", "supports_claims", "bindings", "supports"):
+        old_value = before.get(list_field)
+        new_value = replacement.get(list_field)
+        if isinstance(old_value, list) and (
+            not isinstance(new_value, list) or not set(old_value).issubset(new_value)
+        ):
+            raise RepairError(
+                f"repair replacement for {target} weakens obligation field {list_field}"
+            )
+    for fixed_field in (
+        "role", "state", "source_evidence", "kind", "level", "authority",
+        "certificate_id",
+    ):
+        if fixed_field in before and replacement.get(fixed_field) != before.get(fixed_field):
+            raise RepairError(
+                f"repair replacement for {target} may not rewrite obligation field {fixed_field}"
+            )
+    if "limits" in before and replacement.get("limits") != before.get("limits"):
+        raise RepairError(f"repair replacement for {target} may not rewrite owned limits")
+    if "source" in before and replacement.get("source") != before.get("source"):
+        raise RepairError(f"repair replacement for {target} may not rewrite evidence source")
+
+
 def _rerun_stages(failed_stage: str) -> tuple[str, ...]:
     if failed_stage not in KNOWN_STAGE_ORDER:
         raise RepairError(f"unknown stage: {failed_stage}")
@@ -190,6 +236,7 @@ def repair(
         raise RepairError(str(exc)) from None
     if checked_depth < 0 or checked_depth >= checked_max_depth:
         raise RepairError(f"global repair depth {checked_max_depth} would be exceeded")
+    rerun_stages = _rerun_stages(failed_stage)
     applications = {} if rule_applications is None else dict(rule_applications)
     count = applications.get(checked_rule["id"], 0)
     if type(count) is not int or count < 0:
@@ -213,6 +260,7 @@ def repair(
         if target in targets:
             raise RepairError(f"repair operations have duplicate target: {target}")
         targets.append(target)
+        _preserves_replacement_obligations(contract, target, operation.get("value"))
 
     before_hash = hashlib.sha256(canonical_bytes({target: _target_value(contract, target) for target in sorted(targets)})).hexdigest()
     resolved = contract
@@ -221,12 +269,16 @@ def repair(
             resolved = apply_operation(resolved, operation)
     except OverlayError as exc:
         raise RepairError(str(exc)) from None
+    operation_digest = hashlib.sha256(
+        canonical_bytes(checked_rule["operations"])
+    ).hexdigest()[:16]
+    repair_identity = f"{checked_rule['id']}@{operation_digest}"
     decision = CandidateDecision(
         base_sha256=parent.decision.base_sha256,
         assignments=dict(parent.decision.assignments),
         seed=parent.decision.seed,
         parent_id=parent.candidate_id,
-        repair_rule_id=checked_rule["id"],
+        repair_rule_id=repair_identity,
     )
     resolved["candidate_id"] = decision.candidate_id
     hash_payload = {key: value for key, value in resolved.items() if key != "candidate_id"}
@@ -235,11 +287,18 @@ def repair(
         raise RepairError("repair does not change resolved contract")
     if after_hash in seen_hashes:
         raise RepairError(f"repair creates seen resolution hash cycle: {after_hash}")
+    parent_errors = tuple(validate_contract(contract))
+    child_errors = tuple(validate_contract(resolved))
+    newly_introduced = sorted(set(child_errors) - set(parent_errors))
+    if newly_introduced:
+        raise RepairError(
+            "repair introduces contract errors: " + "; ".join(newly_introduced)
+        )
     child = ResolvedCandidate(
         decision,
         resolved,
         after_hash,
-        tuple(validate_contract(resolved)),
+        child_errors,
     )
     trace = RepairTrace(
         checked_diagnostic["code"],
@@ -249,7 +308,7 @@ def repair(
         checked_rule["id"],
         before_hash,
         after_hash,
-        _rerun_stages(failed_stage),
+        rerun_stages,
     )
     return child, trace
 
@@ -281,7 +340,7 @@ def select_repair(
         raise RepairError("stage_order must contain unique known stages")
     priority = {stage: index for index, stage in enumerate(order)}
     checked_diagnostics = []
-    for raw in diagnostics:
+    for input_index, raw in enumerate(diagnostics):
         diagnostic = _checked_diagnostic(raw)
         stage = raw.get("stage") if isinstance(raw, dict) else None
         severity = raw.get("severity") if isinstance(raw, dict) else None
@@ -289,10 +348,10 @@ def select_repair(
             raise RepairError(f"unknown stage: {stage}")
         if severity not in {"error", "indeterminate"}:
             continue
-        checked_diagnostics.append((priority[stage], diagnostic["code"], diagnostic["path"], diagnostic["message"], raw))
+        checked_diagnostics.append((priority[stage], diagnostic["code"], diagnostic["path"], diagnostic["message"], input_index, raw))
     if not checked_diagnostics:
         raise RepairError("no blocking diagnostic is available for repair")
-    selected = min(checked_diagnostics)[-1]
+    selected = min(checked_diagnostics, key=lambda item: item[:-1])[-1]
     matching = sorted(
         (_checked_rule(item) for item in rules if isinstance(item, dict) and item.get("diagnostic_code") == selected["code"]),
         key=lambda item: item["id"],
@@ -303,4 +362,3 @@ def select_repair(
 
 
 __all__ = ["RepairError", "RepairTrace", "repair", "select_repair"]
-

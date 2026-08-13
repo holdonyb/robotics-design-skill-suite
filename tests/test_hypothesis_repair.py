@@ -31,6 +31,7 @@ class RepairTests(unittest.TestCase):
         self.assertEqual(source.candidate_id, child.decision.parent_id)
         self.assertNotEqual(source.candidate_id, child.candidate_id)
         self.assertEqual("component:CMP-MOTOR", trace.owner)
+        self.assertTrue(child.decision.repair_rule_id.startswith("motor-fix@"))
         self.assertNotEqual(trace.before_hash, trace.after_hash)
         self.assertEqual(before, source.resolved_contract)
         self.assertEqual(("physical_v030", "uncertainty_v1", "counterexample_v1", "objectives_v1"), trace.rerun_stages)
@@ -74,6 +75,27 @@ class RepairTests(unittest.TestCase):
         self.assertEqual("a-rule", selected_rule["id"])
         with self.assertRaisesRegex(RepairError, "no repair rule"):
             select_repair(diagnostics, [])
+
+    def test_whole_replacement_cannot_delete_obligations_or_add_contract_errors(self):
+        diagnostic = {"code": "PHY.MOTOR", "path": "quantity:Q-MOTOR.value", "message": "low"}
+        component_rule = rule("component:CMP-MOTOR")
+        component_rule["operations"][0]["value"] = {"id": "CMP-MOTOR"}
+        with self.assertRaisesRegex(RepairError, "deletes obligation field"):
+            repair(parent(), diagnostic, component_rule, seen_hashes=set(), failed_stage="physical_v030")
+
+    def test_operation_content_changes_child_identity(self):
+        diagnostic = {"code": "PHY.MOTOR", "path": "quantity:Q-MOTOR.value", "message": "low"}
+        two, _ = repair(parent(), diagnostic, rule(), seen_hashes=set(), failed_stage="physical_v030")
+        three_rule = rule(); three_rule["operations"][0]["value"] = {"value": 3, "unit": "N*m"}
+        three, _ = repair(parent(), diagnostic, three_rule, seen_hashes=set(), failed_stage="physical_v030")
+        self.assertNotEqual(two.candidate_id, three.candidate_id)
+        self.assertNotEqual(two.resolved_contract_sha256, three.resolved_contract_sha256)
+
+    def test_equal_diagnostic_sort_keys_do_not_compare_raw_dicts(self):
+        base = {"stage": "physical_v030", "severity": "error", "code": "PHY.MOTOR", "path": "quantity:Q-MOTOR.value", "message": "low"}
+        first = dict(base, extra="a"); second = dict(base, extra="b")
+        selected, _ = select_repair([second, first], [rule()])
+        self.assertEqual("b", selected["extra"])
 
 
 if __name__ == "__main__":
