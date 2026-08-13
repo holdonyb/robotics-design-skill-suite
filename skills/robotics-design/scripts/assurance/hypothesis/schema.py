@@ -90,7 +90,9 @@ def _quantity_value(value: object, path: str, errors: list[str]) -> None:
         return
     _closed(value, {"value", "unit"}, path, errors)
     number = value.get("value")
-    if type(number) not in (int, float) or not math.isfinite(number):
+    if type(number) not in (int, float) or (
+        type(number) is float and not math.isfinite(number)
+    ):
         errors.append(f"{path}.value must be a finite JSON number (booleans are not allowed)")
     unit = value.get("unit")
     if not isinstance(unit, str) or not unit:
@@ -193,7 +195,12 @@ def validate_space(data: object) -> list[str]:
     else:
         _closed(base, {"path", "sha256"}, "base_contract", errors)
         path = base.get("path")
-        valid_path = isinstance(path, str) and bool(path) and "\\" not in path
+        valid_path = (
+            isinstance(path, str)
+            and bool(path)
+            and "\\" not in path
+            and ":" not in path
+        )
         if valid_path:
             pure = PurePosixPath(path)
             valid_path = (

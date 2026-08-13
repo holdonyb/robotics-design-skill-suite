@@ -173,6 +173,7 @@ class HypothesisSpaceSchemaTests(unittest.TestCase):
             "./contract.json",
             "dir//contract.json",
             "dir\\contract.json",
+            "dir/C:/contract.json",
             ".",
         ):
             with self.subTest(path=invalid):
@@ -564,6 +565,7 @@ class HypothesisSpaceSchemaTests(unittest.TestCase):
             math.inf,
             -(2**63) - 1,
             2**63,
+            10**400,
             {"nested": {1: "non-string-key"}},
         )
         for invalid in invalid_values:
