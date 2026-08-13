@@ -376,11 +376,8 @@ def run_space(
                 files[f"candidates/{candidate_id}/stages.json"] = [
                     stage.to_dict() for stage in stages
                 ]
-                physical = _physical_stage(stages)
-                report = _report(physical)
-                nominal_passed = physical is not None and physical.status == "passed"
-                if physical is not None:
-                    for diagnostic in physical.to_dict().get("diagnostics", []):
+                for emitted_stage in stages:
+                    for diagnostic in emitted_stage.to_dict().get("diagnostics", []):
                         if (
                             isinstance(diagnostic, dict)
                             and diagnostic.get("severity") in {"error", "indeterminate"}
@@ -392,12 +389,15 @@ def run_space(
                         ):
                             blocking_diagnostics.append(
                                 {
-                                    "stage": "physical_v030",
+                                    "stage": emitted_stage.name,
                                     "code": diagnostic["code"],
                                     "path": diagnostic["path"],
                                     "message": diagnostic["message"],
                                 }
                             )
+                physical = _physical_stage(stages)
+                report = _report(physical)
+                nominal_passed = physical is not None and physical.status == "passed"
                 hard_blocked = False
 
                 if report is not None and space["objectives"]:

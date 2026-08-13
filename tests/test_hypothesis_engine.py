@@ -268,6 +268,19 @@ class EngineTests(unittest.TestCase):
             )
             self.assertEqual("skipped", counterexample["status"])
 
+    def test_contract_stage_blocker_is_the_earliest_runtime_diagnostic(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            base = valid_contract()
+            base["status"] = "invalid-status"
+            space = _space(base)
+            path = _write_inputs(root, base, space)
+            result = run_space(path, root / "out", seed=1)
+            blocker = result["earliest_blocking_diagnostic"]
+            self.assertEqual("contract_v1", blocker["stage"])
+            self.assertEqual("HYP.CONTRACT.INVALID", blocker["code"])
+            self.assertEqual("contract", blocker["path"])
+
     def test_hard_counterexample_rejects_candidate_and_excludes_it_from_pareto(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
