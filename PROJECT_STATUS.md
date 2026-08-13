@@ -15,7 +15,7 @@ description, ROS 2, and simulation skills to audited commits.
   CI, merge, tag, and GitHub Release complete.
 - v1 architecture and autonomy boundary: `0e03e58`.
 - v0.3 implementation plan: `f0ca0a0`, with portable command fix `ccc1697`.
-- Physical-assurance implementation: `b975a3e` through `329c3b4`.
+- Physical-assurance implementation: `b975a3e` through `59cca93`.
 - Local-delta classification: `b2c5b95`; no active installed skill was
   overwritten during classification or implementation.
 - Third-party source locks remain unchanged from `v0.2.0`.
@@ -33,13 +33,15 @@ physical evidence report with:
   cables, and a holding-brake function, including driven-wheel cardinality;
 - verified-part identity requirements and fail-closed handling for missing or
   claim-driving `engineering_placeholder` components, with URL/date/hash-bound
-  source evidence and closed role-specific component limits;
+  parsed `component_catalog_v1` source snapshots, non-empty claim edges, and
+  closed role-specific component limits;
 - safe URDF observations for mass, joint semantics/limits, and transmissions,
   bounded declared-JSON observations for other exporters, plus owned-value
   drift, checkout-stable hashes, and stale-artifact detection;
 - conservative `drivetrain_v1`, `battery_v1`, `stability_v1`,
   `arm_gravity_v1`, and `thermal_duty_v1` analytical plug-ins with required
   reciprocal architecture/requirement coverage, exact rating ownership,
+  exact rating-to-component-limit equality, strict plug-in scope types,
   per-drive/per-actuator thermal coverage, finite derived outputs, explicit
   downhill braking noncoverage, and worst-direction static-slope projection;
 - deterministic JSON reporting and CLI exit codes: `0` promotable, `1`
@@ -56,10 +58,10 @@ assumptions satisfy the implemented conservative equations.
 
 ## Latest Verified Evidence
 
-On 2026-08-13, at release-candidate commit `329c3b4`:
+On 2026-08-13, at release-candidate commit `59cca93`:
 
-- Python 3.11 full repository suite: 126/126 passed;
-- bundled Python 3.12.13 full repository suite: 126/126 passed;
+- Python 3.11 full repository suite: 129/129 passed;
+- bundled Python 3.12.13 full repository suite: 129/129 passed;
 - `scripts/validate.py`: 10 skills and 3 pinned sources valid;
 - `scripts/install.py --dry-run`: complete 10-skill plan with no writes;
 - reference physical CLI: exit `1` as designed, report emitted, only
@@ -70,15 +72,17 @@ On 2026-08-13, at release-candidate commit `329c3b4`:
   and passed the complete reference-robot tests;
 - fresh pinned-source network install artifact: 10 skills installed into a new
   ignored destination with a generated Python 3.12 host overlay and the exact
-  `plugin_contracts.py` hash from `329c3b4`;
+  `plugin_contracts.py` hash from the last fresh install (`329c3b4`); a final
+  install refresh remains required after provenance changes;
 - official skill validator using UTF-8 mode: 10/10 installed skills valid;
 - fresh install retained 9/9 upstream-license copies and contained zero
   `__pycache__`, `.pyc`, `.pyo`, or transaction-residue paths.
 
 Independent adversarial reviews exposed vacuous analysis coverage,
 cross-responsibility rating reuse, missing per-motor thermal coverage, and
-forgeable verified-part provenance; commits through `329c3b4` remediate those
-findings. Immutable re-review of this commit, GitHub CI, merge, tag, and release
+forgeable verified-part provenance; commits through `59cca93` remediate those
+findings with semantic catalog parsing and exact limit binding. Immutable
+re-review of this commit, GitHub CI, merge, tag, and release
 evidence are still pending and must not be reported as complete.
 
 ## Run and Validate
