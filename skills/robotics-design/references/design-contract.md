@@ -34,6 +34,20 @@ Label assumptions in calculations and generated artifacts. A changed interface-d
 
 Never leave two co-equal sources of truth.
 
+## Machine-readable physical contract
+
+When the design includes physical motion, loads, power, heat, stability, or a
+component choice, instantiate the closed JSON contract described in
+`physical-plausibility-contract.md` and `../scripts/assurance/schema.md`.
+Every quantity needs an explicit unit, owner, evidence source, and evidence
+level. Every component needs an exact architecture binding; global BOM role
+presence is insufficient for a multi-axis robot. Hash-bound observations link
+owned values back to CAD/URDF/SDF/SRDF/ROS/BOM artifacts and expose drift.
+
+Run the physical contract validator before promoting a candidate to simulation
+or training. A failed or indeterminate result reopens dependent geometry,
+component, control, simulation, and procurement decisions.
+
 ## Interface record
 
 For each mechanical, electrical, data, safety, or software interface, record provider, consumer, datum/frame, connector/API, units, sign, rate, tolerances, limits, version, failure behavior, acceptance evidence, and change owner.

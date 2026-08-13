@@ -6,6 +6,7 @@ Record tool versions and distinguish PASS, FAIL, WARN, and NOT RUN.
 |---|---|---|
 | Requirements | Numbered requirements/assumptions and owners | Reviewed verification matrix and interface control document |
 | Budgets | Mass/CG/stability, energy/current, thermal, timing | Sensitivity, contingency, vendor curves, measured duty cycle |
+| Physical plausibility | Hash-bound design contract, explicit SI quantities/evidence, complete component bindings, drivetrain/battery/stability/arm-gravity/thermal margins | Exact vendor curves, uncertainty sweeps, full dynamics/structure/thermal models, bench correlation |
 | CAD | Valid solids, dimensions, datums, clearances, interference | STEP re-import, motion, mass properties, manufacturing review |
 | URDF/xacro | Expansion/parser, connected tree, valid axes/limits/inertias | Consumer load, TF assertions, collision review, CAD drift test |
 | SDF | Schema/bundled validation and resource resolution | `gz sdf --check`, stable load, sensors/plugins, real-time evidence |
@@ -29,6 +30,8 @@ Record tool versions and distinguish PASS, FAIL, WARN, and NOT RUN.
 - mission animation frames sample the accepted trajectory exactly; phase contacts, required moving joints, load cases, and violation counts agree with the physics trace;
 - patent-aware design constraints remain visible in requirements and owned artifacts, and automated drift tests reject reintroduction of prohibited claim combinations;
 - safety and fault states exist in architecture, simulation, configuration, and commissioning procedures.
+- each actuator has its own motor/reducer/bearing/driver binding and URDF transmission; each power, moving-cable, and claimed safety path has every mandatory role;
+- each claim-driving quantity is explicitly supported by its selected evidence record, and every mirrored observation agrees with its owner within the declared tolerance.
 
 ## Evidence ladder
 
@@ -42,6 +45,11 @@ Record tool versions and distinguish PASS, FAIL, WARN, and NOT RUN.
 8. certified or independently assessed.
 
 A higher-level claim requires its own evidence.
+
+Run analytical physical gates before nominal simulation or training. Simulation
+cannot turn a missing component, stale source, invalid unit, failed continuous
+rating, or failed thermal margin into a pass. Preserve the machine-readable
+failure report and rerun it after repairing the owning record or artifact.
 
 A plausible image is level 1 evidence at most until its deterministic sources, hashes, landmark review, and promotion manifest pass. Visual review does not replace kinematic, structural, thermal, electrical, manufacturing, or hardware evidence.
 
