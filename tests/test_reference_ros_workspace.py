@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "50dc587eaffc499d62e7023c7a4976fb9f2dfb0af6c2f3931326fe77b70d94c6"
+ROS_MANIFEST_RECEIPT = "367d5eda252eef5bb3bda9a16f9004c504f3bd5bfc97ef375060054e89578501"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -152,7 +152,7 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
     def test_sim_world_launch_and_bridge_are_harmonic_headless_safe(self):
         package = SRC / "jx_mobile_manipulator_sim"
         world = ET.parse(package / "worlds" / "reference_world.sdf").getroot()
-        self.assertEqual("1.12", world.get("version"))
+        self.assertEqual("1.11", world.get("version"))
         owner = world.find("world")
         plugins = {(node.get("filename"), node.get("name")) for node in owner.findall("plugin")}
         for filename in (
