@@ -18,11 +18,15 @@ from assurance.hypothesis.overlay import (  # noqa: E402
 from tests.test_assurance_contract import valid_contract  # noqa: E402
 
 
-def design_space() -> dict:
+def design_space(base_contract=None) -> dict:
+    base_contract = valid_contract() if base_contract is None else base_contract
     return {
         "schema_version": 1,
         "space_id": "overlay-test",
-        "base_contract": {"path": "design-contract.json", "sha256": "a" * 64},
+        "base_contract": {
+            "path": "design-contract.json",
+            "sha256": hashlib.sha256(canonical_bytes(base_contract)).hexdigest(),
+        },
         "max_candidates": 4,
         "axes": [
             {
@@ -131,9 +135,23 @@ class CandidateGenerationTests(unittest.TestCase):
     def test_contract_errors_are_retained_without_claiming_validity(self):
         base = valid_contract()
         base["status"] = "invented"
-        candidates = generate_candidates(design_space(), base, seed=1)
+        candidates = generate_candidates(design_space(base), base, seed=1)
         self.assertTrue(candidates[0].contract_errors)
         self.assertTrue(any("status must be one of" in error for error in candidates[0].contract_errors))
+
+    def test_declared_base_hash_must_bind_supplied_contract(self):
+        space = design_space()
+        base = valid_contract()
+        base["status"] = "rejected"
+        with self.assertRaisesRegex(OverlayError, "base contract SHA-256 mismatch"):
+            generate_candidates(space, base, seed=1)
+
+    def test_resolved_candidate_internal_contract_is_recursively_frozen(self):
+        candidate = generate_candidates(design_space(), valid_contract(), seed=1)[0]
+        with self.assertRaises(TypeError):
+            candidate._resolved_contract["status"] = "rejected"
+        with self.assertRaises(TypeError):
+            candidate._resolved_contract["quantities"][0]["id"] = "Q-TAMPER"
 
 
 if __name__ == "__main__":

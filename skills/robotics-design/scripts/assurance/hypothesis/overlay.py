@@ -7,6 +7,7 @@ import hashlib
 import itertools
 import re
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Any
 
 from ..contract import validate_contract
@@ -38,7 +39,7 @@ class ResolvedCandidate:
     """A decision and its complete, content-addressed contract resolution."""
 
     decision: CandidateDecision
-    _resolved_contract: dict[str, Any] = field(repr=False)
+    _resolved_contract: Any = field(repr=False)
     resolved_contract_sha256: str
     contract_errors: tuple[str, ...]
     alias_of: str | None = None
@@ -52,7 +53,7 @@ class ResolvedCandidate:
             raise OverlayError(str(exc)) from None
         if not isinstance(checked, dict):
             raise OverlayError("resolved_contract must be an object")
-        object.__setattr__(self, "_resolved_contract", checked)
+        object.__setattr__(self, "_resolved_contract", _freeze_json(checked))
         if (
             not isinstance(self.resolved_contract_sha256, str)
             or not re.fullmatch(r"[0-9a-f]{64}", self.resolved_contract_sha256)
@@ -70,7 +71,23 @@ class ResolvedCandidate:
 
     @property
     def resolved_contract(self) -> dict[str, Any]:
-        return copy.deepcopy(self._resolved_contract)
+        return _thaw_json(self._resolved_contract)
+
+
+def _freeze_json(value: Any) -> Any:
+    if isinstance(value, dict):
+        return MappingProxyType({key: _freeze_json(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze_json(item) for item in value)
+    return value
+
+
+def _thaw_json(value: Any) -> Any:
+    if isinstance(value, MappingProxyType):
+        return {key: _thaw_json(value[key]) for key in sorted(value)}
+    if isinstance(value, tuple):
+        return [_thaw_json(item) for item in value]
+    return value
 
 
 def _record_by_id(contract: dict[str, Any], collection: str, identifier: str) -> tuple[list[Any], int]:
@@ -161,7 +178,16 @@ def generate_candidates(
                 f"axes Cartesian product {product} exceeds max_candidates {space['max_candidates']}"
             )
 
+    try:
+        observed_base_sha256 = hashlib.sha256(canonical_bytes(base_contract)).hexdigest()
+    except ValueError as exc:
+        raise OverlayError(f"base contract cannot be canonically hashed: {exc}") from None
     base_sha256 = space["base_contract"]["sha256"]
+    if observed_base_sha256 != base_sha256:
+        raise OverlayError(
+            "base contract SHA-256 mismatch: "
+            f"declared {base_sha256}, observed {observed_base_sha256}"
+        )
     resolved_candidates: list[ResolvedCandidate] = []
     first_by_hash: dict[str, str] = {}
     for selected in itertools.product(*choices_by_axis):
