@@ -90,6 +90,13 @@ class ObjectiveVectorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "match mapping key"):
             pareto_fronts({"candidate-" + "b" * 24: extract_vector(candidate, contract(), report(), OBJECTIVES)}, {item["id"]: item["direction"] for item in OBJECTIVES})
 
+    def test_malformed_report_diagnostics_are_ineligible_not_tracebacks(self):
+        for diagnostics in (None, "wrong"):
+            source = report(); source["diagnostics"] = diagnostics
+            vector = extract_vector("candidate-" + "a" * 24, contract(), source, OBJECTIVES)
+            self.assertFalse(vector.eligible)
+            self.assertIn("diagnostics", vector.reasons["candidate"])
+
 
 if __name__ == "__main__":
     unittest.main()

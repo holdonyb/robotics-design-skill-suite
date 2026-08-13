@@ -33,12 +33,12 @@ class ObjectiveVector:
             raise ValueError("eligible must be a boolean")
         checked_reasons = {}
         for key, value in self.reasons.items():
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("objective reason must be a non-empty string")
             if key == "candidate":
                 checked_reasons[key] = value
                 continue
             checked_reasons[validate_identifier(key, "objective identifier")] = value
-            if not isinstance(value, str) or not value.strip():
-                raise ValueError("objective reason must be a non-empty string")
         if set(checked_values) & set(checked_reasons):
             raise ValueError("objective values and reasons must not overlap")
         object.__setattr__(self, "values", MappingProxyType(dict(sorted(checked_values.items()))))
@@ -135,11 +135,18 @@ def extract_vector(candidate_id: object, contract: object, report: object, objec
         return ObjectiveVector(candidate, {}, {"objectives": str(exc)}, False)
     values: dict[str, float] = {}
     reasons: dict[str, str] = {}
+    diagnostics = report.get("diagnostics") if isinstance(report, dict) else None
+    valid_diagnostics = isinstance(diagnostics, list) and all(
+        isinstance(item, dict) and item.get("severity") in {"info", "warning", "error", "indeterminate"}
+        for item in diagnostics
+    )
     if not isinstance(report, dict) or type(report.get("promotable")) is not bool or not report["promotable"]:
         reasons["candidate"] = "report.promotable must be true"
+    elif not valid_diagnostics:
+        reasons["candidate"] = "report diagnostics are invalid"
     elif report.get("candidate_id") is not None and report.get("candidate_id") != candidate:
         reasons["candidate"] = "report.candidate_id must match candidate_id"
-    elif any(isinstance(item, dict) and item.get("severity") in {"error", "indeterminate"} for item in report.get("diagnostics", [])):
+    elif any(item["severity"] in {"error", "indeterminate"} for item in diagnostics):
         reasons["candidate"] = "report.promotable conflicts with blocking diagnostics"
     for item in declarations:
         try:
