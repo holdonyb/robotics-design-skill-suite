@@ -29,6 +29,7 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn('colcon --log-base "$WORKSPACE/log" test', gate)
         self.assertIn('cat "$log" >&2', gate)
         self.assertIn('require_active_controller "arm_controller"', gate)
+        self.assertIn('ros2 launch --debug jx_mobile_manipulator_moveit_config move_group.launch.py', gate)
         self.assertIn('require_running "${pids[1]}" "$EVIDENCE/move_group.log"', gate)
         self.assertIn('require_running "${pids[2]}" "$EVIDENCE/nav2.log"', gate)
         self.assertLess(
