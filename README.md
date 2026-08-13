@@ -122,7 +122,9 @@ invalid/tampered input or a fail-closed execution error. The result is not a
 live Gazebo run and does not authorize hardware promotion. The separate
 Linux Jazzy/Harmonic workflow is the consumer-load gate for Gazebo,
 ros2_control, MoveIt, and Nav2; it retains logs and package inventory even on
-failure. See the [`simulation benchmark`](reference/mobile-manipulator/simulation-benchmark.md).
+failure. The v0.5 candidate passed two retained consumer-gate runs at
+`ced7dc3`; this is integration evidence only, not hardware promotion. See the
+[`simulation benchmark`](reference/mobile-manipulator/simulation-benchmark.md).
 
 ## Structure-preserving robot renders
 

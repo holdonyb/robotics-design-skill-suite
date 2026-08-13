@@ -34,6 +34,7 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn('ros2 launch --debug jx_mobile_manipulator_moveit_config move_group.launch.py', gate)
         self.assertIn('require_running "${pids[1]}" "$EVIDENCE/move_group.log"', gate)
         self.assertIn('grep -q "You can start planning now!" "$EVIDENCE/move_group.log"', gate)
+        self.assertIn('! grep -q "No geometry is associated to any robot links" "$EVIDENCE/move_group.log"', gate)
         self.assertIn('require_running "${pids[2]}" "$EVIDENCE/nav2.log"', gate)
         self.assertIn("bt_navigator|behavior_server", gate)
         self.assertLess(

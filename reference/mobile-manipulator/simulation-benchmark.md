@@ -30,14 +30,14 @@ hardware-promotion boundary compose deterministically on supported Python.
 
 The separate Linux Jazzy/Harmonic gate builds the ROS workspace, runs headless
 Gazebo, checks ros2_control, MoveIt, and Nav2 consumer presence, and uploads its
-logs and environment inventory. Until that job has a retained successful run,
-there is no live-consumer claim.
-
-As of 2026-08-14, this Windows development host cannot execute that Docker gate:
-the Docker Desktop Linux containerd metadata store returns an I/O error before
-the pinned image can be pulled. This is an environment failure, not successful
-live evidence and not a reason to weaken the CI gate. A clean Ubuntu runner must
-retain the first live-consumer result.
+logs and environment inventory. GitHub Actions runs `31754134659` and
+`31754138979` both passed at commit `ced7dc3`. The retained artifact
+`simulation-evidence-ced7dc3bdc8280370420ab2437199b02a7e1ade8` has SHA-256
+`f83e27da5cb0f9832e8f58f43b83e9f8af6469b2319d5a0298a4b58a40493c41`.
+It records active joint-state, arm-trajectory, and differential-drive
+controllers; MoveIt planning readiness; and Nav2 controller, planner, behavior,
+and BT nodes. This consumer-load evidence is still not a task-execution,
+calibration, or hardware result.
 
 ## Hardware boundary
 

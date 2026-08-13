@@ -1,4 +1,5 @@
 import ast
+import json
 import re
 import shutil
 import tempfile
@@ -12,7 +13,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "cb474133f0af2edab8b91735b1f20a97899accbc6763f1702e068440dbf6ad1e"
+ROS_MANIFEST_RECEIPT = "c228d2a1b0b4fe774bde1f114a494a6c64fb8923cf86a71c1e24d3006caa80af"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -215,20 +216,31 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         self.assertIn('{"use_sim_time": True}', move_group)
         self.assertNotIn("LaunchConfiguration", move_group)
         self.assertIn("planning_pipelines", move_group)
-        def normalized_xml(path):
-            def walk(node):
-                return (
-                    node.tag,
-                    tuple(sorted(node.attrib.items())),
-                    tuple(walk(child) for child in node),
-                )
-            return walk(ET.parse(path).getroot())
-
         physical = ET.parse(ROOT / "reference" / "mobile-manipulator" / "robot.urdf").getroot()
         moveit_model = ET.parse(moveit / "config" / "reference_mobile_manipulator.urdf").getroot()
         self.assertEqual("reference_mobile_manipulator", moveit_model.get("name"))
         self.assertTrue({item.get("name") for item in physical.findall("link")} <= {item.get("name") for item in moveit_model.findall("link")})
         self.assertTrue({item.get("name") for item in physical.findall("joint")} <= {item.get("name") for item in moveit_model.findall("joint")})
+        for link in physical.findall("link"):
+            mirror = moveit_model.find(f"link[@name='{link.get('name')}']")
+            self.assertEqual(
+                self._xml_signature(link.find("inertial")),
+                self._xml_signature(mirror.find("inertial")),
+                link.get("name"),
+            )
+        for joint in physical.findall("joint"):
+            mirror = moveit_model.find(f"joint[@name='{joint.get('name')}']")
+            self.assertEqual(self._xml_signature(joint), self._xml_signature(mirror), joint.get("name"))
+        geometry = json.loads((ROOT / "reference" / "mobile-manipulator" / "model" / "geometry.json").read_text(encoding="utf-8"))
+        expected_arm_geometry = {
+            item["link"]: (float(item["radius_m"]), float(item["length_m"]))
+            for item in geometry["arm_links"]
+        }
+        self.assertEqual("0.8 0.6 0.4", moveit_model.find("link[@name='base_link']/collision/geometry/box").get("size"))
+        for link_name, (radius, length) in expected_arm_geometry.items():
+            collision = moveit_model.find(f"link[@name='{link_name}']/collision/geometry/cylinder")
+            self.assertIsNotNone(collision, link_name)
+            self.assertEqual((radius, length), (float(collision.get("radius")), float(collision.get("length"))), link_name)
         tool_joint = moveit_model.find("joint[@name='tool0_fixed']")
         self.assertIsNotNone(tool_joint)
         self.assertEqual("arm_link_6", tool_joint.find("parent").get("link"))
@@ -269,6 +281,14 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         scenarios = text(src / "jx_mobile_manipulator_scenarios" / "config" / "scenarios.yaml")
         for token in ("nominal_drive", "nominal_arm", "safe_stop", "max_duration_s", "rosbag2_storage_mcap"):
             self.assertIn(token, scenarios)
+
+    @staticmethod
+    def _xml_signature(node):
+        return (
+            node.tag,
+            tuple(sorted(node.attrib.items())),
+            tuple(ReferenceRosWorkspaceTests._xml_signature(child) for child in node),
+        )
 
     def test_launch_files_compile_and_all_ros_nodes_declare_sim_time(self):
         launch_files = sorted(SRC.rglob("*.launch.py"))

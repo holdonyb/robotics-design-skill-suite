@@ -203,6 +203,26 @@ class PublicHygieneTests(unittest.TestCase):
             self.assertIn(phrase, workflow)
         self.assertNotIn("continue-on-error: true", workflow)
 
+    def test_v050_completion_audit_records_live_evidence_and_hardware_boundary(self):
+        manifest = (ROOT / "manifest.json").read_text(encoding="utf-8")
+        audit = (ROOT / "docs/releases/v0.5-completion-audit.md").read_text(
+            encoding="utf-8"
+        )
+        benchmark = (ROOT / "reference/mobile-manipulator/simulation-benchmark.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"version": "0.5.0"', manifest)
+        for phrase in (
+            "31754134659",
+            "31754138979",
+            "f83e27da5cb0f9832e8f58f43b83e9f8af6469b2319d5a0298a4b58a40493c41",
+            "does not establish a real robot's safety",
+            "No v0.5 action authorizes purchasing",
+        ):
+            self.assertIn(phrase, audit)
+        self.assertIn("hardware_promotable: false", benchmark)
+        self.assertIn("consumer-load evidence is still not", benchmark)
+
     def test_ci_compiles_local_skill_runtime_before_tests(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         self.assertIn(
