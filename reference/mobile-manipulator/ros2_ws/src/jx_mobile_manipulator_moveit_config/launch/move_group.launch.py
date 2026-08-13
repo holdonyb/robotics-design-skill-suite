@@ -8,7 +8,7 @@ from moveit_configs_utils import MoveItConfigsBuilder
 def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     config = (MoveItConfigsBuilder("reference_mobile_manipulator", package_name="jx_mobile_manipulator_moveit_config")
-              .robot_description(file_path="config/reference_mobile_manipulator.urdf.xacro")
+              .robot_description(file_path="config/reference_mobile_manipulator.urdf.xacro", mappings={"use_sim": "false"})
               .robot_description_semantic(file_path="config/reference_mobile_manipulator.srdf")
               .robot_description_kinematics(file_path="config/kinematics.yaml")
               .joint_limits(file_path="config/joint_limits.yaml")

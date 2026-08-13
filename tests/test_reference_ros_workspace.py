@@ -1,5 +1,7 @@
 import ast
 import re
+import shutil
+import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -8,8 +10,12 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
+import sys
+sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
+ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
+ROS_MANIFEST_RECEIPT = "50dc587eaffc499d62e7023c7a4976fb9f2dfb0af6c2f3931326fe77b70d94c6"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -43,6 +49,29 @@ def text(path):
 
 
 class ReferenceRosWorkspaceTests(unittest.TestCase):
+    def test_workspace_is_hash_bound_to_model_sources_and_external_receipt(self):
+        from assurance.simulation.artifacts import validate_ros_workspace_manifest
+
+        self.assertTrue(ROS_MANIFEST.is_file())
+        self.assertEqual(
+            [],
+            validate_ros_workspace_manifest(
+                ROOT / "reference" / "mobile-manipulator", ROS_MANIFEST, ROS_MANIFEST_RECEIPT
+            ),
+        )
+
+    def test_workspace_manifest_rejects_tampered_consumer_or_source(self):
+        from assurance.simulation.artifacts import validate_ros_workspace_manifest
+
+        with tempfile.TemporaryDirectory() as raw:
+            copied = Path(raw) / "reference"
+            shutil.copytree(ROOT / "reference" / "mobile-manipulator", copied)
+            target = copied / "ros2_ws" / "src" / "jx_mobile_manipulator_sim" / "config" / "bridge.yaml"
+            target.write_text(target.read_text(encoding="utf-8") + "# tamper\n", encoding="utf-8")
+            self.assertTrue(
+                any("outputs SHA-256 mismatch" in error for error in validate_ros_workspace_manifest(copied, copied / "simulation" / "ros-workspace-manifest.json", ROS_MANIFEST_RECEIPT))
+            )
+
     def test_workspace_has_exact_packages_and_build_metadata(self):
         self.assertTrue(SRC.is_dir(), "reference ROS 2 workspace is missing")
         observed = {item.name for item in SRC.iterdir() if item.is_dir()}
@@ -162,6 +191,7 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         self.assertNotIn("action_ns: arm_controller/", moveit_controllers)
         move_group = text(moveit / "launch" / "move_group.launch.py")
         self.assertIn("moveit_configs_utils", move_group)
+        self.assertIn('mappings={"use_sim": "false"}', move_group)
         self.assertIn("planning_pipelines", move_group)
         self.assertTrue((moveit / "config" / "ompl_planning.yaml").is_file())
 
@@ -188,13 +218,27 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         for token in ("nominal_drive", "nominal_arm", "safe_stop", "max_duration_s", "rosbag2_storage_mcap"):
             self.assertIn(token, scenarios)
 
-    def test_launch_files_compile_and_all_nodes_use_sim_time(self):
+    def test_launch_files_compile_and_all_ros_nodes_declare_sim_time(self):
         launch_files = sorted(SRC.rglob("*.launch.py"))
         self.assertGreaterEqual(len(launch_files), 5)
         for path in launch_files:
             with self.subTest(path=path.relative_to(SRC)):
                 ast.parse(text(path), filename=str(path))
-                self.assertIn("use_sim_time", text(path))
+                source = text(path)
+                tree = ast.parse(source, filename=str(path))
+                node_calls = [
+                    call for call in ast.walk(tree)
+                    if isinstance(call, ast.Call)
+                    and ((isinstance(call.func, ast.Name) and call.func.id == "Node")
+                         or (isinstance(call.func, ast.Attribute) and call.func.attr == "Node"))
+                ]
+                for call in node_calls:
+                    parameters = next((item.value for item in call.keywords if item.arg == "parameters"), None)
+                    if parameters is not None:
+                        segment = ast.get_source_segment(source, parameters) or ""
+                        self.assertIn("use_sim_time", segment)
+                    else:
+                        self.assertIn("use_sim_time", source)
 
     def test_tf_ownership_and_command_chain_have_one_authority(self):
         controllers = text(SRC / "jx_mobile_manipulator_sim" / "config" / "controllers.yaml")

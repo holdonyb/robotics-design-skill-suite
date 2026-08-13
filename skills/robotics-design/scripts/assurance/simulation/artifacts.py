@@ -533,3 +533,81 @@ def validate_artifact_manifest(
     except RecursionError:
         errors.append("artifact semantic validation exceeded maximum nesting depth")
     return sorted(set(errors))
+
+
+def validate_ros_workspace_manifest(
+    root: str | Path,
+    manifest_path: str | Path,
+    manifest_sha256: str,
+) -> list[str]:
+    """Validate the complete ROS workspace against source and external receipts.
+
+    This is intentionally separate from the generated model manifest: the ROS
+    workspace has independent package consumers, but it is still an exact,
+    source-bound release artifact.  A self-rehashed manifest is insufficient;
+    callers must retain the external receipt.
+    """
+
+    base = Path(root)
+    manifest_file = Path(manifest_path)
+    errors: list[str] = []
+    required_sources = {
+        "model/geometry.json", "robot.urdf", "design-contract.json", "assumptions.json",
+    }
+    try:
+        if manifest_file.is_symlink() or not manifest_file.is_file():
+            return ["ROS workspace manifest is missing or a symlink"]
+        payload = _bounded_bytes(manifest_file, "ROS workspace manifest")
+        if payload != canonical_bytes(json.loads(payload.decode("utf-8"), object_pairs_hook=_unique_object)):
+            return ["ROS workspace manifest must use canonical JSON bytes"]
+        manifest = json.loads(payload.decode("utf-8"), object_pairs_hook=_unique_object)
+        validate_sha256(manifest_sha256, "ROS workspace manifest receipt")
+        if hashlib.sha256(payload).hexdigest() != manifest_sha256:
+            errors.append("ROS workspace manifest does not match its external receipt SHA-256")
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError, TypeError, ValueError) as exc:
+        return [f"cannot load ROS workspace manifest: {exc}"]
+    if not isinstance(manifest, dict) or set(manifest) != {"schema_version", "sources", "outputs"}:
+        return sorted(set(errors + ["ROS workspace manifest fields are not closed"]))
+    if type(manifest.get("schema_version")) is not int or manifest["schema_version"] != 1:
+        errors.append("ROS workspace manifest schema_version must be integer 1")
+    for collection_name, expected_root in (("sources", None), ("outputs", "ros2_ws/src/")):
+        collection = manifest.get(collection_name)
+        if not isinstance(collection, list) or not collection:
+            errors.append(f"ROS workspace manifest {collection_name} must be a non-empty list")
+            continue
+        declared: set[str] = set()
+        for index, item in enumerate(collection):
+            path_label = f"{collection_name}[{index}]"
+            if not isinstance(item, dict) or set(item) != {"path", "sha256"}:
+                errors.append(f"{path_label} fields are not closed")
+                continue
+            relative = _safe_path(item.get("path"))
+            if relative is None or (expected_root is not None and not relative.startswith(expected_root)):
+                errors.append(f"{path_label}.path is unsafe or outside its allowed root")
+                continue
+            if relative in declared:
+                errors.append(f"ROS workspace manifest has duplicate {collection_name} path: {relative}")
+                continue
+            declared.add(relative)
+            target = base / relative
+            if target.is_symlink() or not target.is_file():
+                errors.append(f"ROS workspace {collection_name} path is missing or a symlink: {relative}")
+                continue
+            try:
+                validate_sha256(item.get("sha256"), f"{path_label}.sha256")
+            except ValueError as exc:
+                errors.append(str(exc))
+                continue
+            if _sha256(target) != item["sha256"]:
+                errors.append(f"ROS workspace {collection_name} SHA-256 mismatch: {relative}")
+        if collection_name == "sources" and declared != required_sources:
+            errors.append("ROS workspace manifest source set is not the required model-source set")
+        if collection_name == "outputs":
+            actual = {
+                path.relative_to(base).as_posix()
+                for path in (base / "ros2_ws" / "src").rglob("*")
+                if path.is_file() or path.is_symlink()
+            }
+            if declared != actual:
+                errors.append("ROS workspace manifest output file set does not match workspace")
+    return sorted(set(errors))
