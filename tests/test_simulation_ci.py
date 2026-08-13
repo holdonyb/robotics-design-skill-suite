@@ -18,7 +18,7 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn("build-essential", dockerfile)
         self.assertIn('"image_digest"', lock)
         self.assertNotIn(":latest", dockerfile + workflow)
-        for token in ("xacro", "colcon test", "gz sim", "ros2_control", "move_group", "nav2", "timeout", "trap", "validate_simulation_bundle.py", "kill -0", "joint_state_broadcaster.*active", "arm_controller.*active", "diff_drive_controller.*active"):
+        for token in ("xacro", "colcon test", "gz sim", "ros2_control", "move_group", "nav2", "timeout", "trap", "validate_simulation_bundle.py", "kill -0", "joint_state_broadcaster", "arm_controller", "diff_drive_controller"):
             self.assertIn(token, gate)
         self.assertLess(gate.index("source /opt/ros/jazzy/setup.bash"), gate.index('test "${ROS_DISTRO:-}" = "jazzy"'))
         self.assertIn('"$WORKSPACE/build"', gate)
@@ -27,6 +27,7 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn('colcon --log-base "$WORKSPACE/log" build', gate)
         self.assertIn('colcon --log-base "$WORKSPACE/log" test', gate)
         self.assertIn('cat "$log" >&2', gate)
+        self.assertIn('require_active_controller "arm_controller"', gate)
         self.assertLess(
             gate.index("run colcon --log-base"),
             gate.index('source "$WORKSPACE/install/setup.bash"'),

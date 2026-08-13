@@ -24,6 +24,13 @@ require_running() {
     return 1
   fi
 }
+require_active_controller() {
+  local controller="$1"
+  if ! grep -Eq "^${controller}[[:space:]].*active" "$EVIDENCE/controllers.txt"; then
+    cat "$EVIDENCE/sim.log" >&2 || true
+    return 1
+  fi
+}
 
 set +u
 source /opt/ros/jazzy/setup.bash
@@ -49,9 +56,9 @@ require_running "${pids[0]}" "$EVIDENCE/sim.log"
 ros2 node list | tee "$EVIDENCE/sim-nodes.txt"
 ros2 topic echo --once /clock | tee "$EVIDENCE/clock.txt"
 ros2 control list_controllers | tee "$EVIDENCE/controllers.txt"
-grep -Eq 'joint_state_broadcaster.*active' "$EVIDENCE/controllers.txt"
-grep -Eq 'arm_controller.*active' "$EVIDENCE/controllers.txt"
-grep -Eq 'diff_drive_controller.*active' "$EVIDENCE/controllers.txt"
+require_active_controller "joint_state_broadcaster"
+require_active_controller "arm_controller"
+require_active_controller "diff_drive_controller"
 timeout 30s ros2 launch jx_mobile_manipulator_moveit_config move_group.launch.py > "$EVIDENCE/move_group.log" 2>&1 & pids+=("$!")
 timeout 30s ros2 launch jx_mobile_manipulator_nav navigation.launch.py > "$EVIDENCE/nav2.log" 2>&1 & pids+=("$!")
 sleep 10
