@@ -83,9 +83,10 @@ forgeable verified-part provenance, oversized numeric inputs, and open nested
 catalog fields and open typed quantity objects; commits through `501fbd5`
 remediate those findings with
 semantic catalog parsing, exact limit binding, bounded integers, and recursive
-closed schemas. Immutable
-re-review of this commit, GitHub CI, merge, tag, and release
-evidence are still pending and must not be reported as complete.
+closed schemas. Final independent adversarial review of `833b0b9` found no
+Critical, Important, or Minor issues and returned Ready to merge: Yes. GitHub
+CI, merge, tag, and release evidence are still pending and must not be reported
+as complete.
 
 ## Run and Validate
 
@@ -140,9 +141,8 @@ report with all 13 analysis instances passing.
 
 ## Next Action
 
-Receive the independent re-review verdict for the final immutable v0.3 commit, resolve any remaining
-Critical or Important findings, then publish the v0.3 pull request and require
-green GitHub CI before merge, tag, and release.
+Publish the v0.3 pull request and require green Ubuntu/Windows × Python
+3.11/3.12 GitHub CI before merge, tag, and release.
 
 ## Durable Design Sources
 
