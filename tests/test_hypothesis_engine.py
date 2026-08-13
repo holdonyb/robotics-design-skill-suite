@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
 from assurance.hypothesis.canonical import canonical_bytes
+from assurance.hypothesis.bundle import validate_bundle
 from assurance.hypothesis.engine import EngineError, _uncertainty_work, run_space
 from assurance.hypothesis.model import StageResult
 from tests.test_assurance_contract import valid_contract
@@ -192,6 +193,13 @@ class EngineTests(unittest.TestCase):
             path = _write_inputs(root, base, space)
             result = run_space(path, root / "out", seed=1)
             self.assertEqual(2, result["candidate_count"])
+            self.assertEqual(
+                [],
+                validate_bundle(
+                    root / "out",
+                    manifest_sha256=result["bundle_manifest_sha256"],
+                ),
+            )
             self.assertEqual(
                 1, len(list((root / "out" / "candidates").glob("*/stages.json")))
             )

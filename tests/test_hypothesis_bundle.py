@@ -28,10 +28,11 @@ class BundleTests(unittest.TestCase):
     def test_index_is_hash_bound_by_external_manifest(self):
         with tempfile.TemporaryDirectory() as raw:
             output = Path(raw) / "out"
-            write_bundle(
+            receipt = write_bundle(
                 output,
                 {"index.json": {"schema_version": 1, "accepted_count": 1}},
             )
+            self.assertEqual([], validate_bundle(output, manifest_sha256=receipt.manifest_sha256))
             index = json.loads((output / "index.json").read_text(encoding="utf-8"))
             index["accepted_count"] = 999
             from assurance.hypothesis.canonical import canonical_bytes
@@ -39,6 +40,36 @@ class BundleTests(unittest.TestCase):
             (output / "index.json").write_bytes(canonical_bytes(index))
             self.assertTrue(
                 any("stale hash: index.json" in item for item in validate_bundle(output))
+            )
+
+    def test_external_manifest_receipt_detects_joint_manifest_and_index_rewrite(self):
+        with tempfile.TemporaryDirectory() as raw:
+            output = Path(raw) / "out"
+            receipt = write_bundle(
+                output,
+                {"index.json": {"schema_version": 1, "accepted_count": 1}},
+            )
+            from assurance.hypothesis.canonical import canonical_bytes
+            import hashlib
+
+            index = {"schema_version": 1, "accepted_count": 999, "files": []}
+            index_bytes = canonical_bytes(index)
+            (output / "index.json").write_bytes(index_bytes)
+            manifest = json.loads(
+                (output / "manifest.json").read_text(encoding="utf-8")
+            )
+            for item in manifest["files"]:
+                if item["path"] == "index.json":
+                    item["sha256"] = hashlib.sha256(index_bytes).hexdigest()
+            (output / "manifest.json").write_bytes(canonical_bytes(manifest))
+            self.assertEqual([], validate_bundle(output))
+            self.assertTrue(
+                any(
+                    "manifest SHA-256 mismatch" in item
+                    for item in validate_bundle(
+                        output, manifest_sha256=receipt.manifest_sha256
+                    )
+                )
             )
 
     def test_path_escape_noncanonical_and_missing_are_rejected(self):
@@ -140,6 +171,30 @@ class BundleTests(unittest.TestCase):
             with mock.patch("assurance.hypothesis.bundle._rename_absent", side_effect=OSError("injected publish failure")), self.assertRaisesRegex(BundleError, "publish"):
                 write_bundle(output, {"index.json": {"schema_version": 1}}, force=True)
             self.assertEqual("old", (output / "old.txt").read_text())
+
+    def test_force_publication_race_never_deletes_third_party_output(self):
+        with tempfile.TemporaryDirectory() as raw:
+            output = Path(raw) / "out"
+            output.mkdir()
+            (output / "old.txt").write_text("old")
+
+            def inject_race(source, destination):
+                output.mkdir()
+                (output / "third-party.txt").write_text("third")
+                raise FileExistsError("injected force race")
+
+            with mock.patch(
+                "assurance.hypothesis.bundle._rename_absent", inject_race
+            ), self.assertRaisesRegex(BundleError, "backup|recovery"):
+                write_bundle(
+                    output,
+                    {"index.json": {"schema_version": 1}},
+                    force=True,
+                )
+            self.assertEqual("third", (output / "third-party.txt").read_text())
+            backups = list(output.parent.glob(".hypothesis-backup-*"))
+            self.assertEqual(1, len(backups))
+            self.assertEqual("old", (backups[0] / "old.txt").read_text())
 
 
 if __name__ == "__main__":

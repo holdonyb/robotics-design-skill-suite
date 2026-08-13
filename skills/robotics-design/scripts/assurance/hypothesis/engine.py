@@ -589,7 +589,8 @@ def run_space(
         index["accepted_count"] = accepted_count
         index["tool_versions"] = tool_versions
         files["index.json"] = index
-        write_bundle(output, files, force=force)
+        receipt = write_bundle(output, files, force=force)
+        index["bundle_manifest_sha256"] = receipt.manifest_sha256
         return index
     except EngineError:
         raise

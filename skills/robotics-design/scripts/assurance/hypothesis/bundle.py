@@ -10,6 +10,7 @@ import shutil
 import sys
 import uuid
 import ctypes
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
@@ -23,6 +24,14 @@ _SHA256 = re.compile(r"[0-9a-f]{64}")
 
 class BundleError(ValueError):
     """Raised when a bundle cannot be safely validated or published."""
+
+
+@dataclass(frozen=True)
+class BundleReceipt:
+    """Out-of-band integrity receipt for a published bundle."""
+
+    path: Path
+    manifest_sha256: str
 
 
 def _hash(data: bytes) -> str:
@@ -105,8 +114,12 @@ def _manifest(index: object) -> dict[str, str]:
     return result
 
 
-def validate_bundle(root: str | Path) -> list[str]:
-    """Return deterministic bundle validation errors without raising."""
+def validate_bundle(
+    root: str | Path,
+    *,
+    manifest_sha256: str | None = None,
+) -> list[str]:
+    """Return structural errors and optionally verify an out-of-band receipt."""
 
     root = Path(root)
     errors: list[str] = []
@@ -114,6 +127,16 @@ def validate_bundle(root: str | Path) -> list[str]:
         if not root.is_dir() or root.is_symlink():
             return ["bundle root is invalid"]
         manifest_data = (root / "manifest.json").read_bytes()
+        if manifest_sha256 is not None:
+            if not isinstance(manifest_sha256, str) or _SHA256.fullmatch(
+                manifest_sha256
+            ) is None:
+                errors.append("expected manifest SHA-256 is invalid")
+            elif _hash(manifest_data) != manifest_sha256:
+                errors.append(
+                    "manifest SHA-256 mismatch: "
+                    f"expected {manifest_sha256}, observed {_hash(manifest_data)}"
+                )
         manifest = _manifest(_load(manifest_data))
         actual: dict[str, str] = {}
         total_bytes = 0
@@ -181,7 +204,7 @@ def write_bundle(
     files: Mapping[str, object],
     *,
     force: bool = False,
-) -> Path:
+) -> BundleReceipt:
     """Validate and atomically publish a new bundle, restoring forced output on failure."""
 
     target = Path(output)
@@ -216,6 +239,7 @@ def write_bundle(
         ],
     }
     prepared["manifest.json"] = canonical_bytes(manifest)
+    manifest_sha256 = _hash(prepared["manifest.json"])
     if len(prepared) > _MAX_FILES:
         raise BundleError("bundle file count exceeds maximum")
     if sum(len(data) for data in prepared.values()) > _MAX_BYTES:
@@ -249,15 +273,21 @@ def write_bundle(
         published = True
         if backup.exists():
             shutil.rmtree(backup)
-        return target
+        return BundleReceipt(target, manifest_sha256)
     except BaseException as exc:
+        recovery_error: str | None = None
         if moved_backup and backup.exists():
             if target.exists() and not published:
-                shutil.rmtree(target, ignore_errors=True)
-            if not target.exists():
+                recovery_error = (
+                    "publication race preserved third-party output; original output "
+                    f"is recoverable at backup {backup}"
+                )
+            elif not target.exists():
                 backup.replace(target)
         if isinstance(exc, BundleError):
             raise
+        if recovery_error is not None:
+            raise BundleError(recovery_error) from exc
         raise BundleError(f"cannot publish bundle: {exc}") from exc
     finally:
         if transaction.exists():
