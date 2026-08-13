@@ -58,6 +58,12 @@ class ReferenceHypothesisTests(unittest.TestCase):
             )
             screened = sum(screening["fronts"], [])
             self.assertTrue(screened)
+            repaired = {
+                item["candidate_id"]
+                for item in candidates
+                if item["repair_rule_id"] is not None
+            }
+            self.assertTrue(repaired.issubset(set(screened)))
             for candidate_id in screened:
                 counterexample = json.loads(
                     (

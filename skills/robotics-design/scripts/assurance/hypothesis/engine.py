@@ -202,6 +202,32 @@ def _placeholder_only_report(report: dict[str, Any] | None) -> bool:
     )
 
 
+def _add_screening_vector(
+    candidate_id: str,
+    report: dict[str, Any] | None,
+    hard_blocked: bool,
+    objectives: list[dict[str, Any]],
+    vectors: dict[str, ObjectiveVector],
+    screening_vectors: dict[str, ObjectiveVector],
+) -> None:
+    """Retain analytically complete placeholder candidates for comparison."""
+
+    vector = vectors.get(candidate_id)
+    if (
+        hard_blocked
+        or not _placeholder_only_report(report)
+        or vector is None
+        or set(vector.values) != {item["id"] for item in objectives}
+    ):
+        return
+    screening_vectors[candidate_id] = ObjectiveVector(
+        candidate_id,
+        dict(vector.values),
+        {},
+        True,
+    )
+
+
 def _repairable_diagnostics(
     diagnostics: list[dict[str, Any]],
     rules: list[dict[str, Any]],
@@ -480,19 +506,15 @@ def run_space(
                         vectors=vectors,
                         blocking_diagnostics=blocking_diagnostics,
                     )
-                    if (
-                        not hard_blocked
-                        and _placeholder_only_report(report)
-                        and candidate_id in vectors
-                        and set(vectors[candidate_id].values)
-                        == {item["id"] for item in space["objectives"]}
-                    ):
-                        screening_vectors[candidate_id] = ObjectiveVector(
-                            candidate_id,
-                            dict(vectors[candidate_id].values),
-                            {},
-                            True,
-                        )
+
+                _add_screening_vector(
+                    candidate_id,
+                    report,
+                    hard_blocked,
+                    space["objectives"],
+                    vectors,
+                    screening_vectors,
+                )
 
                 accepted = nominal_passed and not hard_blocked
                 accepted_count += int(accepted)
@@ -634,6 +656,14 @@ def run_space(
                                 vectors=vectors,
                                 blocking_diagnostics=blocking_diagnostics,
                             )
+                        _add_screening_vector(
+                            child_id,
+                            child_report,
+                            child_hard_blocked,
+                            space["objectives"],
+                            vectors,
+                            screening_vectors,
+                        )
                         child_accepted = (
                             child_nominal_passed and not child_hard_blocked
                         )

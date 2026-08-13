@@ -11,8 +11,10 @@ brake blockers.
 The expected seed is `20260813`. It produces four root candidates and two
 owner-correct repair children under 76 stage evaluations, including the full
 hard-uncertainty and one-at-a-time sensitivity probes. The extended-energy,
-rated-right-motor candidate improves calculated runtime from 22,500 to 27,000
-seconds and is the first analytical-screening Pareto front. The deliberately
+rated-right-motor root and its equivalent owner-correct repair child improve
+calculated runtime from 22,500 to 27,000 seconds and share the first
+analytical-screening Pareto front. Root and repair candidates use the same
+objective-completeness and hard-uncertainty eligibility rule. The deliberately
 wrong right rating triggers `PHY.DRIVE.PEAK_TORQUE`; its repair changes only
 `quantity:Q-MOTOR-PEAK-TORQUE-R.value`, owned by
 `component:CMP-TRACTION-MOTOR-R`.
