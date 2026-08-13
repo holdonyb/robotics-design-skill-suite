@@ -201,6 +201,9 @@ class RecordTests(unittest.TestCase):
             ),
         )
 
+    def make_result(self, candidates=(), stages=()):
+        return HypothesisResult("space-1", SHA_A, 1, candidates, stages, {})
+
     def test_candidate_decision_is_frozen_and_derives_identity(self):
         decision = CandidateDecision(
             base_sha256=SHA_A,
@@ -318,6 +321,80 @@ class RecordTests(unittest.TestCase):
         self.assertEqual(list(serialized["metadata"]), ["a", "z"])
         canonical_bytes(serialized)
 
+    def test_hypothesis_result_rejects_duplicate_record_identities_in_any_order(self):
+        candidate = self.make_lineage(CANDIDATE_A)
+        duplicate_candidate = self.make_lineage(CANDIDATE_A, status="rejected")
+        for records in (
+            (candidate, duplicate_candidate),
+            (duplicate_candidate, candidate),
+        ):
+            with self.subTest(kind="candidate", reversed=records[0] is duplicate_candidate):
+                with self.assertRaisesRegex(ValueError, "duplicate candidate_id"):
+                    self.make_result(candidates=records)
+
+        stage = self.make_stage("physical", status="passed")
+        duplicate_stage = self.make_stage("physical", status="failed")
+        for records in ((stage, duplicate_stage), (duplicate_stage, stage)):
+            with self.subTest(kind="stage", reversed=records[0] is duplicate_stage):
+                with self.assertRaisesRegex(ValueError, "duplicate stage identity"):
+                    self.make_result(stages=records)
+
+    def test_hypothesis_result_requires_alias_status_exactly_with_alias_target(self):
+        target = self.make_lineage(CANDIDATE_B)
+        contradictions = (
+            self.make_lineage(CANDIDATE_A, status="alias"),
+            self.make_lineage(CANDIDATE_A, status="accepted", alias_of=CANDIDATE_B),
+        )
+        for candidate in contradictions:
+            with self.subTest(status=candidate.status, alias_of=candidate.alias_of):
+                with self.assertRaisesRegex(ValueError, r"status.*alias_of"):
+                    self.make_result(candidates=(candidate, target))
+
+    def test_hypothesis_result_rejects_self_and_missing_lineage_targets(self):
+        invalid_candidates = (
+            self.make_lineage(CANDIDATE_A, parent_id=CANDIDATE_A),
+            self.make_lineage(
+                CANDIDATE_A,
+                status="alias",
+                alias_of=CANDIDATE_A,
+            ),
+            self.make_lineage(CANDIDATE_A, parent_id=CANDIDATE_B),
+            self.make_lineage(
+                CANDIDATE_A,
+                status="alias",
+                alias_of=CANDIDATE_B,
+            ),
+        )
+        for candidate in invalid_candidates:
+            reference = "parent_id" if candidate.parent_id else "alias_of"
+            expected = "differ from self" if (
+                candidate.parent_id == candidate.candidate_id
+                or candidate.alias_of == candidate.candidate_id
+            ) else "target must exist"
+            with self.subTest(reference=reference, expected=expected):
+                with self.assertRaisesRegex(ValueError, expected):
+                    self.make_result(candidates=(candidate,))
+
+    def test_hypothesis_result_rejects_parent_alias_and_cross_reference_cycles(self):
+        cycles = (
+            (
+                self.make_lineage(CANDIDATE_A, parent_id=CANDIDATE_B),
+                self.make_lineage(CANDIDATE_B, parent_id=CANDIDATE_A),
+            ),
+            (
+                self.make_lineage(CANDIDATE_A, status="alias", alias_of=CANDIDATE_B),
+                self.make_lineage(CANDIDATE_B, status="alias", alias_of=CANDIDATE_A),
+            ),
+            (
+                self.make_lineage(CANDIDATE_A, parent_id=CANDIDATE_B),
+                self.make_lineage(CANDIDATE_B, status="alias", alias_of=CANDIDATE_A),
+            ),
+        )
+        for index, candidates in enumerate(cycles):
+            with self.subTest(cycle=index):
+                with self.assertRaisesRegex(ValueError, "lineage cycle"):
+                    self.make_result(candidates=candidates)
+
     def test_records_reject_bad_hash_status_and_nested_types(self):
         with self.assertRaisesRegex(ValueError, "resolved_contract_sha256"):
             CandidateLineage(
@@ -342,9 +419,9 @@ class RecordTests(unittest.TestCase):
                 SHA_B,
                 {"nested": [math.nan]},
             )
-        with self.assertRaisesRegex(ValueError, "candidates\[0\]"):
+        with self.assertRaisesRegex(ValueError, r"candidates\[0\]"):
             HypothesisResult("space-1", SHA_A, 1, (True,), (), {})
-        with self.assertRaisesRegex(ValueError, "stages\[0\]"):
+        with self.assertRaisesRegex(ValueError, r"stages\[0\]"):
             HypothesisResult("space-1", SHA_A, 1, (), ({"name": "stage"},), {})
         with self.assertRaisesRegex(ValueError, r"metadata\[bad\]"):
             HypothesisResult("space-1", SHA_A, 1, (), (), {"bad": object()})

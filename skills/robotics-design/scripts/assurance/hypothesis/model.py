@@ -209,10 +209,73 @@ class HypothesisResult:
         for index, item in enumerate(candidates):
             if not isinstance(item, CandidateLineage):
                 raise ValueError(f"candidates[{index}] must be a CandidateLineage")
+        candidates_by_id: dict[str, CandidateLineage] = {}
+        for item in candidates:
+            if item.candidate_id in candidates_by_id:
+                raise ValueError(
+                    f"candidates contains duplicate candidate_id: {item.candidate_id}"
+                )
+            candidates_by_id[item.candidate_id] = item
+
+        for candidate_id_value in sorted(candidates_by_id):
+            item = candidates_by_id[candidate_id_value]
+            if (item.status == "alias") != (item.alias_of is not None):
+                raise ValueError(
+                    f"candidate {candidate_id_value} status must be 'alias' "
+                    "iff alias_of is present"
+                )
+            for field_name in ("parent_id", "alias_of"):
+                target = getattr(item, field_name)
+                if target is None:
+                    continue
+                if target == candidate_id_value:
+                    raise ValueError(
+                        f"candidate {candidate_id_value} {field_name} must differ from self"
+                    )
+                if target not in candidates_by_id:
+                    raise ValueError(
+                        f"candidate {candidate_id_value} {field_name} "
+                        f"target must exist in candidates: {target}"
+                    )
+
+        visit_state: dict[str, int] = {}
+        visit_stack: list[str] = []
+
+        def visit(candidate_id_value: str) -> None:
+            visit_state[candidate_id_value] = 1
+            visit_stack.append(candidate_id_value)
+            item = candidates_by_id[candidate_id_value]
+            for target in (item.parent_id, item.alias_of):
+                if target is None:
+                    continue
+                state = visit_state.get(target, 0)
+                if state == 1:
+                    cycle_start = visit_stack.index(target)
+                    cycle = visit_stack[cycle_start:] + [target]
+                    raise ValueError(
+                        "candidates contains lineage cycle: " + " -> ".join(cycle)
+                    )
+                if state == 0:
+                    visit(target)
+            visit_stack.pop()
+            visit_state[candidate_id_value] = 2
+
+        for candidate_id_value in sorted(candidates_by_id):
+            if visit_state.get(candidate_id_value, 0) == 0:
+                visit(candidate_id_value)
+
         stages = _sequence(self.stages, "stages")
         for index, item in enumerate(stages):
             if not isinstance(item, StageResult):
                 raise ValueError(f"stages[{index}] must be a StageResult")
+        stage_identities: set[tuple[str, str]] = set()
+        for item in stages:
+            identity = (item.name, item.version)
+            if identity in stage_identities:
+                raise ValueError(
+                    f"stages contains duplicate stage identity: {item.name}@{item.version}"
+                )
+            stage_identities.add(identity)
         if not isinstance(self.metadata, dict):
             raise ValueError("metadata must be a JSON object")
         object.__setattr__(self, "candidates", tuple(sorted(candidates, key=lambda item: item.candidate_id)))
