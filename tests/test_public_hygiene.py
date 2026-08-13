@@ -213,9 +213,9 @@ class PublicHygieneTests(unittest.TestCase):
         )
         self.assertIn('"version": "0.5.0"', manifest)
         for phrase in (
-            "31754134659",
-            "31754138979",
-            "f83e27da5cb0f9832e8f58f43b83e9f8af6469b2319d5a0298a4b58a40493c41",
+            "31755294605",
+            "31755295908",
+            "8c7acb48090911107a341238ba94d333e9497858b3fe1d64baa79e25560f7d02",
             "does not establish a real robot's safety",
             "No v0.5 action authorizes purchasing",
         ):
