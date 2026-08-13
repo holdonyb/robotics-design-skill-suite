@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "8b240993d612e8b8caa91ffccdf01b71bd9e749f2c3a4c715174a8d72d92a833"
+ROS_MANIFEST_RECEIPT = "85a19bebf3cf93be94f49dd897a176516fb7706edece8a44b2a8756b4685ca8f"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -212,7 +212,9 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         self.assertIn('mappings={"use_sim": "false"}', move_group)
         self.assertIn("planning_pipelines", move_group)
         moveit_xacro = text(moveit / "config" / "reference_mobile_manipulator.urdf.xacro")
-        self.assertIn('<xacro:arg name="use_sim" default="false"/>', moveit_xacro)
+        # The launch mapping owns this argument.  Redeclaring it in the wrapper
+        # conflicts with MoveItConfigsBuilder's xacro expansion in Jazzy.
+        self.assertNotIn('<xacro:arg name="use_sim"', moveit_xacro)
         ompl = text(moveit / "config" / "ompl_planning.yaml")
         # Jazzy scopes planner plugins under the selected `ompl` pipeline and
         # accepts a vector, rather than the retired scalar `planning_plugin`.
