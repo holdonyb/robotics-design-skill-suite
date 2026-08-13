@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import uuid
@@ -145,6 +146,9 @@ class HypothesisScheduler:
         self.max_stage_evaluations = max_stage_evaluations
         self.evaluation_count = 0
         self.stage_evaluation_counts = {name: 0 for name in KNOWN_STAGE_ORDER}
+        # Cache files are untrusted. A per-scheduler secret authenticates entries
+        # created in this process; entries from another process are recomputed.
+        self._cache_auth_key = os.urandom(32)
         self.handlers = dict(handlers or {})
         unknown_handlers = sorted(set(self.handlers) - _KNOWN_STAGES)
         if unknown_handlers:
@@ -383,8 +387,7 @@ class HypothesisScheduler:
             diagnostics,
         )
 
-    @staticmethod
-    def _read_cache(cache_dir: Path, cache_key: str, spec: StageSpec) -> StageResult | None:
+    def _read_cache(self, cache_dir: Path, cache_key: str, spec: StageSpec) -> StageResult | None:
         entry = cache_dir / f"{cache_key}.json"
         try:
             if entry.stat().st_size > _MAX_CACHE_BYTES:
@@ -393,12 +396,27 @@ class HypothesisScheduler:
             payload = json.loads(raw.decode("utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError, RecursionError, ValueError):
             return None
-        expected = {"schema_version", "cache_key", "result", "result_sha256", "payload_sha256"}
+        expected = {
+            "schema_version", "cache_key", "result", "result_sha256",
+            "payload_sha256", "auth_hmac_sha256",
+        }
         if not isinstance(payload, dict) or set(payload) != expected:
             return None
         if payload.get("schema_version") != _CACHE_SCHEMA_VERSION or payload.get("cache_key") != cache_key:
             return None
-        body = dict(payload)
+        authenticated = dict(payload)
+        declared_auth = authenticated.pop("auth_hmac_sha256", None)
+        try:
+            expected_auth = hmac.new(
+                self._cache_auth_key,
+                canonical_bytes(authenticated),
+                hashlib.sha256,
+            ).hexdigest()
+        except ValueError:
+            return None
+        if not isinstance(declared_auth, str) or not hmac.compare_digest(declared_auth, expected_auth):
+            return None
+        body = dict(authenticated)
         declared_payload_hash = body.pop("payload_sha256", None)
         try:
             if declared_payload_hash != _digest(body):
@@ -418,8 +436,7 @@ class HypothesisScheduler:
             return None
         return result
 
-    @staticmethod
-    def _write_cache(cache_dir: Path, result: StageResult) -> None:
+    def _write_cache(self, cache_dir: Path, result: StageResult) -> None:
         try:
             cache_dir.mkdir(parents=True, exist_ok=True)
             result_dict = result.to_dict()
@@ -431,6 +448,11 @@ class HypothesisScheduler:
             }
             payload = dict(body)
             payload["payload_sha256"] = _digest(body)
+            payload["auth_hmac_sha256"] = hmac.new(
+                self._cache_auth_key,
+                canonical_bytes(payload),
+                hashlib.sha256,
+            ).hexdigest()
             data = canonical_bytes(payload)
             temporary = cache_dir / f".{result.cache_key}.{uuid.uuid4().hex}.tmp"
             try:

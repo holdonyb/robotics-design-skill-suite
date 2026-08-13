@@ -126,8 +126,59 @@ class SchedulerTests(unittest.TestCase):
             payload = json.loads((cache / f"{result[0].cache_key}.json").read_text(encoding="utf-8"))
             self.assertEqual(1, payload["schema_version"])
             body = dict(payload)
+            body.pop("auth_hmac_sha256")
             digest = body.pop("payload_sha256")
             self.assertEqual(digest, hashlib.sha256(canonical_bytes(body)).hexdigest())
+
+    def test_fully_rehashed_cache_cannot_change_physical_promotion(self):
+        calls = []
+        gate = lambda path: (
+            calls.append(1)
+            or mock.Mock(to_dict=lambda: {"promotable": False, "diagnostics": []}),
+            [],
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            scheduler = HypothesisScheduler(gate=gate, artifact_root=root)
+            failed = scheduler.evaluate(
+                candidate(), root / "cache", stages=("contract_v1", "physical_v030")
+            )[-1]
+            entry = root / "cache" / f"{failed.cache_key}.json"
+            payload = json.loads(entry.read_text(encoding="utf-8"))
+            payload["result"]["status"] = "passed"
+            payload["result"]["output"]["report"]["promotable"] = True
+            payload["result_sha256"] = hashlib.sha256(
+                canonical_bytes(payload["result"])
+            ).hexdigest()
+            body = dict(payload)
+            body.pop("auth_hmac_sha256")
+            body.pop("payload_sha256")
+            payload["payload_sha256"] = hashlib.sha256(canonical_bytes(body)).hexdigest()
+            # Attacker cannot recompute the process-secret HMAC.
+            entry.write_bytes(canonical_bytes(payload))
+            second = scheduler.evaluate(
+                candidate(), root / "cache", stages=("contract_v1", "physical_v030")
+            )[-1]
+            self.assertEqual("failed", second.status)
+            self.assertFalse(second.to_dict()["output"]["report"]["promotable"])
+            self.assertEqual(2, len(calls))
+
+    def test_cache_from_another_scheduler_is_untrusted_and_recomputed(self):
+        calls = []
+        gate = lambda path: (
+            calls.append(1)
+            or mock.Mock(to_dict=lambda: {"promotable": True, "diagnostics": []}),
+            [],
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            HypothesisScheduler(gate=gate, artifact_root=root).evaluate(
+                candidate(), root / "cache", stages=("contract_v1", "physical_v030")
+            )
+            HypothesisScheduler(gate=gate, artifact_root=root).evaluate(
+                candidate(), root / "cache", stages=("contract_v1", "physical_v030")
+            )
+            self.assertEqual(2, len(calls))
 
     def test_cache_and_contract_writes_are_transactional_without_residue(self):
         with tempfile.TemporaryDirectory() as raw:
