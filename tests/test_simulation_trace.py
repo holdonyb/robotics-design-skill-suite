@@ -1,4 +1,5 @@
 import copy
+import json
 import sys
 import tempfile
 import unittest
@@ -67,6 +68,21 @@ class SimulationTraceTests(unittest.TestCase):
             target2 = Path(raw) / "bad"
             receipt2 = publish_trace_bundle(target2, self.scenario(), tuple(bad))
             self.assertEqual("failed", replay_trace_bundle(target2, receipt2.manifest_sha256).status)
+
+    def test_replay_rejects_self_consistent_malformed_scenario_contract(self):
+        with tempfile.TemporaryDirectory() as raw:
+            target = Path(raw) / "trace"
+            receipt = publish_trace_bundle(target, self.scenario(), self.samples())
+            scenario = json.loads((target / "scenario.json").read_text(encoding="utf-8"))
+            scenario["metrics"][0]["unit"] = "kg"
+            from assurance.hypothesis.canonical import canonical_bytes
+            from assurance.hypothesis.bundle import write_bundle_with_receipt
+            trace = json.loads((target / "trace.json").read_text(encoding="utf-8"))
+            trace["scenario_sha256"] = __import__("hashlib").sha256(canonical_bytes(scenario)).hexdigest()
+            poisoned = Path(raw) / "poisoned"
+            receipt = write_bundle_with_receipt(poisoned, {"index.json": {"schema_version": 1, "kind": "simulation_trace"}, "scenario.json": scenario, "trace.json": trace})
+            with self.assertRaisesRegex(TraceError, "unit is invalid"):
+                replay_trace_bundle(poisoned, receipt.manifest_sha256)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from typing import Iterable
 from ..hypothesis.bundle import BundleError, validate_bundle, write_bundle_with_receipt
 from ..hypothesis.canonical import canonical_bytes, canonical_value
 from .model import MetricResult, SimulationResult, TraceSample
-from .scenario import CompiledScenario
+from .scenario import CompiledScenario, ScenarioError, compile_scenarios
 
 
 class TraceError(ValueError):
@@ -92,14 +92,32 @@ def replay_trace_bundle(root: str | Path, manifest_sha256: str) -> SimulationRes
         raise TraceError("trace.json fields are not closed")
     if hashlib.sha256(canonical_bytes(scenario_data)).hexdigest() != trace["scenario_sha256"]:
         raise TraceError("trace scenario SHA-256 mismatch")
+    # Reconstruct the complete schema rather than trusting any self-contained
+    # scenario payload. Ten unique records are required by the registry contract;
+    # use harmless unique copies to validate this one record in its real context.
     try:
-        scenario = CompiledScenario.__new__(CompiledScenario)  # only to keep parser independent from registry
-        from .scenario import compile_scenarios
-        registry = {"schema_version": 1, "registry_id": "replay", "model_sha256": scenario_data["model_sha256"], "trajectory_sha256": scenario_data["trajectory_sha256"], "environment_sha256": scenario_data["environment_sha256"], "joint_order": scenario_data["joint_order"], "scenarios": [scenario_data] * 10}
-        # Use direct structural checks below; duplicate registry IDs intentionally make this unsuitable for compilation.
-        del scenario
-    except Exception:
-        pass
+        copies = []
+        for index in range(10):
+            item = {
+                key: scenario_data[key]
+                for key in ("scenario_id", "version", "seed", "duration_ns", "parameters", "faults", "metrics", "stop")
+            }
+            item["scenario_id"] = f"replay-{index:02d}"
+            item["seed"] = index
+            copies.append(item)
+        checked = compile_scenarios({
+            "schema_version": 1,
+            "registry_id": "replay-validation-v1",
+            "model_sha256": scenario_data["model_sha256"],
+            "trajectory_sha256": scenario_data["trajectory_sha256"],
+            "environment_sha256": scenario_data["environment_sha256"],
+            "joint_order": scenario_data["joint_order"],
+            "scenarios": copies,
+        })[0]
+    except (KeyError, ScenarioError, TypeError, ValueError) as exc:
+        raise TraceError(f"scenario contract is invalid: {exc}") from None
+    if checked.metrics != tuple(sorted(checked.metrics, key=lambda item: item["name"])):
+        raise TraceError("scenario metric ordering is invalid")
     if not isinstance(trace["samples"], list) or not isinstance(trace["joint_order"], list):
         raise TraceError("trace samples and joint_order must be lists")
     if trace["joint_order"] != scenario_data.get("joint_order"):
