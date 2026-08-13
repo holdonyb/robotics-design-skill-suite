@@ -13,6 +13,8 @@ REQUIRED = {
     "SECURITY.md",
     "CONTRIBUTING.md",
     "manifest.json",
+    "PROJECT_STATUS.md",
+    "docs/releases/v0.4-completion-audit.md",
     "scripts/install.py",
     "scripts/validate.py",
     "skills/robotics-design/SKILL.md",
@@ -165,6 +167,31 @@ class PublicHygieneTests(unittest.TestCase):
             "python -m compileall -q scripts tests skills/robotics-design/scripts",
             ci,
         )
+
+    def test_v040_status_and_completion_audit_are_evidence_bounded(self):
+        status = (ROOT / "PROJECT_STATUS.md").read_text(encoding="utf-8")
+        audit = (ROOT / "docs/releases/v0.4-completion-audit.md").read_text(
+            encoding="utf-8"
+        )
+        for phrase in (
+            "6 candidates",
+            "76 stage evaluations",
+            "0 accepted",
+            "v0.5",
+            "simulation",
+            "hardware",
+        ):
+            self.assertIn(phrase, status)
+        for gate in (
+            "Candidates never bypass v0.3 physical gates",
+            "Identical inputs and seeds reproduce",
+            "Injected design flaws are traced",
+            "reference design trade-off is improved",
+            "Uncertainty and counterexample results affect promotion",
+            "Public release",
+        ):
+            self.assertIn(gate, audit)
+        self.assertIn("OPEN", audit)
 
 
 if __name__ == "__main__":

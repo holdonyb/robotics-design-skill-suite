@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import re
@@ -80,10 +81,30 @@ def _archive_root(extracted: Path) -> Path:
 def download_archive(source: dict, destination: Path) -> Path:
     url = f"https://codeload.github.com/{source['repo']}/zip/{source['commit']}"
     output = Path(destination) / f"{source['id']}.zip"
+    partial = output.with_suffix(".zip.part")
     request = urllib.request.Request(url, headers={"User-Agent": "robotics-design-skill-suite"})
-    with urllib.request.urlopen(request, timeout=120) as response, output.open("wb") as handle:
-        shutil.copyfileobj(response, handle)
-    return output
+    last_error: Exception | None = None
+    for _attempt in range(1, 4):
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response, partial.open(
+                "wb"
+            ) as handle:
+                shutil.copyfileobj(response, handle)
+            with zipfile.ZipFile(partial) as archive:
+                corrupt_member = archive.testzip()
+                if corrupt_member is not None:
+                    raise zipfile.BadZipFile(
+                        f"archive CRC failed for member {corrupt_member}"
+                    )
+            partial.replace(output)
+            return output
+        except (OSError, http.client.HTTPException, zipfile.BadZipFile) as error:
+            last_error = error
+            partial.unlink(missing_ok=True)
+    raise RuntimeError(
+        f"cannot download pinned source {source['id']} after 3 attempts: "
+        f"{type(last_error).__name__}: {last_error}"
+    ) from None
 
 
 def _split_frontmatter(text: str) -> tuple[list[str], str]:
@@ -296,7 +317,7 @@ def main() -> int:
             args.manifest.resolve().parent,
             host_runtime_python=host_runtime,
         )
-    except (FileExistsError, OSError, ValueError, zipfile.BadZipFile) as error:
+    except (FileExistsError, OSError, RuntimeError, ValueError, zipfile.BadZipFile) as error:
         print(f"ERROR: {error}", file=os.sys.stderr)
         return 1
     for path in installed:
