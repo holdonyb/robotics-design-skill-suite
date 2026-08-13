@@ -127,6 +127,13 @@ class PublicHygieneTests(unittest.TestCase):
         self.assertIn("mission-animation", source_lock)
         self.assertIn("patent-aware", source_lock)
 
+    def test_ci_compiles_local_skill_runtime_before_tests(self):
+        ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "python -m compileall -q scripts tests skills/robotics-design/scripts",
+            ci,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
