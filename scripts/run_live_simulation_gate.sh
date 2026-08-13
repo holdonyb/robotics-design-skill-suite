@@ -59,6 +59,14 @@ ros2 control list_controllers | tee "$EVIDENCE/controllers.txt"
 require_active_controller "joint_state_broadcaster"
 require_active_controller "arm_controller"
 require_active_controller "diff_drive_controller"
+MOVE_GROUP_LAUNCH="$WORKSPACE/install/jx_mobile_manipulator_moveit_config/share/jx_mobile_manipulator_moveit_config/launch/move_group.launch.py"
+run python3 - "$MOVE_GROUP_LAUNCH" > "$EVIDENCE/move_group-construction.log" 2>&1 <<'PY'
+import runpy
+import sys
+
+launch_file = runpy.run_path(sys.argv[1])
+launch_file["generate_launch_description"]()
+PY
 timeout 30s ros2 launch --debug jx_mobile_manipulator_moveit_config move_group.launch.py > "$EVIDENCE/move_group.log" 2>&1 & pids+=("$!")
 timeout 30s ros2 launch jx_mobile_manipulator_nav navigation.launch.py > "$EVIDENCE/nav2.log" 2>&1 & pids+=("$!")
 sleep 10
