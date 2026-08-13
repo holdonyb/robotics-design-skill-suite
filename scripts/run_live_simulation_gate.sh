@@ -16,6 +16,14 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 run() { timeout --preserve-status 90s "$@"; }
+require_running() {
+  local pid="$1"
+  local log="$2"
+  if ! kill -0 "$pid" 2>/dev/null; then
+    cat "$log" >&2 || true
+    return 1
+  fi
+}
 
 set +u
 source /opt/ros/jazzy/setup.bash
@@ -37,7 +45,7 @@ run colcon test-result --test-result-base "$WORKSPACE/build" --verbose
 # launch processes are bounded and captured; absence of any consumer fails.
 timeout 45s ros2 launch jx_mobile_manipulator_sim sim.launch.py > "$EVIDENCE/sim.log" 2>&1 & pids+=("$!")
 sleep 12
-kill -0 "${pids[0]}"
+require_running "${pids[0]}" "$EVIDENCE/sim.log"
 ros2 node list | tee "$EVIDENCE/sim-nodes.txt"
 ros2 topic echo --once /clock | tee "$EVIDENCE/clock.txt"
 ros2 control list_controllers | tee "$EVIDENCE/controllers.txt"
