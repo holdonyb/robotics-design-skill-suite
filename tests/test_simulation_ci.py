@@ -24,8 +24,10 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn('"$WORKSPACE/build"', gate)
         self.assertIn('"$WORKSPACE/install"', gate)
         self.assertIn('"$WORKSPACE/log"', gate)
+        self.assertIn('colcon --log-base "$WORKSPACE/log" build', gate)
+        self.assertIn('colcon --log-base "$WORKSPACE/log" test', gate)
         self.assertLess(
-            gate.index("run colcon build --base-paths"),
+            gate.index("run colcon --log-base"),
             gate.index('source "$WORKSPACE/install/setup.bash"'),
         )
         self.assertLess(

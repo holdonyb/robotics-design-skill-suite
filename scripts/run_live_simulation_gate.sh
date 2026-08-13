@@ -25,12 +25,12 @@ gz sim --versions > "$EVIDENCE/gazebo-versions.txt"
 dpkg-query -W > "$EVIDENCE/dpkg-inventory.txt"
 docker image inspect "${SIMULATION_IMAGE_REF:-unavailable}" > "$EVIDENCE/image-inspect.json" 2>/dev/null || true
 
-run colcon build --base-paths "$WORKSPACE/src" --build-base "$WORKSPACE/build" --install-base "$WORKSPACE/install" --log-base "$WORKSPACE/log" --event-handlers console_direct+
+run colcon --log-base "$WORKSPACE/log" build --base-paths "$WORKSPACE/src" --build-base "$WORKSPACE/build" --install-base "$WORKSPACE/install" --event-handlers console_direct+
 set +u
 source "$WORKSPACE/install/setup.bash"
 set -u
 run xacro "$WORKSPACE/src/jx_mobile_manipulator_description/urdf/reference_mobile_manipulator.urdf.xacro" use_sim:=true > "$EVIDENCE/robot.urdf"
-run colcon test --base-paths "$WORKSPACE/src" --build-base "$WORKSPACE/build" --install-base "$WORKSPACE/install" --log-base "$WORKSPACE/log"
+run colcon --log-base "$WORKSPACE/log" test --base-paths "$WORKSPACE/src" --build-base "$WORKSPACE/build" --install-base "$WORKSPACE/install"
 run colcon test-result --test-result-base "$WORKSPACE/build" --verbose
 
 # Exercise headless Gazebo, ros2_control, MoveIt, and Nav2 as consumers.  All
