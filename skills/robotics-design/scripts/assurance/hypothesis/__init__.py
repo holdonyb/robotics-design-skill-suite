@@ -9,6 +9,7 @@ from .model import (
     StageSpec,
 )
 from .schema import load_space, validate_space
+from .overlay import OverlayError, ResolvedCandidate, apply_operation, generate_candidates
 
 __all__ = [
     "CandidateDecision",
@@ -21,4 +22,8 @@ __all__ = [
     "seeded_order",
     "load_space",
     "validate_space",
+    "OverlayError",
+    "ResolvedCandidate",
+    "apply_operation",
+    "generate_candidates",
 ]

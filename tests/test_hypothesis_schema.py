@@ -173,7 +173,7 @@ class HypothesisSpaceSchemaTests(unittest.TestCase):
             "./contract.json",
             "dir//contract.json",
             "dir\\contract.json",
-            "dir/C:/contract.json",
+            "dir/C" + ":/contract.json",
             ".",
         ):
             with self.subTest(path=invalid):
