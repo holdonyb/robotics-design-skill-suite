@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "85a19bebf3cf93be94f49dd897a176516fb7706edece8a44b2a8756b4685ca8f"
+ROS_MANIFEST_RECEIPT = "becb82ceeb709b1433928a1cdd9fe61c82ea8fa6ade0eb7e8ce4e0e9994ff90c"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -210,6 +210,8 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         move_group = text(moveit / "launch" / "move_group.launch.py")
         self.assertIn("moveit_configs_utils", move_group)
         self.assertIn('mappings={"use_sim": "false"}', move_group)
+        self.assertIn('get_package_share_directory("jx_mobile_manipulator_description")', move_group)
+        self.assertIn('"urdf" / "reference_mobile_manipulator.urdf.xacro"', move_group)
         self.assertIn("planning_pipelines", move_group)
         moveit_xacro = text(moveit / "config" / "reference_mobile_manipulator.urdf.xacro")
         # The launch mapping owns this argument.  Redeclaring it in the wrapper
