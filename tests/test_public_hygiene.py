@@ -168,6 +168,21 @@ class PublicHygieneTests(unittest.TestCase):
             ci,
         )
 
+    def test_ci_runs_fresh_install_and_pinned_official_skill_validation(self):
+        ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        for required in (
+            "release-install:",
+            "python scripts/install.py --dest .release-install",
+            "openai/skills/49f948faa9258a0c61caceaf225e179651397431",
+            "PyYAML==6.0.3",
+            "quick_validate.py",
+            "UPSTREAM_LICENSE",
+            "__pycache__",
+            "host-runtime.md",
+            "assurance/hypothesis/engine.py",
+        ):
+            self.assertIn(required, ci)
+
     def test_v040_status_and_completion_audit_are_evidence_bounded(self):
         status = (ROOT / "PROJECT_STATUS.md").read_text(encoding="utf-8")
         audit = (ROOT / "docs/releases/v0.4-completion-audit.md").read_text(

@@ -28,3 +28,119 @@ jobs:
         run: python scripts/validate.py
       - name: Verify dry run
         run: python scripts/install.py --dry-run --dest .tmp-install
+
+  release-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch pinned official skill validator
+        shell: bash
+        run: |
+          python -m pip install PyYAML==6.0.3
+          mkdir -p .release-tools
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output .release-tools/quick_validate.py \
+            https://raw.githubusercontent.com/openai/skills/49f948faa9258a0c61caceaf225e179651397431/skills/.system/skill-creator/scripts/quick_validate.py
+      - name: Install the complete pinned suite into an empty destination
+        shell: bash
+        run: |
+          python scripts/install.py --dest .release-install \
+            --host-runtime-python "$(python -c 'import sys; print(sys.executable)')"
+      - name: Validate the installed release and retained provenance
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          install_root = Path(".release-install")
+          expected_skills = {
+              "cad",
+              "cad-viewer",
+              "dxf",
+              "robotics-design",
+              "ros2-engineering-skills",
+              "ros2-sim",
+              "sdf",
+              "srdf",
+              "step-parts",
+              "urdf",
+          }
+          actual_skills = {path.name for path in install_root.iterdir() if path.is_dir()}
+          if actual_skills != expected_skills:
+              raise SystemExit(
+                  f"installed skill set mismatch: expected={sorted(expected_skills)} "
+                  f"actual={sorted(actual_skills)}"
+              )
+
+          validator = Path(".release-tools/quick_validate.py")
+          for skill_name in sorted(expected_skills):
+              subprocess.run(
+                  [sys.executable, "-X", "utf8", str(validator), str(install_root / skill_name)],
+                  check=True,
+              )
+
+          licenses = sorted(install_root.rglob("UPSTREAM_LICENSE"))
+          if len(licenses) != 9:
+              raise SystemExit(f"expected 9 UPSTREAM_LICENSE files, found {len(licenses)}")
+
+          residue = sorted(
+              str(path)
+              for path in install_root.rglob("*")
+              if path.name == "__pycache__"
+              or path.suffix in {".pyc", ".pyo", ".part"}
+              or path.name.startswith(".robotics-design-txn-")
+          )
+          if residue:
+              raise SystemExit(f"generated or transactional residue found: {residue}")
+
+          host_runtime = install_root / "robotics-design/references/host-runtime.md"
+          if not host_runtime.is_file():
+              raise SystemExit("installed robotics-design skill is missing host-runtime.md")
+
+          source_root = Path("skills/robotics-design")
+          installed_root = install_root / "robotics-design"
+          source_files = {
+              path.relative_to(source_root)
+              for path in source_root.rglob("*")
+              if path.is_file()
+              and "__pycache__" not in path.parts
+              and path.suffix not in {".pyc", ".pyo"}
+          }
+          installed_files = {
+              path.relative_to(installed_root)
+              for path in installed_root.rglob("*")
+              if path.is_file()
+              and path.relative_to(installed_root) != Path("references/host-runtime.md")
+          }
+          if installed_files != source_files:
+              raise SystemExit(
+                  "installed robotics-design file set differs from release source: "
+                  f"missing={sorted(map(str, source_files - installed_files))} "
+                  f"extra={sorted(map(str, installed_files - source_files))}"
+              )
+
+          digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+          mismatches = sorted(
+              str(relative)
+              for relative in source_files
+              if digest(source_root / relative) != digest(installed_root / relative)
+          )
+          if mismatches:
+              raise SystemExit(f"installed robotics-design hashes differ: {mismatches}")
+
+          # Keep this release-critical path visible in the workflow audit.
+          if Path("scripts/assurance/hypothesis/engine.py") not in installed_files:
+              raise SystemExit("installed hypothesis engine is missing")
+          PY
+      - name: Retain the validated installation
+        uses: actions/upload-artifact@v4
+        with:
+          name: robotics-design-suite-release-install
+          path: .release-install
+          if-no-files-found: error
