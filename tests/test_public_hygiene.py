@@ -210,7 +210,7 @@ class PublicHygieneTests(unittest.TestCase):
             "Public release",
         ):
             self.assertIn(gate, audit)
-        self.assertIn("OPEN", audit)
+        self.assertNotIn("| OPEN |", audit)
         for evidence in (
             "6881a2c",
             "31715656399",
@@ -220,6 +220,15 @@ class PublicHygieneTests(unittest.TestCase):
             "whole-release adversarial review",
         ):
             self.assertIn(evidence, status + audit)
+        for release_evidence in (
+            "f37cd3b",
+            "31716689574",
+            "31716834403",
+            "v0.4.0",
+            "robotics-design-pre-v040-20260813-2350",
+        ):
+            self.assertIn(release_evidence, status + audit)
+        self.assertNotIn("v0.4 remains open", audit)
 
 
 if __name__ == "__main__":
