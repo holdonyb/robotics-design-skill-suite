@@ -14,5 +14,7 @@ CMakeLists.txt text eol=lf
 *.pgm text eol=lf
 *.md text eol=lf
 *.py text eol=lf
+Dockerfile* text eol=lf
+*.sh text eol=lf
 *.ps1 text eol=crlf
 *.step binary
