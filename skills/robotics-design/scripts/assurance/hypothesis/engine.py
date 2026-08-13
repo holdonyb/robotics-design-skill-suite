@@ -17,7 +17,7 @@ from .objectives import ObjectiveVector, extract_vector, pareto_fronts
 from .overlay import OverlayError, ResolvedCandidate, generate_candidates
 from .repair import RepairError, repair, select_repair
 from .schema import load_space
-from .scheduler import HypothesisScheduler, SchedulerError
+from .scheduler import KNOWN_STAGE_ORDER, HypothesisScheduler, SchedulerError
 from .uncertainty import (
     UncertaintyError,
     apply_case,
@@ -198,6 +198,7 @@ def _evaluate_uncertainties(
     cache_dir: Path,
     files: dict[str, Any],
     vectors: dict[str, ObjectiveVector],
+    blocking_diagnostics: list[dict[str, str]],
 ) -> bool:
     """Evaluate one candidate's uncertainty set and return hard-block status."""
 
@@ -262,6 +263,19 @@ def _evaluate_uncertainties(
     counterexample = search_counterexample(cases, evaluate_case)
     sensitivity = evaluate_sensitivity(cases, evaluate_case)
     hard_blocked = counterexample.blocking
+    if hard_blocked and counterexample.case is not None:
+        codes = counterexample.diagnostic_codes or (
+            "HYP.UNCERTAINTY.HARD_COUNTEREXAMPLE",
+        )
+        for code in codes:
+            blocking_diagnostics.append(
+                {
+                    "stage": "counterexample_v1",
+                    "code": code,
+                    "path": f"uncertainty:{counterexample.case.case_id}",
+                    "message": "hard uncertainty case blocks candidate promotion",
+                }
+            )
     if hard_blocked and candidate_id in vectors:
         vector = vectors[candidate_id]
         vectors[candidate_id] = ObjectiveVector(
@@ -420,6 +434,7 @@ def run_space(
                         cache_dir=cache_dir,
                         files=files,
                         vectors=vectors,
+                        blocking_diagnostics=blocking_diagnostics,
                     )
 
                 accepted = nominal_passed and not hard_blocked
@@ -557,6 +572,7 @@ def run_space(
                                 cache_dir=cache_dir,
                                 files=files,
                                 vectors=vectors,
+                                blocking_diagnostics=blocking_diagnostics,
                             )
                         child_accepted = (
                             child_nominal_passed and not child_hard_blocked
@@ -613,10 +629,13 @@ def run_space(
         index["bundle_manifest_sha256"] = receipt.manifest_sha256
         index["pareto_front_count"] = len(pareto["fronts"])
         if blocking_diagnostics:
+            stage_order = {
+                stage: index for index, stage in enumerate(KNOWN_STAGE_ORDER)
+            }
             index["earliest_blocking_diagnostic"] = sorted(
                 blocking_diagnostics,
                 key=lambda item: (
-                    item["stage"],
+                    stage_order[item["stage"]],
                     item["code"],
                     item["path"],
                     item["message"],

@@ -296,6 +296,14 @@ class EngineTests(unittest.TestCase):
             pareto = json.loads((root / "out" / "pareto.json").read_text(encoding="utf-8"))
             self.assertEqual(0, result["accepted_count"])
             self.assertEqual("rejected", result["candidates"][0]["status"])
+            self.assertEqual(
+                "counterexample_v1",
+                result["earliest_blocking_diagnostic"]["stage"],
+            )
+            self.assertEqual(
+                "LOAD.HIGH",
+                result["earliest_blocking_diagnostic"]["code"],
+            )
             self.assertNotIn(candidate_id, sum(pareto["fronts"], []))
             self.assertIn(candidate_id, pareto["ineligible"])
 
