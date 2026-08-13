@@ -199,7 +199,7 @@ def _rename_absent(source: Path, target: Path) -> None:
     raise BundleError("atomic no-replace publication is unavailable on this platform")
 
 
-def write_bundle(
+def write_bundle_with_receipt(
     output: str | Path,
     files: Mapping[str, object],
     *,
@@ -284,11 +284,22 @@ def write_bundle(
                 )
             elif not target.exists():
                 backup.replace(target)
-        if isinstance(exc, BundleError):
-            raise
         if recovery_error is not None:
             raise BundleError(recovery_error) from exc
+        if isinstance(exc, BundleError):
+            raise
         raise BundleError(f"cannot publish bundle: {exc}") from exc
     finally:
         if transaction.exists():
             shutil.rmtree(transaction, ignore_errors=True)
+
+
+def write_bundle(
+    output: str | Path,
+    files: Mapping[str, object],
+    *,
+    force: bool = False,
+) -> Path:
+    """Publish a bundle and retain the original Path-returning public API."""
+
+    return write_bundle_with_receipt(output, files, force=force).path

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ..contract import validate_contract
-from .bundle import BundleError, write_bundle
+from .bundle import BundleError, write_bundle_with_receipt
 from .canonical import canonical_bytes, canonical_value, validate_integer
 from .model import CandidateLineage, HypothesisResult
 from .objectives import ObjectiveVector, extract_vector, pareto_fronts
@@ -589,7 +589,7 @@ def run_space(
         index["accepted_count"] = accepted_count
         index["tool_versions"] = tool_versions
         files["index.json"] = index
-        receipt = write_bundle(output, files, force=force)
+        receipt = write_bundle_with_receipt(output, files, force=force)
         index["bundle_manifest_sha256"] = receipt.manifest_sha256
         return index
     except EngineError:

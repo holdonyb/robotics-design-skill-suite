@@ -8,7 +8,12 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
-from assurance.hypothesis.bundle import BundleError, validate_bundle, write_bundle
+from assurance.hypothesis.bundle import (
+    BundleError,
+    validate_bundle,
+    write_bundle,
+    write_bundle_with_receipt,
+)
 
 
 class BundleTests(unittest.TestCase):
@@ -28,7 +33,7 @@ class BundleTests(unittest.TestCase):
     def test_index_is_hash_bound_by_external_manifest(self):
         with tempfile.TemporaryDirectory() as raw:
             output = Path(raw) / "out"
-            receipt = write_bundle(
+            receipt = write_bundle_with_receipt(
                 output,
                 {"index.json": {"schema_version": 1, "accepted_count": 1}},
             )
@@ -45,7 +50,7 @@ class BundleTests(unittest.TestCase):
     def test_external_manifest_receipt_detects_joint_manifest_and_index_rewrite(self):
         with tempfile.TemporaryDirectory() as raw:
             output = Path(raw) / "out"
-            receipt = write_bundle(
+            receipt = write_bundle_with_receipt(
                 output,
                 {"index.json": {"schema_version": 1, "accepted_count": 1}},
             )
@@ -71,6 +76,13 @@ class BundleTests(unittest.TestCase):
                     )
                 )
             )
+
+    def test_public_write_bundle_retains_path_return_compatibility(self):
+        with tempfile.TemporaryDirectory() as raw:
+            output = Path(raw) / "out"
+            result = write_bundle(output, {"index.json": {"schema_version": 1}})
+            self.assertIsInstance(result, Path)
+            self.assertTrue(result.exists())
 
     def test_path_escape_noncanonical_and_missing_are_rejected(self):
         with tempfile.TemporaryDirectory() as raw:
