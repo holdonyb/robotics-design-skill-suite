@@ -285,7 +285,10 @@ def repair(
     after_hash = hashlib.sha256(canonical_bytes(hash_payload)).hexdigest()
     if after_hash == parent.resolved_contract_sha256:
         raise RepairError("repair does not change resolved contract")
-    if after_hash in seen_hashes:
+    lineage_hashes = set(parent.ancestry_resolution_hashes) | {
+        parent.resolved_contract_sha256
+    }
+    if after_hash in lineage_hashes or after_hash in seen_hashes:
         raise RepairError(f"repair creates seen resolution hash cycle: {after_hash}")
     parent_errors = tuple(validate_contract(contract))
     child_errors = tuple(validate_contract(resolved))
@@ -299,6 +302,10 @@ def repair(
         resolved,
         after_hash,
         child_errors,
+        ancestry_resolution_hashes=(
+            *parent.ancestry_resolution_hashes,
+            parent.resolved_contract_sha256,
+        ),
     )
     trace = RepairTrace(
         checked_diagnostic["code"],

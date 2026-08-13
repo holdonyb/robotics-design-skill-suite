@@ -43,6 +43,7 @@ class ResolvedCandidate:
     resolved_contract_sha256: str
     contract_errors: tuple[str, ...]
     alias_of: str | None = None
+    ancestry_resolution_hashes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.decision, CandidateDecision):
@@ -64,6 +65,16 @@ class ResolvedCandidate:
         ):
             raise OverlayError("contract_errors must be a tuple of strings")
         object.__setattr__(self, "contract_errors", tuple(sorted(set(self.contract_errors))))
+        if not isinstance(self.ancestry_resolution_hashes, tuple):
+            raise OverlayError("ancestry_resolution_hashes must be a tuple")
+        ancestry = tuple(self.ancestry_resolution_hashes)
+        if any(not isinstance(item, str) or not re.fullmatch(r"[0-9a-f]{64}", item) for item in ancestry):
+            raise OverlayError("ancestry_resolution_hashes must contain SHA-256 digests")
+        if len(set(ancestry)) != len(ancestry):
+            raise OverlayError("ancestry_resolution_hashes must not contain duplicates")
+        if self.resolved_contract_sha256 in ancestry:
+            raise OverlayError("resolved contract hash must not repeat an ancestry hash")
+        object.__setattr__(self, "ancestry_resolution_hashes", ancestry)
 
     @property
     def candidate_id(self) -> str:

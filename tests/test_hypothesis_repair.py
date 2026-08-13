@@ -63,6 +63,13 @@ class RepairTests(unittest.TestCase):
         with self.assertRaisesRegex(RepairError, "global repair depth"):
             repair(parent(), diagnostic, rule(), seen_hashes=set(), failed_stage="physical_v030", depth=2, max_depth=2)
 
+    def test_internal_ancestry_rejects_two_step_cycle_without_caller_seen_set(self):
+        diagnostic = {"code": "PHY.MOTOR", "path": "quantity:Q-MOTOR.value", "message": "low"}
+        first, _ = repair(parent(), diagnostic, rule(), seen_hashes=set(), failed_stage="physical_v030")
+        back = rule(); back["operations"][0]["value"] = {"value": 1, "unit": "N*m"}
+        with self.assertRaisesRegex(RepairError, "seen resolution hash cycle"):
+            repair(first, diagnostic, back, seen_hashes=set(), failed_stage="physical_v030")
+
     def test_selects_earliest_blocker_then_lowest_rule_id_deterministically(self):
         diagnostics = [
             {"stage": "physical_v030", "severity": "error", "code": "Z", "path": "quantity:Q-MOTOR.value", "message": "z"},
