@@ -1,0 +1,21 @@
+"""Deterministic records and identities for bounded design hypotheses."""
+
+from .canonical import candidate_id, canonical_bytes, seeded_order
+from .model import (
+    CandidateDecision,
+    CandidateLineage,
+    HypothesisResult,
+    StageResult,
+    StageSpec,
+)
+
+__all__ = [
+    "CandidateDecision",
+    "CandidateLineage",
+    "HypothesisResult",
+    "StageResult",
+    "StageSpec",
+    "candidate_id",
+    "canonical_bytes",
+    "seeded_order",
+]
