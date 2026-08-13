@@ -9,6 +9,7 @@ SCRIPTS = ROOT / "skills" / "robotics-design" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from assurance.hypothesis.uncertainty import (  # noqa: E402
+    UncertaintyCase,
     UncertaintyError,
     apply_case,
     evaluate_sensitivity,
@@ -39,6 +40,17 @@ def uncertainties():
 
 
 class OrderedCaseTests(unittest.TestCase):
+    def test_public_case_constructor_rejects_untrusted_structure(self):
+        with self.assertRaisesRegex(UncertaintyError, "nominal case must not be hard"):
+            UncertaintyCase(CANDIDATE_ID, {}, True, True, 0.0)
+        for values in (
+            {"arbitrary": {"value": 1, "unit": "kg"}},
+            {"quantity:Q-MASS.value": {"value": 1}},
+            {"quantity:Q-MASS.value": {"value": math.inf, "unit": "kg"}},
+        ):
+            with self.subTest(values=values), self.assertRaises(UncertaintyError):
+                UncertaintyCase(CANDIDATE_ID, values, False, True, 1.0)
+
     def test_nominal_first_same_seed_exact_and_different_seed_same_set(self):
         a = ordered_cases(CANDIDATE_ID, contract(), uncertainties(), seed=5, max_evaluations=5)
         b = ordered_cases(CANDIDATE_ID, contract(), uncertainties(), seed=5, max_evaluations=5)

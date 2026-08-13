@@ -64,10 +64,29 @@ class UncertaintyCase:
             raise UncertaintyError("values must be an object")
         if type(self.nominal) is not bool or type(self.hard) is not bool:
             raise UncertaintyError("nominal and hard must be booleans")
+        if self.nominal and self.hard:
+            raise UncertaintyError("nominal case must not be hard")
         if not isinstance(self.distance, (int, float)) or isinstance(self.distance, bool) or not math.isfinite(float(self.distance)) or self.distance < 0:
             raise UncertaintyError("distance must be a finite non-negative number")
         if self.nominal != (not checked):
             raise UncertaintyError("nominal must be true exactly when values is empty")
+        for target, value in checked.items():
+            if not isinstance(target, str) or _TARGET_RE.fullmatch(target) is None:
+                raise UncertaintyError(
+                    "case values keys must match quantity:ID.value targets"
+                )
+            if not isinstance(value, dict) or set(value) != {"value", "unit"}:
+                raise UncertaintyError(
+                    f"case value for {target} must contain exactly value and unit"
+                )
+            number = value.get("value")
+            if (
+                type(number) not in (int, float)
+                or (type(number) is float and not math.isfinite(number))
+            ):
+                raise UncertaintyError(f"case value for {target} must be finite")
+            if not isinstance(value.get("unit"), str) or not value["unit"]:
+                raise UncertaintyError(f"case value for {target} unit must be non-empty")
         expected = _case_id(candidate, checked)
         if self.case_id and self.case_id != expected:
             raise UncertaintyError("case_id does not match candidate and values")
