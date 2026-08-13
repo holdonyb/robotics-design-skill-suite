@@ -1,87 +1,197 @@
 """Canonical, manifest-bound, transactional evidence bundles."""
+
 from __future__ import annotations
 
 import hashlib
 import json
-import os
+import re
 import shutil
 import uuid
-from pathlib import Path
-from typing import Mapping
+from pathlib import Path, PurePosixPath
+from typing import Any, Mapping
 
 from .canonical import canonical_bytes, canonical_value
 
+
 _MAX_FILES = 10_000
 _MAX_BYTES = 16 * 1024 * 1024
+_SHA256 = re.compile(r"[0-9a-f]{64}")
 
-class BundleError(ValueError): pass
-def _hash(data: bytes) -> str: return hashlib.sha256(data).hexdigest()
-def _pairs(pairs):
-    out = {}
+
+class BundleError(ValueError):
+    """Raised when a bundle cannot be safely validated or published."""
+
+
+def _hash(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
     for key, value in pairs:
-        if key in out: raise ValueError(f"duplicate JSON key: {key}")
-        out[key] = value
-    return out
-def _load(data: bytes):
-    if len(data) > _MAX_BYTES: raise BundleError("bundle file exceeds maximum size")
-    try: return json.loads(data.decode("utf-8"), object_pairs_hook=_pairs, parse_constant=lambda x: (_ for _ in ()).throw(ValueError(x)))
-    except (UnicodeError, json.JSONDecodeError, ValueError) as exc: raise BundleError(f"invalid UTF-8 JSON: {exc}") from None
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_constant(token: str) -> None:
+    raise ValueError(f"non-finite JSON number is not allowed: {token}")
+
+
+def _load(data: bytes) -> Any:
+    if len(data) > _MAX_BYTES:
+        raise BundleError("bundle file exceeds maximum size")
+    try:
+        parsed = json.loads(
+            data.decode("utf-8"),
+            object_pairs_hook=_pairs,
+            parse_constant=_reject_constant,
+        )
+        return canonical_value(parsed, "bundle JSON")
+    except (
+        UnicodeError,
+        json.JSONDecodeError,
+        OverflowError,
+        RecursionError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise BundleError(f"invalid UTF-8 JSON: {exc}") from None
+
+
 def _path(value: object) -> str:
-    if not isinstance(value, str) or not value or "\\" in value: raise BundleError("bundle paths must be normalized relative POSIX paths")
-    path = Path(value)
-    if path.is_absolute() or ".." in path.parts or path.as_posix() != value: raise BundleError("bundle paths must be normalized relative POSIX paths")
+    valid = isinstance(value, str) and bool(value) and "\\" not in value and ":" not in value
+    if valid:
+        path = PurePosixPath(value)
+        valid = (
+            not path.is_absolute()
+            and value != "."
+            and path.as_posix() == value
+            and all(part not in ("", ".", "..") for part in value.split("/"))
+        )
+    if not valid:
+        raise BundleError("bundle paths must be normalized relative POSIX paths")
     return value
-def _manifest(index: object):
-    if not isinstance(index, dict) or not isinstance(index.get("files"), list): raise BundleError("index.json requires files manifest")
-    result = {}
+
+
+def _manifest(index: object) -> dict[str, str]:
+    if not isinstance(index, dict) or not isinstance(index.get("files"), list):
+        raise BundleError("index.json requires files manifest")
+    if len(index["files"]) + 1 > _MAX_FILES:
+        raise BundleError("bundle file count exceeds maximum")
+    result: dict[str, str] = {}
     for item in index["files"]:
-        if not isinstance(item, dict) or set(item) != {"path", "sha256"}: raise BundleError("manifest records require path and sha256")
-        path = _path(item["path"]); digest = item["sha256"]
-        if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest): raise BundleError("manifest sha256 is invalid")
-        if path in result: raise BundleError("manifest has duplicate path")
+        if not isinstance(item, dict) or set(item) != {"path", "sha256"}:
+            raise BundleError("manifest records require path and sha256")
+        path = _path(item["path"])
+        digest = item["sha256"]
+        if not isinstance(digest, str) or _SHA256.fullmatch(digest) is None:
+            raise BundleError("manifest sha256 is invalid")
+        if path == "index.json":
+            raise BundleError("manifest must not contain index.json")
+        if path in result:
+            raise BundleError("manifest has duplicate path")
         result[path] = digest
     return result
+
+
 def validate_bundle(root: str | Path) -> list[str]:
-    root = Path(root); errors=[]
+    """Return deterministic bundle validation errors without raising."""
+
+    root = Path(root)
+    errors: list[str] = []
+    try:
+        if not root.is_dir() or root.is_symlink():
+            return ["bundle root is invalid"]
+        index_data = (root / "index.json").read_bytes()
+        index = _load(index_data)
+        manifest = _manifest(index)
+        actual: dict[str, str] = {}
+        total_bytes = 0
+        for item in root.rglob("*"):
+            relative = item.relative_to(root).as_posix()
+            if item.is_symlink():
+                errors.append(f"symlink is forbidden: {relative}")
+            elif item.is_file():
+                if len(actual) + 1 > _MAX_FILES:
+                    errors.append("bundle file count exceeds maximum")
+                    break
+                data = item.read_bytes()
+                total_bytes += len(data)
+                if total_bytes > _MAX_BYTES:
+                    errors.append("bundle total size exceeds maximum")
+                    break
+                parsed = _load(data)
+                if canonical_bytes(parsed) != data:
+                    errors.append(f"noncanonical file: {relative}")
+                actual[relative] = _hash(data)
+        expected = set(manifest) | {"index.json"}
+        if set(actual) != expected:
+            errors.append("bundle files do not match manifest")
+        for path, digest in manifest.items():
+            if actual.get(path) != digest:
+                errors.append(f"stale hash: {path}")
+    except (OSError, BundleError, OverflowError, RecursionError, TypeError, ValueError) as exc:
+        errors.append(str(exc))
+    return sorted(set(errors))
+
+
+def write_bundle(
+    output: str | Path,
+    files: Mapping[str, object],
+    *,
+    force: bool = False,
+) -> Path:
+    """Validate and atomically publish a new bundle, restoring forced output on failure."""
+
+    target = Path(output)
+    if not isinstance(files, Mapping) or "index.json" not in files:
+        raise BundleError("bundle requires index.json")
+    if len(files) > _MAX_FILES:
+        raise BundleError("bundle file count exceeds maximum")
+    if target.exists() and (not target.is_dir() or any(target.iterdir())) and not force:
+        raise BundleError("output already exists and is non-empty")
+
+    prepared: dict[str, bytes] = {}
+    for raw_path, value in files.items():
+        path = _path(raw_path)
+        if path in prepared:
+            raise BundleError("bundle contains duplicate path")
+        prepared[path] = canonical_bytes(canonical_value(value, path))
+    index = _load(prepared["index.json"])
+    if not isinstance(index, dict):
+        raise BundleError("index.json must be an object")
+    index = dict(index)
+    index["files"] = [
+        {"path": path, "sha256": _hash(data)}
+        for path, data in sorted(prepared.items())
+        if path != "index.json"
+    ]
+    prepared["index.json"] = canonical_bytes(index)
+    if sum(len(data) for data in prepared.values()) > _MAX_BYTES:
+        raise BundleError("bundle total size exceeds maximum")
+
+    transaction = target.parent / f".hypothesis-txn-{uuid.uuid4().hex}"
+    backup = target.parent / f".hypothesis-backup-{uuid.uuid4().hex}"
     moved_backup = False
     published = False
     try:
-        if not root.is_dir() or root.is_symlink(): return ["bundle root is invalid"]
-        index_data=(root/"index.json").read_bytes(); index=_load(index_data); manifest=_manifest(index)
-        actual={}
-        for item in root.rglob("*"):
-            if item.is_symlink(): errors.append(f"symlink is forbidden: {item.relative_to(root).as_posix()}")
-            elif item.is_file():
-                rel=item.relative_to(root).as_posix(); data=item.read_bytes(); parsed=_load(data)
-                if canonical_bytes(canonical_value(parsed)) != data: errors.append(f"noncanonical file: {rel}")
-                actual[rel]=_hash(data)
-        expected=set(manifest)|{"index.json"}
-        if set(actual)!=expected: errors.append("bundle files do not match manifest")
-        for path,digest in manifest.items():
-            if actual.get(path)!=digest: errors.append(f"stale hash: {path}")
-    except (OSError, BundleError, ValueError) as exc: errors.append(str(exc))
-    return sorted(set(errors))
-def write_bundle(output: str | Path, files: Mapping[str,object], *, force=False) -> Path:
-    target=Path(output); prepared={}
-    if not isinstance(files, Mapping) or "index.json" not in files: raise BundleError("bundle requires index.json")
-    if target.exists() and (not target.is_dir() or any(target.iterdir())) and not force: raise BundleError("output already exists and is non-empty")
-    for path,value in files.items(): prepared[_path(path)] = canonical_bytes(canonical_value(value, path))
-    index=_load(prepared["index.json"])
-    if not isinstance(index,dict): raise BundleError("index.json must be an object")
-    index=dict(index); index["files"]=[{"path":p,"sha256":_hash(data)} for p,data in sorted(prepared.items()) if p!="index.json"]; prepared["index.json"]=canonical_bytes(index)
-    txn=target.parent/f".hypothesis-txn-{uuid.uuid4().hex}"; backup=target.parent/f".hypothesis-backup-{uuid.uuid4().hex}"
-    try:
-        txn.mkdir(parents=True)
-        for path,data in prepared.items():
-            dest=txn/path; dest.parent.mkdir(parents=True,exist_ok=True); dest.write_bytes(data)
-        errors=validate_bundle(txn)
-        if errors: raise BundleError("bundle verification failed: "+"; ".join(errors))
+        transaction.mkdir(parents=True)
+        for path, data in prepared.items():
+            destination = transaction / Path(*PurePosixPath(path).parts)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
+        errors = validate_bundle(transaction)
+        if errors:
+            raise BundleError("bundle verification failed: " + "; ".join(errors))
         if target.exists():
             target.replace(backup)
             moved_backup = True
-        txn.replace(target)
+        transaction.replace(target)
         published = True
-        if backup.exists(): shutil.rmtree(backup)
+        if backup.exists():
+            shutil.rmtree(backup)
         return target
     except BaseException as exc:
         if moved_backup and backup.exists():
@@ -93,4 +203,5 @@ def write_bundle(output: str | Path, files: Mapping[str,object], *, force=False)
             raise
         raise BundleError(f"cannot publish bundle: {exc}") from exc
     finally:
-        if txn.exists(): shutil.rmtree(txn,ignore_errors=True)
+        if transaction.exists():
+            shutil.rmtree(transaction, ignore_errors=True)

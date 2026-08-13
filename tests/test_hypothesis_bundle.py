@@ -33,6 +33,52 @@ class BundleTests(unittest.TestCase):
             (output / "index.json").write_text('{"files": [], "schema_version": 1}\n', encoding="utf-8")
             self.assertTrue(validate_bundle(output))
 
+    def test_windows_drive_relative_path_is_rejected(self):
+        with tempfile.TemporaryDirectory() as raw:
+            output = Path(raw) / "out"
+            with self.assertRaisesRegex(BundleError, "paths"):
+                write_bundle(
+                    output,
+                    {"index.json": {"schema_version": 1}, "C:escape.json": {}},
+                )
+
+    def test_file_count_and_total_byte_budgets_are_enforced(self):
+        with tempfile.TemporaryDirectory() as raw:
+            output = Path(raw) / "out"
+            with mock.patch(
+                "assurance.hypothesis.bundle._MAX_FILES", 2
+            ), self.assertRaisesRegex(BundleError, "file count"):
+                write_bundle(
+                    output,
+                    {
+                        "index.json": {"schema_version": 1},
+                        "one.json": {},
+                        "two.json": {},
+                    },
+                )
+            with mock.patch(
+                "assurance.hypothesis.bundle._MAX_BYTES", 32
+            ), self.assertRaisesRegex(BundleError, "total size"):
+                write_bundle(
+                    output,
+                    {
+                        "index.json": {"schema_version": 1},
+                        "large.json": {"value": "x" * 64},
+                    },
+                )
+
+    def test_deep_json_returns_validation_error_without_traceback(self):
+        with tempfile.TemporaryDirectory() as raw:
+            output = Path(raw) / "out"
+            write_bundle(output, {"index.json": {"schema_version": 1}})
+            (output / "index.json").write_text(
+                "[" * 1100 + "0" + "]" * 1100,
+                encoding="utf-8",
+            )
+            errors = validate_bundle(output)
+            self.assertTrue(errors)
+            self.assertTrue(any("JSON" in item or "depth" in item for item in errors))
+
     def test_nonempty_output_requires_force(self):
         with tempfile.TemporaryDirectory() as raw:
             output = Path(raw) / "out"; output.mkdir(); (output / "old.txt").write_text("old")
