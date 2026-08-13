@@ -3,6 +3,7 @@
 CMakeLists.txt text eol=lf
 *.json text eol=lf
 *.urdf text eol=lf
+*.xacro text eol=lf
 *.sdf text eol=lf
 *.srdf text eol=lf
 *.yaml text eol=lf
@@ -10,6 +11,7 @@ CMakeLists.txt text eol=lf
 *.xml text eol=lf
 *.txt text eol=lf
 *.rviz text eol=lf
+*.pgm text eol=lf
 *.md text eol=lf
 *.py text eol=lf
 *.ps1 text eol=crlf

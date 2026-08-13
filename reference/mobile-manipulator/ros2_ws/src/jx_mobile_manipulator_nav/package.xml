@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>jx_mobile_manipulator_nav</name><version>0.5.0</version><description>Bounded Nav2 configuration for the reference base.</description>
+  <maintainer email="maintainers@example.invalid">Jingxin Digital Intelligence</maintainer><license>Apache-2.0</license>
+  <buildtool_depend>ament_cmake</buildtool_depend><depend>jx_mobile_manipulator_description</depend><depend>nav2_bringup</depend>
+  <depend>nav2_map_server</depend><depend>nav2_lifecycle_manager</depend><export><build_type>ament_cmake</build_type></export>
+</package>
