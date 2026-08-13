@@ -144,3 +144,4 @@ jobs:
           name: robotics-design-suite-release-install
           path: .release-install
           if-no-files-found: error
+          include-hidden-files: true

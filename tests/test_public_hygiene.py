@@ -180,6 +180,7 @@ class PublicHygieneTests(unittest.TestCase):
             "__pycache__",
             "host-runtime.md",
             "assurance/hypothesis/engine.py",
+            "include-hidden-files: true",
         ):
             self.assertIn(required, ci)
 
