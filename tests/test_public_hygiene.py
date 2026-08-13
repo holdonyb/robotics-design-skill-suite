@@ -27,6 +27,8 @@ REQUIRED = {
     "skills/robotics-design/references/hypothesis-engine-contract.md",
     "skills/robotics-design/scripts/validate_design_contract.py",
     "skills/robotics-design/scripts/generate_design_hypotheses.py",
+    "skills/robotics-design/scripts/validate_simulation_bundle.py",
+    "skills/robotics-design/references/simulation-evidence-contract.md",
     "reference/mobile-manipulator/design-contract.json",
     "reference/mobile-manipulator/hypothesis-space.json",
     "reference/mobile-manipulator/hypothesis-expected.json",
@@ -127,6 +129,15 @@ class PublicHygieneTests(unittest.TestCase):
         optional = {"references/host-runtime.md"}
         missing = sorted(item for item in references - optional if not (skill_root / item).is_file())
         self.assertEqual(missing, [])
+
+    def test_distribution_validator_requires_simulation_evidence_boundary(self):
+        validator = (ROOT / "scripts" / "validate.py").read_text(encoding="utf-8")
+        for phrase in (
+            "simulation-evidence-contract.md",
+            "validate_simulation_bundle.py",
+            "Training callbacks have no actuator interface",
+        ):
+            self.assertIn(phrase, validator)
 
     def test_tracked_distribution_excludes_generated_bytecode(self):
         completed = subprocess.run(

@@ -54,6 +54,8 @@ def validate() -> list[str]:
         "mission-animation-contract.md",
         "patent-design-around.md",
         "physical-plausibility-contract.md",
+        "hypothesis-engine-contract.md",
+        "simulation-evidence-contract.md",
     }
     actual_refs = {path.name for path in (router / "references").glob("*.md")}
     missing_refs = required_refs - actual_refs
@@ -83,6 +85,9 @@ def validate() -> list[str]:
     physical_validator = router / "scripts" / "validate_design_contract.py"
     if not physical_validator.is_file():
         errors.append("robotics-design physical contract validator is missing")
+    simulation_validator = router / "scripts" / "validate_simulation_bundle.py"
+    if not simulation_validator.is_file():
+        errors.append("robotics-design simulation evidence validator is missing")
     required_workflow_clauses = {
         "references/mission-animation-contract.md",
         "references/patent-design-around.md",
@@ -91,6 +96,9 @@ def validate() -> list[str]:
         "references/physical-plausibility-contract.md",
         "validate_design_contract.py",
         "Simulation cannot supply a missing component",
+        "references/simulation-evidence-contract.md",
+        "validate_simulation_bundle.py",
+        "Training callbacks have no actuator interface",
     }
     missing_workflows = sorted(
         clause for clause in required_workflow_clauses if clause not in skill_text
