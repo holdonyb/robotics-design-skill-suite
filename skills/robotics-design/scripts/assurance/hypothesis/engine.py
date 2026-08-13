@@ -340,6 +340,7 @@ def run_space(
     files: dict[str, Any] = {}
     lineage: list[CandidateLineage] = []
     vectors: dict[str, ObjectiveVector] = {}
+    screening_vectors: dict[str, ObjectiveVector] = {}
     canonical_keys: dict[str, str] = {}
     blocking_diagnostics: list[dict[str, str]] = []
     accepted_count = 0
@@ -406,6 +407,25 @@ def run_space(
                     )
                     vectors[candidate_id] = vector
                     files[f"candidates/{candidate_id}/objectives.json"] = vector.to_dict()
+                    blocking_codes = {
+                        item.get("code")
+                        for item in report.get("diagnostics", [])
+                        if isinstance(item, dict)
+                        and item.get("severity") in {"error", "indeterminate"}
+                    }
+                    analyses_pass = all(
+                        isinstance(item, dict) and item.get("passed") is True
+                        for item in report.get("analyses", [])
+                    )
+                    if (
+                        analyses_pass
+                        and blocking_codes == {"BOM.PLACEHOLDER_BLOCKS_CLAIM"}
+                        and set(vector.values)
+                        == {item["id"] for item in space["objectives"]}
+                    ):
+                        screening_vectors[candidate_id] = ObjectiveVector(
+                            candidate_id, dict(vector.values), {}, True
+                        )
 
                 if space["uncertainties"]:
                     total_cases, required_extra = _uncertainty_work(
@@ -499,9 +519,17 @@ def run_space(
                         for item in physical.to_dict().get("diagnostics", [])
                         if isinstance(item, dict)
                     ]
+                    repairable_codes = {
+                        rule["diagnostic_code"] for rule in space["repair_rules"]
+                    }
+                    repairable_diagnostics = [
+                        item
+                        for item in diagnostics
+                        if item.get("code") in repairable_codes
+                    ]
                     try:
                         diagnostic, rule = select_repair(
-                            diagnostics, space["repair_rules"]
+                            repairable_diagnostics, space["repair_rules"]
                         )
                         child, trace = repair(
                             candidate,
@@ -605,6 +633,12 @@ def run_space(
             else {"fronts": [], "dominance_edges": [], "ineligible": []}
         )
         files["pareto.json"] = pareto
+        screening_pareto = (
+            pareto_fronts(screening_vectors, directions).to_dict()
+            if directions and screening_vectors
+            else {"fronts": [], "dominance_edges": [], "ineligible": []}
+        )
+        files["screening-pareto.json"] = screening_pareto
         result = HypothesisResult(
             space_id=space["space_id"],
             space_sha256=space_sha256,
