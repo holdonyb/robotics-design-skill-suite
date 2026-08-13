@@ -35,6 +35,8 @@ The contract must contain:
 - evidence edges that explicitly support each quantity or artifact they claim.
 
 Bare physical numbers and inferred units are invalid. Supported evidence
+Typed quantity and tolerance objects are closed to exactly `value` and `unit`.
+Supported evidence
 levels are `assumed`, `generated`, `parsed`, `calculated`, `simulated`,
 `bench-tested`, `integrated-hardware-tested`, `task-validated`, and
 `certified`. These levels order evidence strength; they never automatically

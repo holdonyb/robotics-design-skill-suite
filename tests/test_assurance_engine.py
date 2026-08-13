@@ -280,6 +280,29 @@ class AssuranceEngineTests(unittest.TestCase):
             any(item.code == "PHY.ANALYSIS.RATING_LIMIT" for item in report.diagnostics)
         )
 
+    def test_quantity_value_and_tolerance_objects_are_closed(self):
+        for field in ("value", "tolerance"):
+            with self.subTest(field=field):
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    root = Path(temp_dir)
+                    contract, _ = write_fixture(root)
+                    data = json.loads(contract.read_text(encoding="utf-8"))
+                    quantity = next(
+                        item for item in data["quantities"] if item["id"] == "Q-RUNTIME"
+                    )
+                    if field == "value":
+                        quantity["value"]["hidden"] = "x"
+                    else:
+                        quantity["tolerance"] = {
+                            "value": 1,
+                            "unit": "s",
+                            "hidden": "x",
+                        }
+                    contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    report, errors = evaluate_contract(contract)
+                self.assertIsNone(report)
+                self.assertTrue(any("exactly value and unit" in error for error in errors))
+
     def test_unknown_analysis_plugin_is_indeterminate(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             contract, _ = write_fixture(Path(temp_dir), "imaginary_solver")

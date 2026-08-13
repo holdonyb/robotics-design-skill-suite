@@ -36,6 +36,16 @@ class AssuranceUnitTests(unittest.TestCase):
         with self.assertRaisesRegex(QuantityError, "object with value and unit"):
             to_si(5, "torque")
 
+    def test_typed_quantity_object_is_closed(self):
+        for record in (
+            {"value": 5, "unit": "N*m", "hidden": "x"},
+            {"value": 5},
+            {"unit": "N*m"},
+        ):
+            with self.subTest(record=record):
+                with self.assertRaisesRegex(QuantityError, "exactly value and unit"):
+                    to_si(record, "torque")
+
     def test_bool_nan_infinity_and_unknown_unit_fail_closed(self):
         for value in (True, float("nan"), float("inf"), -float("inf"), 10**1000):
             with self.subTest(value=value):

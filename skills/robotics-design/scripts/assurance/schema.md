@@ -23,7 +23,9 @@ has `id`, `statement`, `confidence` (`low`, `medium`, or `high`), `owner`,
 A quantity has `id`, `dimension`, explicit `value` (`{"value": number,
 "unit": string}`), `owner`, `source` (`evidence:ID`), and `evidence_level`.
 Optional `tolerance` uses the same dimension. Bare numbers, booleans,
-non-finite values, guessed units, and dimension mismatches are errors.
+non-finite values, guessed units, dimension mismatches, missing keys, and
+unknown keys are errors; every value/tolerance object contains exactly
+`value` and `unit`.
 Optional `observation` binds the owned value to a normalized artifact location
 using `artifact:ID#normalized.path`; the drift gate compares it in SI units.
 

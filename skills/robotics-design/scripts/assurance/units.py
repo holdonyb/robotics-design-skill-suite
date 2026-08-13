@@ -54,6 +54,10 @@ def to_si(record: Any, expected_dimension: str, path: str = "quantity") -> float
         raise QuantityError(f"{path}: unsupported dimension: {expected_dimension}")
     if not isinstance(record, dict):
         raise QuantityError(f"{path}: quantity must be an object with value and unit")
+    if set(record) != {"value", "unit"}:
+        raise QuantityError(
+            f"{path}: quantity object must contain exactly value and unit"
+        )
 
     value = record.get("value")
     unit = record.get("unit")
