@@ -15,7 +15,7 @@ description, ROS 2, and simulation skills to audited commits.
   CI, merge, tag, and GitHub Release complete.
 - v1 architecture and autonomy boundary: `0e03e58`.
 - v0.3 implementation plan: `f0ca0a0`, with portable command fix `ccc1697`.
-- Physical-assurance implementation: `b975a3e` through `aaf8f6b`.
+- Physical-assurance implementation: `b975a3e` through `9941003`.
 - Local-delta classification: `b2c5b95`; no active installed skill was
   overwritten during classification or implementation.
 - Third-party source locks remain unchanged from `v0.2.0`.
@@ -26,46 +26,55 @@ The candidate adds a closed schema-v1 design contract and deterministic
 physical evidence report with:
 
 - explicit SI-normalized quantities, single ownership, evidence source and
-  level, hash binding, and quantity-to-evidence support edges;
+  level, hash binding, quantity-to-evidence support edges, and plug-in-specific
+  expected dimensions for flat and nested analysis inputs;
 - architecture-derived component roles and exact responsibility bindings for
-  differential drive, battery power, every arm actuator, moving cables, and a
-  holding-brake function;
+  separate left/right drive units, battery power, every arm actuator, moving
+  cables, and a holding-brake function, including driven-wheel cardinality;
 - verified-part identity requirements and fail-closed handling for missing or
   claim-driving `engineering_placeholder` components;
 - safe URDF observations for mass, joint semantics/limits, and transmissions,
-  plus owned-value drift and stale-artifact detection;
+  bounded declared-JSON observations for other exporters, plus owned-value
+  drift, checkout-stable hashes, and stale-artifact detection;
 - conservative `drivetrain_v1`, `battery_v1`, `stability_v1`,
-  `arm_gravity_v1`, and `thermal_duty_v1` analytical plug-ins;
+  `arm_gravity_v1`, and `thermal_duty_v1` analytical plug-ins with required
+  architecture/requirement coverage, finite derived outputs, explicit downhill
+  braking noncoverage, and worst-direction static-slope projection;
 - deterministic JSON reporting and CLI exit codes: `0` promotable, `1`
   physical failure/indeterminate, `2` invalid invocation or contract;
 - a differential-drive plus six-axis-arm reference fixture with 32 critical
   fault mutations, including slope-induced support-boundary violation.
 
-The reference candidate intentionally remains unpromoted. All 39 component
+The reference candidate intentionally remains unpromoted. All 44 component
 records are engineering placeholders supporting the physical requirement; its
 successful calculations mean only that the declared regression assumptions
 satisfy the implemented conservative equations.
 
 ## Latest Verified Evidence
 
-On 2026-08-13, at release-candidate commit `b411b2d`:
+On 2026-08-13, at release-candidate commit `9941003`:
 
-- Python 3.11 full repository suite: 103/103 passed;
-- Python 3.12.12 full repository suite: 103/103 passed;
-- focused routing and public-hygiene suite: 18/18 passed;
+- Python 3.11 full repository suite: 122/122 passed;
+- Python 3.12.12 full repository suite: 122/122 passed;
 - `scripts/validate.py`: 10 skills and 3 pinned sources valid;
 - `scripts/install.py --dry-run`: complete 10-skill plan with no writes;
 - reference physical CLI: exit `1` as designed, report emitted, only
   `BOM.PLACEHOLDER_BLOCKS_CLAIM` diagnostics;
-- `git diff --check`: clean.
-- fresh pinned-source network install: 10 skills installed into a new ignored
-  destination with a generated Python 3.12 host overlay;
+- `git diff --check`: clean;
+- a clean Windows checkout with `core.autocrlf=true` retained LF bytes for
+  hash-bound URDF/JSON evidence, produced the expected reference CLI result,
+  and passed the complete reference-robot tests;
+- fresh pinned-source network install artifact: 10 skills installed into a new
+  ignored destination with a generated Python 3.12 host overlay and the exact
+  `plugin_contracts.py` hash from `9941003`;
 - official skill validator using UTF-8 mode: 10/10 installed skills valid;
 - fresh install retained 9/9 upstream-license copies and contained zero
   `__pycache__`, `.pyc`, `.pyo`, or transaction-residue paths.
 
-Independent adversarial review, GitHub CI, merge, tag, and release evidence are
-still pending and must not be reported as complete.
+The first independent adversarial review found two Critical and eight Important
+issues; `17ce2c3` and `9941003` remediate them. Independent re-review, GitHub CI,
+merge, tag, and release evidence are still pending and must not be reported as
+complete.
 
 ## Run and Validate
 
@@ -120,9 +129,9 @@ report with all five analyses passing.
 
 ## Next Action
 
-Run the fresh Python 3.11/3.12 matrix and network installation, then request an
-independent adversarial review against `v0.2.0`. Resolve all Critical and
-Important findings before publishing the v0.3 pull request.
+Receive the independent re-review verdict for `9941003`, resolve any remaining
+Critical or Important findings, then publish the v0.3 pull request and require
+green GitHub CI before merge, tag, and release.
 
 ## Durable Design Sources
 
