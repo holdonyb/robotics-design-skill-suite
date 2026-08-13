@@ -15,7 +15,7 @@ description, ROS 2, and simulation skills to audited commits.
   CI, merge, tag, and GitHub Release complete.
 - v1 architecture and autonomy boundary: `0e03e58`.
 - v0.3 implementation plan: `f0ca0a0`, with portable command fix `ccc1697`.
-- Physical-assurance implementation: `b975a3e` through `9941003`.
+- Physical-assurance implementation: `b975a3e` through `329c3b4`.
 - Local-delta classification: `b2c5b95`; no active installed skill was
   overwritten during classification or implementation.
 - Third-party source locks remain unchanged from `v0.2.0`.
@@ -32,30 +32,34 @@ physical evidence report with:
   separate left/right drive units, battery power, every arm actuator, moving
   cables, and a holding-brake function, including driven-wheel cardinality;
 - verified-part identity requirements and fail-closed handling for missing or
-  claim-driving `engineering_placeholder` components;
+  claim-driving `engineering_placeholder` components, with URL/date/hash-bound
+  source evidence and closed role-specific component limits;
 - safe URDF observations for mass, joint semantics/limits, and transmissions,
   bounded declared-JSON observations for other exporters, plus owned-value
   drift, checkout-stable hashes, and stale-artifact detection;
 - conservative `drivetrain_v1`, `battery_v1`, `stability_v1`,
   `arm_gravity_v1`, and `thermal_duty_v1` analytical plug-ins with required
-  architecture/requirement coverage, finite derived outputs, explicit downhill
-  braking noncoverage, and worst-direction static-slope projection;
+  reciprocal architecture/requirement coverage, exact rating ownership,
+  per-drive/per-actuator thermal coverage, finite derived outputs, explicit
+  downhill braking noncoverage, and worst-direction static-slope projection;
 - deterministic JSON reporting and CLI exit codes: `0` promotable, `1`
   physical failure/indeterminate, `2` invalid invocation or contract;
 - a differential-drive plus six-axis-arm reference fixture with 32 critical
   fault mutations, including slope-induced support-boundary violation.
 
-The reference candidate intentionally remains unpromoted. All 44 component
-records are engineering placeholders supporting the physical requirement; its
-successful calculations mean only that the declared regression assumptions
-satisfy the implemented conservative equations.
+The reference candidate intentionally remains unpromoted. All 49 component
+records are engineering placeholders supporting the physical requirement. Its
+13 analysis instances across five plug-in families use separate left/right
+drive ratings, six per-joint motor/brake paths, and eight motor-specific thermal
+checks. Successful calculations mean only that the declared regression
+assumptions satisfy the implemented conservative equations.
 
 ## Latest Verified Evidence
 
-On 2026-08-13, at release-candidate commit `9941003`:
+On 2026-08-13, at release-candidate commit `329c3b4`:
 
-- Python 3.11 full repository suite: 122/122 passed;
-- Python 3.12.12 full repository suite: 122/122 passed;
+- Python 3.11 full repository suite: 126/126 passed;
+- bundled Python 3.12.13 full repository suite: 126/126 passed;
 - `scripts/validate.py`: 10 skills and 3 pinned sources valid;
 - `scripts/install.py --dry-run`: complete 10-skill plan with no writes;
 - reference physical CLI: exit `1` as designed, report emitted, only
@@ -66,15 +70,16 @@ On 2026-08-13, at release-candidate commit `9941003`:
   and passed the complete reference-robot tests;
 - fresh pinned-source network install artifact: 10 skills installed into a new
   ignored destination with a generated Python 3.12 host overlay and the exact
-  `plugin_contracts.py` hash from `9941003`;
+  `plugin_contracts.py` hash from `329c3b4`;
 - official skill validator using UTF-8 mode: 10/10 installed skills valid;
 - fresh install retained 9/9 upstream-license copies and contained zero
   `__pycache__`, `.pyc`, `.pyo`, or transaction-residue paths.
 
-The first independent adversarial review found two Critical and eight Important
-issues; `17ce2c3` and `9941003` remediate them. Independent re-review, GitHub CI,
-merge, tag, and release evidence are still pending and must not be reported as
-complete.
+Independent adversarial reviews exposed vacuous analysis coverage,
+cross-responsibility rating reuse, missing per-motor thermal coverage, and
+forgeable verified-part provenance; commits through `329c3b4` remediate those
+findings. Immutable re-review of this commit, GitHub CI, merge, tag, and release
+evidence are still pending and must not be reported as complete.
 
 ## Run and Validate
 
@@ -88,7 +93,7 @@ python skills/robotics-design/scripts/validate_design_contract.py reference/mobi
 
 The final command is expected to exit `1` because the reference uses
 claim-driving placeholders. It must still produce a deterministic evidence
-report with all five analyses passing.
+report with all 13 analysis instances passing.
 
 ## Claim Boundary and Open Engineering Risks
 
@@ -129,7 +134,7 @@ report with all five analyses passing.
 
 ## Next Action
 
-Receive the independent re-review verdict for `9941003`, resolve any remaining
+Receive the independent re-review verdict for the final immutable v0.3 commit, resolve any remaining
 Critical or Important findings, then publish the v0.3 pull request and require
 green GitHub CI before merge, tag, and release.
 
