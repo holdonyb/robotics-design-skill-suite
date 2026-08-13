@@ -10,6 +10,7 @@ from .model import (
 )
 from .schema import load_space, validate_space
 from .overlay import OverlayError, ResolvedCandidate, apply_operation, generate_candidates
+from .scheduler import HypothesisScheduler, SchedulerError, default_registry
 
 __all__ = [
     "CandidateDecision",
@@ -26,4 +27,7 @@ __all__ = [
     "ResolvedCandidate",
     "apply_operation",
     "generate_candidates",
+    "HypothesisScheduler",
+    "SchedulerError",
+    "default_registry",
 ]
