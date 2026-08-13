@@ -11,8 +11,10 @@ from .canonical import (
     canonical_bytes,
     canonical_value,
     validate_assignments,
+    validate_candidate_id,
     validate_identifier,
     validate_integer,
+    validate_optional_candidate_id,
     validate_optional_identifier,
     validate_sha256,
 )
@@ -67,7 +69,7 @@ class CandidateDecision:
         object.__setattr__(self, "base_sha256", validate_sha256(self.base_sha256, "base_sha256"))
         object.__setattr__(self, "assignments", MappingProxyType(validate_assignments(self.assignments)))
         object.__setattr__(self, "seed", validate_integer(self.seed, "seed"))
-        object.__setattr__(self, "parent_id", validate_optional_identifier(self.parent_id, "parent_id"))
+        object.__setattr__(self, "parent_id", validate_optional_candidate_id(self.parent_id, "parent_id"))
         object.__setattr__(self, "repair_rule_id", validate_optional_identifier(self.repair_rule_id, "repair_rule_id"))
 
     @property
@@ -102,14 +104,14 @@ class CandidateLineage:
     alias_of: str | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "candidate_id", validate_identifier(self.candidate_id, "candidate_id"))
-        object.__setattr__(self, "parent_id", validate_optional_identifier(self.parent_id, "parent_id"))
+        object.__setattr__(self, "candidate_id", validate_candidate_id(self.candidate_id))
+        object.__setattr__(self, "parent_id", validate_optional_candidate_id(self.parent_id, "parent_id"))
         object.__setattr__(self, "assignments", MappingProxyType(validate_assignments(self.assignments)))
         object.__setattr__(self, "repair_rule_id", validate_optional_identifier(self.repair_rule_id, "repair_rule_id"))
         object.__setattr__(self, "resolved_contract_sha256", validate_sha256(self.resolved_contract_sha256, "resolved_contract_sha256"))
         object.__setattr__(self, "evaluation_key", validate_identifier(self.evaluation_key, "evaluation_key"))
         object.__setattr__(self, "status", _status(self.status, "status", _CANDIDATE_STATUSES))
-        object.__setattr__(self, "alias_of", validate_optional_identifier(self.alias_of, "alias_of"))
+        object.__setattr__(self, "alias_of", validate_optional_candidate_id(self.alias_of, "alias_of"))
 
     def to_dict(self) -> dict[str, Any]:
         return {

@@ -83,6 +83,8 @@ class CanonicalIdentityTests(unittest.TestCase):
                     candidate_id(SHA_A, invalid, 1)
         with self.assertRaisesRegex(ValueError, "parent_id"):
             candidate_id(SHA_A, {"axis": "choice"}, 1, parent_id=" ")
+        with self.assertRaisesRegex(ValueError, "parent_id"):
+            candidate_id(SHA_A, {"axis": "choice"}, 1, parent_id="parent-1")
         with self.assertRaisesRegex(ValueError, "repair_rule_id"):
             candidate_id(
                 SHA_A,
@@ -112,6 +114,28 @@ class CanonicalBytesTests(unittest.TestCase):
             canonical_bytes({"bad": object()})
         with self.assertRaisesRegex(ValueError, "canonical JSON"):
             canonical_bytes(10**10000)
+
+    def test_canonical_bytes_rejects_cycles_with_the_failing_path(self):
+        recursive_list = []
+        recursive_list.append(recursive_list)
+        with self.assertRaisesRegex(ValueError, r"value\[0\].*cycle"):
+            canonical_bytes(recursive_list)
+
+        recursive_mapping = {}
+        recursive_mapping["self"] = recursive_mapping
+        with self.assertRaisesRegex(ValueError, r"value\[self\].*cycle"):
+            canonical_bytes(recursive_mapping)
+
+    def test_canonical_bytes_rejects_excessive_nesting_explicitly(self):
+        root = []
+        nested = root
+        for _ in range(70):
+            child = []
+            nested.append(child)
+            nested = child
+
+        with self.assertRaisesRegex(ValueError, "maximum canonical JSON depth"):
+            canonical_bytes(root)
 
 
 class SeededOrderTests(unittest.TestCase):
@@ -145,10 +169,16 @@ class SeededOrderTests(unittest.TestCase):
 
 
 class RecordTests(unittest.TestCase):
-    def make_lineage(self, candidate=CANDIDATE_A, status="accepted", alias_of=None):
+    def make_lineage(
+        self,
+        candidate=CANDIDATE_A,
+        status="accepted",
+        alias_of=None,
+        parent_id=None,
+    ):
         return CandidateLineage(
             candidate_id=candidate,
-            parent_id=None,
+            parent_id=parent_id,
             assignments={"axis-b": "choice-2", "axis-a": "choice-1"},
             repair_rule_id=None,
             resolved_contract_sha256=SHA_B,
@@ -212,6 +242,19 @@ class RecordTests(unittest.TestCase):
         self.assertEqual(lineage.to_dict()["candidate_id"], CANDIDATE_A)
         canonical_bytes(lineage.to_dict())
 
+    def test_candidate_lineage_rejects_malformed_candidate_references(self):
+        invalid_records = (
+            {"candidate": "candidate-" + "A" * 24},
+            {"parent_id": "parent-1"},
+            {"alias_of": "candidate-short"},
+        )
+        for invalid in invalid_records:
+            field = next(iter(invalid))
+            expected_name = "candidate_id" if field == "candidate" else field
+            with self.subTest(field=field):
+                with self.assertRaisesRegex(ValueError, expected_name):
+                    self.make_lineage(**invalid)
+
     def test_stage_spec_validates_dependencies_and_budget(self):
         spec = StageSpec(
             name="objectives",
@@ -239,6 +282,13 @@ class RecordTests(unittest.TestCase):
         )
         self.assertIsInstance(serialized["diagnostics"], list)
         canonical_bytes(serialized)
+
+    def test_stage_result_rejects_nested_cycles_with_the_failing_path(self):
+        recursive_output = {"nested": []}
+        recursive_output["nested"].append(recursive_output)
+
+        with self.assertRaisesRegex(ValueError, r"output\[nested\]\[0\].*cycle"):
+            StageResult("physical", "v1", "passed", SHA_A, SHA_B, recursive_output)
 
     def test_hypothesis_result_sorts_records_and_copies_metadata(self):
         metadata = {"z": 2, "a": {"nested": [1, True]}}
