@@ -8,6 +8,7 @@ from .model import (
     StageResult,
     StageSpec,
 )
+from .schema import load_space, validate_space
 
 __all__ = [
     "CandidateDecision",
@@ -18,4 +19,6 @@ __all__ = [
     "candidate_id",
     "canonical_bytes",
     "seeded_order",
+    "load_space",
+    "validate_space",
 ]

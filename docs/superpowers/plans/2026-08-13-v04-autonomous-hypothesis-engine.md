@@ -618,7 +618,7 @@ nonclaims, and v0.5 next action. Do not claim simulation or hardware evidence.
 ```powershell
 python -m compileall -q scripts tests skills/robotics-design/scripts
 python -m unittest discover -s tests -v
-& 'C:\Users\holdo\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m unittest discover -s tests -v
+py -3.12 -m unittest discover -s tests -v
 python scripts/validate.py
 python scripts/install.py --dry-run
 git diff --check v0.3.0..HEAD
