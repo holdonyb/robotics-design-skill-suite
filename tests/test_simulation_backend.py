@@ -12,6 +12,7 @@ from assurance.simulation.backend import (  # noqa: E402
     BackendResult,
     compare_backends,
     evaluate_independent_dynamics,
+    evaluate_trace_kinematics,
 )
 
 
@@ -94,6 +95,15 @@ class IndependentDynamicsTests(unittest.TestCase):
         self.assertEqual("failed", compare_backends(primary, disagreeing, {"base_distance_m": 0.01, "final_joint_error_rad": 0.01}).status)
         domain_mismatch = BackendResult(SHA_A, SHA_B, "passed", agreeing.metrics, ("slope",))
         self.assertEqual("indeterminate", compare_backends(primary, domain_mismatch, {"base_distance_m": 0.01, "final_joint_error_rad": 0.01}).status)
+
+    def test_trace_primary_uses_separate_integration_before_cross_check(self):
+        primary = evaluate_trace_kinematics(case(left_wheel_rad_s=[0.0, 1.0, 1.0]))
+        independent = evaluate_independent_dynamics(case(left_wheel_rad_s=[0.0, 1.0, 1.0]))
+        primary_distance = next(item.value for item in primary.metrics if item.name == "base_distance_m")
+        independent_distance = next(item.value for item in independent.metrics if item.name == "base_distance_m")
+        self.assertNotEqual(primary_distance, independent_distance)
+        tolerances = {item.name: 1.0 for item in primary.metrics}
+        self.assertEqual("passed", compare_backends(primary, independent, tolerances).status)
 
 
 if __name__ == "__main__":

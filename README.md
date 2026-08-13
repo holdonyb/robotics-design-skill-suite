@@ -104,6 +104,26 @@ candidates. This calculated evidence does not prove simulation or hardware perfo
 See [`hypothesis-engine-contract.md`](skills/robotics-design/references/hypothesis-engine-contract.md)
 and the public [`hypothesis benchmark`](reference/mobile-manipulator/hypothesis-benchmark.md).
 
+## Simulation, replay, and training boundary
+
+Version 0.5 adds a closed simulation-admission receipt, ten deterministic
+reference scenarios, canonical trace bundles with external receipts,
+separate trace-primary and independent planar-dynamics cross-check, bounded calibration, and a
+simulation-only policy callback boundary.
+
+```bash
+python skills/robotics-design/scripts/validate_simulation_bundle.py \
+  --reference-root reference/mobile-manipulator
+```
+
+Exit `0` is a valid portable synthetic replay with every scenario passing; `1`
+is a valid benchmark containing a failed or indeterminate scenario; `2` is
+invalid/tampered input or a fail-closed execution error. The result is not a
+live Gazebo run and does not authorize hardware promotion. The separate
+Linux Jazzy/Harmonic workflow is the consumer-load gate for Gazebo,
+ros2_control, MoveIt, and Nav2; it retains logs and package inventory even on
+failure. See the [`simulation benchmark`](reference/mobile-manipulator/simulation-benchmark.md).
+
 ## Structure-preserving robot renders
 
 Version 0.2.0 prevents image generation from silently changing a robot's mechanism. CAD, URDF, SDF, or an equivalent deterministic model must own topology and pose. A generated image may change materials, surface finish, color, lighting, background, and non-contact environment context only.

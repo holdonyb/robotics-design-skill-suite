@@ -15,13 +15,14 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 2. Read `references/design-contract.md`; establish requirements, assumptions, quantity ownership, and acceptance evidence before interface-driving geometry or code.
 3. Read `references/physical-plausibility-contract.md` before selecting components or claiming physical feasibility; create the machine-readable contract and run its analytical gate before simulation or training.
 4. For multi-concept generation, optimization, a parameter sweep, robustness search, counterexample search, or repair, read `references/hypothesis-engine-contract.md`; run `scripts/generate_design_hypotheses.py` after the physical contract and before simulation.
-5. For any generated product, task, concept, or marketing image of the robot, read `references/visualization-contract.md` before creating references or prompts.
-6. For a task, product, or demonstration animation, read `references/mission-animation-contract.md` before creating trajectories, keyframes, renders, or video.
-7. For patent study, design-around, freedom-to-operate screening, or competitor-inspired mechanisms, read `references/patent-design-around.md` before freezing topology or interfaces.
-8. Load each required sub-skill from the router before editing its artifact.
-9. Run the relevant gates in `references/validation-gates.md`.
-10. Use `references/authority-map.md` for method selection, `references/runtime.md` for environment setup, and `references/source-lock.md` for supply-chain review.
-11. If `references/host-runtime.md` exists, read it for this installation's runtime executable and destination; never copy those host values into project artifacts.
+5. For simulation admission, deterministic trace replay, calibration, or bounded training callbacks, read `references/simulation-evidence-contract.md`; run `scripts/validate_simulation_bundle.py` before making any simulated claim.
+6. For any generated product, task, concept, or marketing image of the robot, read `references/visualization-contract.md` before creating references or prompts.
+7. For a task, product, or demonstration animation, read `references/mission-animation-contract.md` before creating trajectories, keyframes, renders, or video.
+8. For patent study, design-around, freedom-to-operate screening, or competitor-inspired mechanisms, read `references/patent-design-around.md` before freezing topology or interfaces.
+9. Load each required sub-skill from the router before editing its artifact.
+10. Run the relevant gates in `references/validation-gates.md`.
+11. Use `references/authority-map.md` for method selection, `references/runtime.md` for environment setup, and `references/source-lock.md` for supply-chain review.
+12. If `references/host-runtime.md` exists, read it for this installation's runtime executable and destination; never copy those host values into project artifacts.
 
 ## Capability Router
 
@@ -29,6 +30,7 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 |---|---|---|
 | Requirements, architecture, budgets, tradeoffs, verification | `$robotics-design` | Maintain one design contract and verification matrix. |
 | Multi-concept generation, parameter sweep, optimization, robustness, counterexample search, repair | `references/hypothesis-engine-contract.md`, then `$robotics-design` | Resolve finite overlays through the physical gate; publish bounded uncertainty, Pareto, and repair evidence before simulation. |
+| Simulation admission, trace replay, calibration, bounded training | `references/simulation-evidence-contract.md`, then `$ros2-sim` when a live consumer is requested | Portable replay remains `simulated`; live ROS/Gazebo consumer evidence and hardware authorization are separate gates. |
 | Parametric parts, assemblies, brackets, enclosures, STEP, collision geometry | `$cad` | CAD owns geometry and controlled datums. |
 | Purchasable motors, servos, reducers, bearings, brakes, drivers, batteries, electronics | `references/physical-plausibility-contract.md`, then `$step-parts` and `$cad` | Bind exact parts to architecture responsibilities and verify ratings; otherwise retain an unpromoted engineering placeholder. |
 | DXF profiles, panels, drawings, cut layouts | `$dxf`; also `$cad` when derived from 3D | Keep 2D output linked to owning geometry. |
@@ -52,12 +54,13 @@ If a required sub-skill is unavailable, name the missing capability and continue
 4. Bind every declared actuator, power path, moving cable, and safety function to complete component records. A joint is not physically complete merely because it exists in URDF.
 5. Run `python skills/robotics-design/scripts/validate_design_contract.py path/to/design-contract.json --report evidence.json`; preserve its evidence level, signed margins, and failure report.
 6. When several concepts, sweeps, robustness cases, or repairs are requested, run the closed bounded hypothesis space and preserve its manifest receipt. Never rank a candidate that bypassed the physical contract.
-7. Freeze envelopes, datums, support polygon, swept volumes, interfaces, and budgets before detail CAD.
-8. Derive URDF frames and joints from controlled datums. Add SDF and SRDF semantics only after upstream contracts and applicable analytical physical gates pass. Integrate ROS 2 against named, versioned interfaces.
-9. When a communication render is required, pose the authoritative deterministic model, render visible joint/interface references, perform an appearance-only image-to-image pass, then validate its visual manifest before promotion.
-10. When a mission animation is required, plan and validate one trajectory/contact trace, then render robot transforms directly from its accepted samples.
-11. Validate syntax/schema, semantics, cross-artifact invariants, consumer loading, integrated simulation, then hardware. A generator, build, launch, or plausible-looking image alone is not proof of correctness.
-12. Repair the owning artifact, regenerate explicit dependents, and rerun failed plus regression gates:
+7. Before a simulation or training claim, create a simulation-admission receipt, compile closed scenarios, bind traces to an external receipt, and recompute metrics on replay. Treat portable synthetic replay, live ROS/Gazebo consumer execution, calibration, and hardware measurements as different evidence levels.
+8. Freeze envelopes, datums, support polygon, swept volumes, interfaces, and budgets before detail CAD.
+9. Derive URDF frames and joints from controlled datums. Add SDF and SRDF semantics only after upstream contracts and applicable analytical physical gates pass. Integrate ROS 2 against named, versioned interfaces.
+10. When a communication render is required, pose the authoritative deterministic model, render visible joint/interface references, perform an appearance-only image-to-image pass, then validate its visual manifest before promotion.
+11. When a mission animation is required, plan and validate one trajectory/contact trace, then render robot transforms directly from its accepted samples.
+12. Validate syntax/schema, semantics, cross-artifact invariants, consumer loading, integrated simulation, then hardware. A generator, build, launch, or plausible-looking image alone is not proof of correctness.
+13. Repair the owning artifact, regenerate explicit dependents, and rerun failed plus regression gates:
 
 `spec -> model -> simulate/test -> collect trace -> diagnose earliest violated contract -> minimal repair -> rerun -> promote verified pattern`
 
@@ -66,6 +69,7 @@ If a required sub-skill is unavailable, name the missing capability and continue
 - Never present assumed dimensions, inertias, limits, payloads, friction, or test evidence as measured fact.
 - Never promote a declared actuator without explicitly bound motor, reducer, bearing, motor driver, interfaces, ratings, provenance, and load path. Simulation cannot supply a missing component.
 - Never begin nominal simulation or training promotion while an applicable analytical physical gate is failed or indeterminate. Fault-injection runs must preserve the upstream failure.
+- Never turn simulated, calibrated-simulation, or training output into a hardware claim. Training callbacks have no actuator interface; real motion still requires explicit human authorization and safety controls.
 - Never rank a candidate that bypassed the physical contract. Hard uncertainty, incomplete objectives, failed ownership, or non-finite values block Pareto eligibility; analytical screening remains separate from promotion.
 - Never claim certification, functional safety, human-safe operation, braking, endurance, payload, or stability without the required analysis and physical evidence.
 - Navigation lidar and depth cameras are not protective safety devices unless the exact components and architecture are certified for that role.

@@ -15,6 +15,8 @@ REQUIRED = {
     "manifest.json",
     "PROJECT_STATUS.md",
     "docs/releases/v0.4-completion-audit.md",
+    "docs/research/2026-08-14-v05-dependency-audit.md",
+    "reference/mobile-manipulator/simulation-benchmark.md",
     "scripts/install.py",
     "scripts/validate.py",
     "skills/robotics-design/SKILL.md",
@@ -32,6 +34,7 @@ REQUIRED = {
     "skills/robotics-design/scripts/validate_visual_manifest.py",
     "skills/robotics-design/scripts/validate_mission_animation_manifest.py",
     ".github/workflows/ci.yml",
+    ".github/workflows/simulation.yml",
     ".gitattributes",
 }
 TEXT_SUFFIXES = {".md", ".py", ".json", ".yml", ".yaml", ".txt"}
@@ -160,6 +163,34 @@ class PublicHygieneTests(unittest.TestCase):
             self.assertIn(phrase, chinese)
         self.assertIn("does not prove simulation or hardware performance", english)
         self.assertIn("不能证明仿真或实机性能", chinese)
+
+    def test_bilingual_docs_expose_simulation_quick_start_and_hardware_boundary(self):
+        english = (ROOT / "README.md").read_text(encoding="utf-8")
+        chinese = (ROOT / "README.zh-CN.md").read_text(encoding="utf-8")
+        for phrase in (
+            "validate_simulation_bundle.py",
+            "portable synthetic replay",
+            "hardware promotion",
+        ):
+            self.assertIn(phrase, english)
+        for phrase in (
+            "validate_simulation_bundle.py",
+            "便携式合成回放",
+            "硬件",
+        ):
+            self.assertIn(phrase, chinese)
+
+    def test_live_simulation_workflow_is_an_additional_gate_not_a_silent_success(self):
+        workflow = (ROOT / ".github/workflows/simulation.yml").read_text(encoding="utf-8")
+        for phrase in (
+            "ubuntu-24.04",
+            "Dockerfile.jazzy-harmonic",
+            "run_live_simulation_gate.sh",
+            "if: always()",
+            "upload-artifact",
+        ):
+            self.assertIn(phrase, workflow)
+        self.assertNotIn("continue-on-error: true", workflow)
 
     def test_ci_compiles_local_skill_runtime_before_tests(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")

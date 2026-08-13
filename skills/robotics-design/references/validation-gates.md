@@ -8,6 +8,8 @@ Record tool versions and distinguish PASS, FAIL, WARN, and NOT RUN.
 | Budgets | Mass/CG/stability, energy/current, thermal, timing | Sensitivity, contingency, vendor curves, measured duty cycle |
 | Physical plausibility | Hash-bound design contract, explicit SI quantities/evidence, complete component bindings, drivetrain/battery/stability/arm-gravity/thermal margins | Exact vendor curves, uncertainty sweeps, full dynamics/structure/thermal models, bench correlation |
 | Hypothesis exploration | Closed finite space, bounded candidates/stages, physical gate per resolved candidate, hard counterexample search, visible Pareto directions, owner-correct repair lineage, external manifest receipt | Calibrated uncertainty distributions, higher-fidelity optimizers, independently reproduced bundles |
+| Simulation replay | Closed admission receipt, canonical scenarios and traces, external receipt, replayed metrics, independent-backend interval comparison | Digest-pinned live ROS/Gazebo consumer execution and retained trace/environment evidence |
+| Training | Closed synthetic observation/action contract, bounded train/evaluation/held-out callback cases, baseline and hard constraints, simulated-only result | Reproducible policy evaluation against independently retained bench or hardware datasets |
 | CAD | Valid solids, dimensions, datums, clearances, interference | STEP re-import, motion, mass properties, manufacturing review |
 | URDF/xacro | Expansion/parser, connected tree, valid axes/limits/inertias | Consumer load, TF assertions, collision review, CAD drift test |
 | SDF | Schema/bundled validation and resource resolution | `gz sdf --check`, stable load, sensors/plugins, real-time evidence |
@@ -51,6 +53,10 @@ Run analytical physical gates before nominal simulation or training. Simulation
 cannot turn a missing component, stale source, invalid unit, failed continuous
 rating, or failed thermal margin into a pass. Preserve the machine-readable
 failure report and rerun it after repairing the owning record or artifact.
+
+Portable trace replay is not a live simulator run; live ROS/Gazebo consumer
+evidence is not hardware authorization. A calibration or training result cannot
+raise the evidence level above its declared dataset and never enables motion.
 
 A plausible image is level 1 evidence at most until its deterministic sources, hashes, landmark review, and promotion manifest pass. Visual review does not replace kinematic, structural, thermal, electrical, manufacturing, or hardware evidence.
 

@@ -106,6 +106,49 @@ def evaluate_independent_dynamics(data: object) -> BackendResult:
     return BackendResult(data["model_sha256"], data["trajectory_sha256"], "passed" if all(item.status == "passed" for item in metrics) else "failed", metrics, ("level_ground",) if slope == 0 else ("uphill_planar",))
 
 
+def evaluate_trace_kinematics(data: object) -> BackendResult:
+    """Derive a primary result from a uniformly sampled wheel trace.
+
+    Unlike the independent adapter, this deliberately uses trapezoidal
+    integration of endpoint wheel speeds.  It is a separate implementation so
+    the cross-check cannot silently compare one function's output to itself.
+    """
+    if not isinstance(data, dict):
+        raise BackendError("trace dynamics input must be an object")
+    # Reuse the strict input-domain validator, then perform a distinct numerical
+    # reduction over already validated canonical scalar/list values.
+    checked = evaluate_independent_dynamics(data)
+    stamps = data["timestamps_ns"]
+    left = data["left_wheel_rad_s"]
+    right = data["right_wheel_rad_s"]
+    radius = float(data["wheel_radius_m"])
+    separation = float(data["wheel_separation_m"])
+    distance = yaw = 0.0
+    for index in range(1, len(stamps)):
+        dt = (stamps[index] - stamps[index - 1]) / 1_000_000_000
+        linear_previous = radius * (left[index - 1] + right[index - 1]) / 2
+        linear_current = radius * (left[index] + right[index]) / 2
+        angular_previous = radius * (right[index - 1] - left[index - 1]) / separation
+        angular_current = radius * (right[index] - left[index]) / separation
+        distance += (linear_previous + linear_current) * dt / 2
+        yaw += (angular_previous + angular_current) * dt / 2
+    replaced = []
+    for metric in checked.metrics:
+        if metric.name == "base_distance_m":
+            replaced.append(BackendMetric(metric.name, metric.unit, distance, distance, distance, metric.status))
+        elif metric.name == "base_yaw_rad":
+            replaced.append(BackendMetric(metric.name, metric.unit, yaw, yaw, yaw, metric.status))
+        else:
+            replaced.append(metric)
+    return BackendResult(
+        checked.model_sha256,
+        checked.trajectory_sha256,
+        checked.status,
+        tuple(replaced),
+        checked.validity_domain,
+    )
+
+
 def compare_backends(primary: BackendResult, independent: BackendResult, tolerances: object) -> BackendResult:
     if not isinstance(primary, BackendResult) or not isinstance(independent, BackendResult) or not isinstance(tolerances, dict):
         raise BackendError("backends and tolerances have invalid types")

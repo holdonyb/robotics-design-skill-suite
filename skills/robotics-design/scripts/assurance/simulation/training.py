@@ -34,6 +34,7 @@ _FIELDS = {
     "observation",
     "action",
     "reward_weights",
+    "baseline_mean_reward",
     "hard_constraints",
     "budgets",
     "train_seeds",
@@ -102,6 +103,7 @@ def _validate_contract_or_raise(value: object) -> dict[str, Any]:
     for name, raw in reward_weights.items():
         if not -10_000 <= _finite(raw, f"reward_weights.{name}") <= 10_000:
             raise TrainingError(f"reward_weights.{name} is outside the safe range")
+    _finite(data["baseline_mean_reward"], "baseline_mean_reward")
 
     constraints = data["hard_constraints"]
     if not isinstance(constraints, dict) or set(constraints) != _CONSTRAINT_FIELDS:
@@ -193,6 +195,8 @@ class PolicyResult:
     evidence_level: str
     physical_blockers: tuple[str, ...]
     mean_reward: float
+    evaluation_count: int
+    held_out_evaluation_count: int
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -201,6 +205,8 @@ class PolicyResult:
             "evidence_level": self.evidence_level,
             "physical_blockers": list(self.physical_blockers),
             "mean_reward": self.mean_reward,
+            "evaluation_count": self.evaluation_count,
+            "held_out_evaluation_count": self.held_out_evaluation_count,
         }
 
 
@@ -221,11 +227,33 @@ def evaluate_policy(
         raise TrainingError("callback must be callable")
     blockers = _validated_physical_receipt(physical_report, checked_contract)
 
-    observation = {"scan_m": [1.0], "joint_rad": [0.0]}
+    cases = [
+        ("train", seed, None) for seed in checked_contract["train_seeds"]
+    ] + [
+        ("evaluation", seed, None) for seed in checked_contract["evaluation_seeds"]
+    ] + [
+        ("held_out", seed, fault)
+        for fault in checked_contract["held_out_faults"]
+        for seed in checked_contract["evaluation_seeds"]
+    ]
+    if len(cases) > checked_contract["budgets"]["episodes"]:
+        raise TrainingError("episodes budget is smaller than required train/evaluation cases")
+    if len(cases) > checked_contract["budgets"]["steps"]:
+        raise TrainingError("steps budget is smaller than required callback steps")
     started = time.monotonic()
     tracemalloc.start()
     try:
-        result = callback(copy.deepcopy(observation))
+        results = []
+        for phase, seed, fault_id in cases:
+            observation = {
+                "scan_m": [1.0],
+                "joint_rad": [0.0],
+                "phase": phase,
+                "seed": seed,
+                "fault_id": fault_id,
+                "randomization": copy.deepcopy(checked_contract["randomization"]),
+            }
+            results.append(callback(copy.deepcopy(observation)))
         _, peak_bytes = tracemalloc.get_traced_memory()
     except Exception as exc:
         raise TrainingError(f"callback failed: {exc}") from None
@@ -237,24 +265,27 @@ def evaluate_policy(
     if peak_bytes > checked_contract["budgets"]["memory_mb"] * 1024 * 1024:
         raise TrainingError("callback exceeds memory budget")
 
-    if not isinstance(result, dict) or set(result) != set(_ACTION_FIELDS):
-        raise TrainingError("callback action fields are invalid")
-    linear = _finite(result["linear_m_s"], "callback linear")
-    angular = _finite(result["angular_rad_s"], "callback angular")
+    accepted_results = []
+    for index, result in enumerate(results):
+        if not isinstance(result, dict) or set(result) != {*_ACTION_FIELDS, "mean_reward"}:
+            raise TrainingError("callback action fields are invalid")
+        linear = _finite(result["linear_m_s"], "callback linear")
+        angular = _finite(result["angular_rad_s"], "callback angular")
+        reported_reward = _finite(result["mean_reward"], "callback mean_reward")
+        accepted_results.append((linear, angular, reported_reward))
     constraints = checked_contract["hard_constraints"]
-    if (
-        abs(linear) > constraints["max_linear_m_s"]
-        or abs(angular) > constraints["max_angular_rad_s"]
-    ):
-        raise TrainingError("callback violates hard constraint")
-
-    reward = (
-        checked_contract["reward_weights"]["progress"] * linear
-        + checked_contract["reward_weights"]["energy"] * abs(angular)
-    )
+    for linear, angular, _ in accepted_results:
+        if (
+            abs(linear) > constraints["max_linear_m_s"]
+            or abs(angular) > constraints["max_angular_rad_s"]
+        ):
+            raise TrainingError("callback violates hard constraint")
+    reward = sum(item[2] for item in accepted_results) / len(accepted_results)
     reward = _finite(reward, "mean_reward")
+    if reward < checked_contract["baseline_mean_reward"]:
+        raise TrainingError("callback regresses baseline_mean_reward")
     identity = hashlib.sha256(
-        canonical_bytes({"contract": checked_contract, "action": result})
+        canonical_bytes({"contract": checked_contract, "results": results})
     ).hexdigest()[:24]
     return PolicyResult(
         policy_id="policy-" + identity,
@@ -262,4 +293,6 @@ def evaluate_policy(
         evidence_level="simulated",
         physical_blockers=blockers,
         mean_reward=reward,
+        evaluation_count=len(cases),
+        held_out_evaluation_count=sum(phase == "held_out" for phase, _, _ in cases),
     )

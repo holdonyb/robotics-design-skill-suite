@@ -20,7 +20,11 @@ from typing import Any
 from assurance.engine import evaluate_contract
 from assurance.hypothesis.canonical import canonical_bytes, canonical_value
 from assurance.simulation.admission import evaluate_simulation_admission
-from assurance.simulation.backend import compare_backends, evaluate_independent_dynamics
+from assurance.simulation.backend import (
+    compare_backends,
+    evaluate_independent_dynamics,
+    evaluate_trace_kinematics,
+)
 from assurance.simulation.calibration import fit_calibration, load_calibration_dataset
 from assurance.simulation.model import TraceSample
 from assurance.simulation.scenario import compile_scenarios, load_scenario_registry
@@ -137,7 +141,7 @@ def _training_result(root: Path) -> dict[str, Any]:
         raise BenchmarkError("training contract is invalid: " + "; ".join(errors))
     result = evaluate_policy(
         contract,
-        lambda _: {"linear_m_s": 0.2, "angular_rad_s": 0.0},
+        lambda _: {"linear_m_s": 0.2, "angular_rad_s": 0.0, "mean_reward": 1.0},
         {
             "remaining_blockers": list(contract["physical_blockers"]),
             "hardware_promotable": False,
@@ -183,8 +187,8 @@ def run_reference_benchmark(
     passed = sum(item["status"] == "passed" for item in replayed)
     failed = len(replayed) - passed
 
+    primary = evaluate_trace_kinematics(_backend_input(scenarios[0]))
     independent = evaluate_independent_dynamics(_backend_input(scenarios[0]))
-    primary = evaluate_independent_dynamics(_backend_input(scenarios[0]))
     tolerances = {metric.name: 1e-9 for metric in primary.metrics}
     comparison = compare_backends(primary, independent, tolerances).status
     calibration = fit_calibration(

@@ -17,7 +17,7 @@ def contract():
         "schema_version": 1, "contract_id": "training-reference-v1", "artifact_sha256": SHA_A,
         "observation": {"frame": "base_link", "unit": "si", "rate_hz": 20, "fields": ["scan_m", "joint_rad"]},
         "action": {"frame": "base_link", "unit": "si", "rate_hz": 20, "fields": ["linear_m_s", "angular_rad_s"]},
-        "reward_weights": {"progress": 1.0, "energy": -0.1},
+        "reward_weights": {"progress": 1.0, "energy": -0.1}, "baseline_mean_reward": 0.0,
         "hard_constraints": {"max_linear_m_s": 0.4, "max_angular_rad_s": 0.8, "max_joint_error_rad": 0.02},
         "budgets": {"episodes": 10, "steps": 1000, "wall_time_s": 60, "memory_mb": 256},
         "train_seeds": [1, 2], "evaluation_seeds": [3, 4],
@@ -40,11 +40,13 @@ class TrainingTests(unittest.TestCase):
         physical = physical_receipt()
         def policy(observation):
             observation["scan_m"] = 999
-            return {"linear_m_s": 0.2, "angular_rad_s": 0.1}
+            return {"linear_m_s": 0.2, "angular_rad_s": 0.1, "mean_reward": 1.0}
         result = evaluate_policy(contract(), policy, physical)
         self.assertEqual("simulated", result.evidence_level)
         self.assertEqual("not_justified", result.status)
         self.assertEqual(("BOM.PLACEHOLDER_BLOCKS_CLAIM",), result.physical_blockers)
+        self.assertEqual(6, result.evaluation_count)
+        self.assertEqual(2, result.held_out_evaluation_count)
         self.assertNotIn("hardware_promotable", result.to_dict())
         self.assertEqual(physical_receipt(), physical)
 
@@ -61,8 +63,8 @@ class TrainingTests(unittest.TestCase):
                 value = contract(); mutate(value)
                 self.assertTrue(any(expected in item for item in validate_training_contract(value)))
         for callback, expected in (
-            (lambda x: {"linear_m_s": float("nan"), "angular_rad_s": 0.0}, "finite"),
-            (lambda x: {"linear_m_s": 9.0, "angular_rad_s": 0.0}, "constraint"),
+            (lambda x: {"linear_m_s": float("nan"), "angular_rad_s": 0.0, "mean_reward": 0.0}, "finite"),
+            (lambda x: {"linear_m_s": 9.0, "angular_rad_s": 0.0, "mean_reward": 0.0}, "constraint"),
             (lambda x: {"linear_m_s": 0.0}, "fields"),
             (lambda x: (_ for _ in ()).throw(RuntimeError("bad")), "callback"),
         ):
@@ -71,7 +73,7 @@ class TrainingTests(unittest.TestCase):
                     evaluate_policy(contract(), callback, physical_receipt())
 
     def test_physical_blocker_receipt_is_required_and_can_never_authorize_hardware(self):
-        callback = lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0}
+        callback = lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0, "mean_reward": 0.0}
         for physical, expected in (
             ({"remaining_blockers": [], "hardware_promotable": False}, "blockers"),
             ({"remaining_blockers": ["BOM.PLACEHOLDER_BLOCKS_CLAIM"], "hardware_promotable": True}, "hardware"),
@@ -96,11 +98,41 @@ class TrainingTests(unittest.TestCase):
                 self.assertTrue(any(expected in item for item in validate_training_contract(value)))
 
     def test_policy_identity_and_blocker_order_are_stable(self):
-        callback = lambda x: {"linear_m_s": 0.2, "angular_rad_s": -0.1}
+        callback = lambda x: {"linear_m_s": 0.2, "angular_rad_s": -0.1, "mean_reward": 1.0}
         first = evaluate_policy(contract(), callback, physical_receipt())
         second = evaluate_policy(contract(), callback, physical_receipt())
         self.assertEqual(first.policy_id, second.policy_id)
         self.assertEqual(("BOM.PLACEHOLDER_BLOCKS_CLAIM",), first.physical_blockers)
+
+    def test_executes_each_evaluation_seed_with_held_out_fault_and_baseline_comparison(self):
+        seen = []
+
+        def callback(observation):
+            seen.append((observation["phase"], observation["seed"], observation["fault_id"]))
+            return {"linear_m_s": 0.2, "angular_rad_s": 0.0, "mean_reward": 1.0}
+
+        result = evaluate_policy(contract(), callback, physical_receipt())
+        self.assertEqual(
+            [
+                ("train", 1, None),
+                ("train", 2, None),
+                ("evaluation", 3, None),
+                ("evaluation", 4, None),
+                ("held_out", 3, "fault-stop"),
+                ("held_out", 4, "fault-stop"),
+            ],
+            seen,
+        )
+        self.assertEqual(6, result.evaluation_count)
+        self.assertEqual(2, result.held_out_evaluation_count)
+
+    def test_rejects_baseline_regression_and_budget_excess(self):
+        with self.assertRaisesRegex(TrainingError, "baseline"):
+            evaluate_policy(contract(), lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0, "mean_reward": -1.0}, physical_receipt())
+        value = contract()
+        value["budgets"]["episodes"] = 5
+        with self.assertRaisesRegex(TrainingError, "episodes"):
+            evaluate_policy(value, lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0, "mean_reward": 1.0}, physical_receipt())
 
 
 if __name__ == "__main__":
