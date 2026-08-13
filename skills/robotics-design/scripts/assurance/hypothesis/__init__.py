@@ -23,6 +23,8 @@ from .uncertainty import (
 )
 from .objectives import ObjectiveVector, ParetoResult, extract_vector, pareto_fronts
 from .repair import RepairError, RepairTrace, repair, select_repair
+from .bundle import BundleError, validate_bundle, write_bundle
+from .engine import EngineError, run_space
 
 __all__ = [
     "CandidateDecision",
@@ -58,4 +60,5 @@ __all__ = [
     "RepairTrace",
     "repair",
     "select_repair",
+    "BundleError", "validate_bundle", "write_bundle", "EngineError", "run_space",
 ]
