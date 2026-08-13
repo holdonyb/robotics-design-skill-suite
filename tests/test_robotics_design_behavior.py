@@ -16,6 +16,9 @@ PATENT_CONTRACT = (
 PHYSICAL_CONTRACT = (
     ROOT / "skills" / "robotics-design" / "references" / "physical-plausibility-contract.md"
 )
+HYPOTHESIS_CONTRACT = (
+    ROOT / "skills" / "robotics-design" / "references" / "hypothesis-engine-contract.md"
+)
 
 
 class RoboticsDesignBehaviorTests(unittest.TestCase):
@@ -111,6 +114,49 @@ class RoboticsDesignBehaviorTests(unittest.TestCase):
             "simulation cannot replace",
         ):
             self.assertIn(clause, text)
+
+    def test_multi_candidate_requests_route_through_hypothesis_contract(self):
+        text = SKILL.read_text(encoding="utf-8")
+        self.assertIn("references/hypothesis-engine-contract.md", text)
+        self.assertIn("scripts/generate_design_hypotheses.py", text)
+        self.assertIn("Never rank a candidate that bypassed the physical contract", text)
+        for trigger in ("multi-concept", "parameter sweep", "robustness", "repair"):
+            self.assertIn(trigger, text.lower())
+
+    def test_hypothesis_contract_is_operational_and_preserves_claim_boundaries(self):
+        self.assertTrue(HYPOTHESIS_CONTRACT.is_file())
+        text = HYPOTHESIS_CONTRACT.read_text(encoding="utf-8")
+        for required in (
+            "contract_v1",
+            "physical_v030",
+            "uncertainty_v1",
+            "counterexample_v1",
+            "objectives_v1",
+            "max_candidates",
+            "max_stage_evaluations",
+            "manifest_sha256",
+            "validate_bundle",
+            "owner_prefix",
+            "screening-pareto.json",
+            "Exit `0`",
+            "Exit `1`",
+            "Exit `2`",
+            "simulation",
+            "hardware",
+        ):
+            self.assertIn(required, text)
+
+    def test_hypothesis_design_order_is_contract_then_search_then_simulation(self):
+        design = (
+            ROOT / "skills" / "robotics-design" / "references" / "design-contract.md"
+        ).read_text(encoding="utf-8")
+        gates = (
+            ROOT / "skills" / "robotics-design" / "references" / "validation-gates.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("hypothesis-engine-contract.md", design)
+        self.assertIn("physical contract -> bounded hypothesis search -> simulation", design)
+        self.assertIn("Hypothesis exploration", gates)
+        self.assertIn("hard counterexample", gates)
 
 
 if __name__ == "__main__":

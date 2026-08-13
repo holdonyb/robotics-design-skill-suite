@@ -7,6 +7,7 @@ Record tool versions and distinguish PASS, FAIL, WARN, and NOT RUN.
 | Requirements | Numbered requirements/assumptions and owners | Reviewed verification matrix and interface control document |
 | Budgets | Mass/CG/stability, energy/current, thermal, timing | Sensitivity, contingency, vendor curves, measured duty cycle |
 | Physical plausibility | Hash-bound design contract, explicit SI quantities/evidence, complete component bindings, drivetrain/battery/stability/arm-gravity/thermal margins | Exact vendor curves, uncertainty sweeps, full dynamics/structure/thermal models, bench correlation |
+| Hypothesis exploration | Closed finite space, bounded candidates/stages, physical gate per resolved candidate, hard counterexample search, visible Pareto directions, owner-correct repair lineage, external manifest receipt | Calibrated uncertainty distributions, higher-fidelity optimizers, independently reproduced bundles |
 | CAD | Valid solids, dimensions, datums, clearances, interference | STEP re-import, motion, mass properties, manufacturing review |
 | URDF/xacro | Expansion/parser, connected tree, valid axes/limits/inertias | Consumer load, TF assertions, collision review, CAD drift test |
 | SDF | Schema/bundled validation and resource resolution | `gz sdf --check`, stable load, sensors/plugins, real-time evidence |

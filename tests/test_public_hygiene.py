@@ -20,8 +20,12 @@ REQUIRED = {
     "skills/robotics-design/references/mission-animation-contract.md",
     "skills/robotics-design/references/patent-design-around.md",
     "skills/robotics-design/references/physical-plausibility-contract.md",
+    "skills/robotics-design/references/hypothesis-engine-contract.md",
     "skills/robotics-design/scripts/validate_design_contract.py",
+    "skills/robotics-design/scripts/generate_design_hypotheses.py",
     "reference/mobile-manipulator/design-contract.json",
+    "reference/mobile-manipulator/hypothesis-space.json",
+    "reference/mobile-manipulator/hypothesis-expected.json",
     "reference/mobile-manipulator/robot.urdf",
     "skills/robotics-design/scripts/validate_visual_manifest.py",
     "skills/robotics-design/scripts/validate_mission_animation_manifest.py",
@@ -144,6 +148,16 @@ class PublicHygieneTests(unittest.TestCase):
             self.assertIn(phrase, chinese)
         self.assertIn("mission-animation", source_lock)
         self.assertIn("patent-aware", source_lock)
+
+    def test_bilingual_docs_expose_hypothesis_quick_start_and_nonclaims(self):
+        english = (ROOT / "README.md").read_text(encoding="utf-8")
+        chinese = (ROOT / "README.zh-CN.md").read_text(encoding="utf-8")
+        command = "generate_design_hypotheses.py"
+        for phrase in (command, "screening-pareto.json", "0.4"):
+            self.assertIn(phrase, english)
+            self.assertIn(phrase, chinese)
+        self.assertIn("does not prove simulation or hardware performance", english)
+        self.assertIn("不能证明仿真或实机性能", chinese)
 
     def test_ci_compiles_local_skill_runtime_before_tests(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
