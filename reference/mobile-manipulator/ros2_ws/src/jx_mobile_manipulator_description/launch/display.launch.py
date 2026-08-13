@@ -9,7 +9,7 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     model = PathJoinSubstitution([FindPackageShare("jx_mobile_manipulator_description"), "urdf", "reference_mobile_manipulator.urdf.xacro"])
-    description = ParameterValue(Command(["xacro ", model, " use_sim:=1"]), value_type=str)
+    description = ParameterValue(Command(["xacro ", model]), value_type=str)
     return LaunchDescription([
         DeclareLaunchArgument("use_sim_time", default_value="true"),
         Node(package="robot_state_publisher", executable="robot_state_publisher", parameters=[{"robot_description": description, "use_sim_time": use_sim_time}]),

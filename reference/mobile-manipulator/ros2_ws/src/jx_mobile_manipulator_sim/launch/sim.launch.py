@@ -14,7 +14,7 @@ def generate_launch_description():
     description_share = FindPackageShare("jx_mobile_manipulator_description")
     sim_share = FindPackageShare("jx_mobile_manipulator_sim")
     model = PathJoinSubstitution([description_share, "urdf", "reference_mobile_manipulator.urdf.xacro"])
-    robot_description = ParameterValue(Command(["xacro ", model, " use_sim:=1"]), value_type=str)
+    robot_description = ParameterValue(Command(["xacro ", model]), value_type=str)
     gz = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare("ros_gz_sim"), "launch", "gz_sim.launch.py"])),
         launch_arguments={"gz_args": ["-r -s ", PathJoinSubstitution([sim_share, "worlds", "reference_world.sdf"])], "on_exit_shutdown": "true"}.items(),

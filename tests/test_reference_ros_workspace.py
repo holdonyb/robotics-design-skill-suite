@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "6ca9486fa33604526c269ddad34f749e1eff2b527977bb81fbb75900e2c05805"
+ROS_MANIFEST_RECEIPT = "2a4b3feb4abfdab1912b0daa2abbc5b7ead89b1fea53ac3a65f60f3368c204f0"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -119,8 +119,8 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         body = text(path)
         root = ET.fromstring(body)
         self.assertEqual("reference_mobile_manipulator", root.get("name"))
-        self.assertIn('xacro:arg name="use_sim" default="1"', body)
-        self.assertIn('<xacro:if value="$(arg use_sim)">', body)
+        self.assertNotIn("<xacro:arg", body)
+        self.assertNotIn("<xacro:if", body)
         self.assertIn("gz_ros2_control/GazeboSimSystem", body)
         self.assertIn('filename="libgz_ros2_control-system.so"', body)
         self.assertIn('sensor name="navigation_lidar" type="gpu_lidar"', body)
@@ -211,7 +211,7 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         self.assertIn("moveit_configs_utils", move_group)
         self.assertIn('get_package_share_directory("jx_mobile_manipulator_description")', move_group)
         self.assertIn('"urdf" / "reference_mobile_manipulator.urdf.xacro"', move_group)
-        self.assertIn('.robot_description(file_path=description_xacro, mappings={"use_sim": "0"})', move_group)
+        self.assertIn('.robot_description(file_path=description_xacro)', move_group)
         self.assertIn("planning_pipelines", move_group)
         moveit_xacro = text(moveit / "config" / "reference_mobile_manipulator.urdf.xacro")
         # The launch mapping owns this argument.  Redeclaring it in the wrapper
