@@ -70,6 +70,16 @@ class AssuranceAnalysisTests(unittest.TestCase):
         self.assertIn("PHY.DRIVE.CONTINUOUS_TORQUE", codes)
         self.assertIn("PHY.DRIVE.OVERSPEED", codes)
 
+    def test_drivetrain_rejects_unmodelled_downhill_braking_regime(self):
+        inputs = drivetrain_inputs()
+        inputs["acceleration_m_s2"] = 0.0
+        inputs["slope_rad"] = math.radians(-10.0)
+        result = run_plugin("drivetrain_v1", inputs)
+        self.assertTrue(
+            any(item.code == "PHY.DRIVE.BRAKING_REGIME" for item in result.diagnostics)
+        )
+        self.assertFalse(result.passed)
+
     def test_battery_power_current_and_runtime_are_calculated(self):
         result = run_plugin(
             "battery_v1",
@@ -150,6 +160,24 @@ class AssuranceAnalysisTests(unittest.TestCase):
         )
         self.assertGreater(sloped.outputs["projected_com_x_m"], 0.0)
 
+    def test_slope_uses_worst_direction_for_off_center_com(self):
+        inputs = {
+            "support_min_x_m": -0.3,
+            "support_max_x_m": 0.3,
+            "support_min_y_m": -0.3,
+            "support_max_y_m": 0.3,
+            "com_x_m": -0.2,
+            "com_y_m": 0.0,
+            "com_height_m": 0.5,
+            "slope_x_rad": 0.0,
+            "slope_y_rad": 0.0,
+        }
+        level = run_plugin("stability_v1", inputs)
+        inputs["slope_x_rad"] = 0.1
+        sloped = run_plugin("stability_v1", inputs)
+        self.assertLess(sloped.outputs["static_margin_m"], level.outputs["static_margin_m"])
+        self.assertLess(sloped.outputs["projected_com_x_m"], inputs["com_x_m"])
+
     def test_arm_gravity_and_brake_holding_torque_are_checked(self):
         result = run_plugin(
             "arm_gravity_v1",
@@ -207,6 +235,63 @@ class AssuranceAnalysisTests(unittest.TestCase):
                 for item in overloaded.diagnostics
             )
         )
+
+    def test_finite_extremes_fail_closed_without_nonfinite_outputs(self):
+        thermal = {
+            "ambient_temperature_k": 300.0,
+            "winding_resistance_ohm": 1e308,
+            "on_current_a": 1e308,
+            "duty_cycle": 1.0,
+            "thermal_resistance_k_per_w": 1e308,
+            "max_winding_temperature_k": 400.0,
+        }
+        drive = drivetrain_inputs()
+        drive["base_mass_kg"] = 1e308
+        drive["wheel_radius_m"] = 1e308
+        battery = {
+            "voltage_v": 1e-308,
+            "peak_power_w": 1e308,
+            "continuous_power_w": 1e308,
+            "max_continuous_current_a": 1e308,
+            "max_peak_current_a": 1e308,
+            "usable_energy_j": 1e308,
+            "required_runtime_s": 1.0,
+        }
+        stability = {
+            "support_min_x_m": -1e308,
+            "support_max_x_m": 1e308,
+            "support_min_y_m": -1e308,
+            "support_max_y_m": 1e308,
+            "com_x_m": 1e308,
+            "com_y_m": 0.0,
+            "com_height_m": 1e308,
+            "slope_x_rad": 1.0,
+            "slope_y_rad": 0.0,
+        }
+        arm = {
+            "joints": [
+                {
+                    "id": "joint_1",
+                    "loads": [{"mass_kg": 1e308, "horizontal_lever_m": 1e308}],
+                    "rated_continuous_torque_nm": 1e308,
+                    "brake_holding_torque_nm": 1e308,
+                    "safety_factor": 1e308,
+                }
+            ]
+        }
+        cases = (
+            ("thermal_duty_v1", thermal),
+            ("drivetrain_v1", drive),
+            ("battery_v1", battery),
+            ("stability_v1", stability),
+            ("arm_gravity_v1", arm),
+        )
+        for plugin, inputs in cases:
+            with self.subTest(plugin=plugin):
+                result = run_plugin(plugin, inputs)
+                self.assertFalse(result.passed)
+                self.assertEqual(result.outputs, {})
+                self.assertTrue(any(item.code == "PHY.NUMERIC.OVERFLOW" for item in result.diagnostics))
 
     def test_unknown_plugin_is_indeterminate(self):
         result = run_plugin("imaginary_solver", {})

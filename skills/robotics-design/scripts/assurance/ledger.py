@@ -9,13 +9,7 @@ from .model import Diagnostic
 
 
 FEATURE_ROLES: dict[str, set[str]] = {
-    "differential_drive": {
-        "traction_motor",
-        "reducer",
-        "wheel",
-        "bearing",
-        "motor_driver",
-    },
+    "differential_drive": set(),
     "battery_powered": {
         "battery",
         "bms",
@@ -26,6 +20,7 @@ FEATURE_ROLES: dict[str, set[str]] = {
 }
 ACTUATOR_ROLES = {"motor", "reducer", "bearing", "motor_driver"}
 CABLE_ROLES = {"cable", "connector", "strain_relief", "cable_management"}
+DRIVE_ROLES = {"traction_motor", "reducer", "wheel", "bearing", "motor_driver"}
 SAFETY_FUNCTION_ROLES = {"holding_brake": {"brake"}}
 VERIFIED_IDENTITY_FIELDS = (
     "manufacturer",
@@ -45,6 +40,8 @@ def required_roles(architecture: dict[str, Any]) -> dict[str, set[str]]:
             result[f"feature:{feature}"] = set(FEATURE_ROLES[feature])
     for actuator in architecture.get("actuators", []):
         result[f"actuator:{actuator}"] = set(ACTUATOR_ROLES)
+    for drive in architecture.get("drive_units", []):
+        result[f"drive:{drive}"] = set(DRIVE_ROLES)
     for cable in architecture.get("moving_cables", []):
         result[f"moving_cable:{cable}"] = set(CABLE_ROLES)
     for safety_function in architecture.get("claimed_safety_functions", []):
@@ -194,6 +191,18 @@ def validate_ledger(contract: dict[str, Any]) -> list[Diagnostic]:
             )
         )
     else:
+        drive_units = architecture.get("drive_units", [])
+        if "differential_drive" in architecture.get("features", []) and (
+            not isinstance(drive_units, list) or len(drive_units) != 2
+        ):
+            diagnostics.append(
+                Diagnostic(
+                    "BOM.DRIVE_CARDINALITY",
+                    "error",
+                    "architecture.drive_units",
+                    "differential_drive requires exactly two explicit drive units",
+                )
+            )
         for feature in sorted(architecture.get("features", [])):
             if feature not in FEATURE_ROLES:
                 diagnostics.append(

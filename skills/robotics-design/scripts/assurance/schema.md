@@ -37,16 +37,16 @@ level, but it may not exceed it.
 
 A component has `id`, `role`, lifecycle `state`, unique `interfaces`, and one
 or more explicit `bindings`. A binding names the exact architecture
-responsibility it realizes: `feature:ID`, `actuator:ID`, `moving_cable:ID`, or
+responsibility it realizes: `feature:ID`, `drive:ID`, `actuator:ID`, `moving_cable:ID`, or
 `safety_function:ID`. Motor, reducer, and bearing records cannot be shared
 across multiple actuators; each declared actuator therefore has an auditable
 physical load path instead of inheriting a global role checkbox.
 States are `verified_part`, `qualified_substitute`, `engineering_placeholder`,
 or `missing`. Verified and substitute records additionally use manufacturer,
-part number, source URL/date, limits and supported claims as enforced by the
-ledger gate.
+part number, absolute HTTP(S) source URL, ISO source date, limits and supported
+claims. Every limit is a `quantity:ID` reference owned by that component.
 
-Architecture contains string lists: `features`, `actuators`, `moving_cables`,
+Architecture contains string lists: `features`, `drive_units`, `actuators`, `moving_cables`,
 and `claimed_safety_functions`. The ledger maps these declarations to mandatory
 component roles; absence from the schema never means absence from the robot.
 Unknown features or claimed safety functions remain structurally valid for
@@ -56,10 +56,15 @@ implemented.
 ## Artifacts, analyses, and evidence
 
 An artifact has `id`, `kind`, manifest-relative non-escaping `path`, and
-lowercase SHA-256. An analysis has `id`, plug-in name and an `inputs` object.
+lowercase SHA-256. Native URDF and bounded `declared_json` observation artifacts
+have semantic adapters; other kinds remain hash-bound until an adapter is
+supplied. An analysis has `id`, plug-in name, explicit `covers` edges, and an
+`inputs` object.
 Inputs may nest objects/lists and non-empty identifiers, but every physical
 number is a typed reference such as `quantity:Q-MASS`; bare numeric literals
-are forbidden.
+are forbidden. Known plug-ins close both input shape and expected dimensions.
+Architecture-derived plug-in coverage and per-actuator load coverage are
+required; a physical contract with no analysis is indeterminate.
 
 Evidence has `id`, `level`, a path/SHA-256 `source`, and unique `supports`
 references. Every quantity's selected evidence source must explicitly include

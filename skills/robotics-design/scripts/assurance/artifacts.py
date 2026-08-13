@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import json
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -13,6 +14,8 @@ from .units import QuantityError, to_si
 
 
 UNSAFE_XML = re.compile(r"<!\s*(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
+MAX_DECLARED_JSON_BYTES = 5 * 1024 * 1024
+MAX_DECLARED_JSON_DEPTH = 64
 
 
 def _diagnostic(code: str, severity: str, path: str, message: str) -> Diagnostic:
@@ -193,6 +196,81 @@ def observe_urdf(path: Path) -> tuple[dict[str, Any] | None, list[Diagnostic]]:
     if diagnostics:
         return None, sorted(diagnostics, key=lambda item: (item.code, item.path, item.message))
     return observation, []
+
+
+def observe_declared_json(
+    path: Path,
+) -> tuple[dict[str, Any] | None, list[Diagnostic]]:
+    """Load a bounded JSON observation tree for CAD/BOM/SDF/SRDF/ROS adapters."""
+
+    try:
+        if path.stat().st_size > MAX_DECLARED_JSON_BYTES:
+            return None, [
+                _diagnostic(
+                    "ARTIFACT.JSON_SIZE",
+                    "error",
+                    str(path),
+                    f"declared JSON exceeds {MAX_DECLARED_JSON_BYTES} bytes",
+                )
+            ]
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        return None, [
+            _diagnostic(
+                "ARTIFACT.READ", "error", str(path), f"cannot read UTF-8 JSON: {exc}"
+            )
+        ]
+
+    def reject_constant(value: str) -> Any:
+        raise ValueError(f"non-finite JSON number is forbidden: {value}")
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key: {key}")
+            result[key] = value
+        return result
+
+    try:
+        data = json.loads(
+            text,
+            parse_constant=reject_constant,
+            object_pairs_hook=unique_object,
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        return None, [
+            _diagnostic("ARTIFACT.JSON", "error", str(path), f"invalid declared JSON: {exc}")
+        ]
+    if not isinstance(data, dict):
+        return None, [
+            _diagnostic(
+                "ARTIFACT.JSON_ROOT",
+                "error",
+                str(path),
+                "declared JSON observation root must be an object",
+            )
+        ]
+
+    def depth(value: Any, level: int = 0) -> int:
+        if level > MAX_DECLARED_JSON_DEPTH:
+            return level
+        if isinstance(value, dict):
+            return max((depth(item, level + 1) for item in value.values()), default=level)
+        if isinstance(value, list):
+            return max((depth(item, level + 1) for item in value), default=level)
+        return level
+
+    if depth(data) > MAX_DECLARED_JSON_DEPTH:
+        return None, [
+            _diagnostic(
+                "ARTIFACT.JSON_DEPTH",
+                "error",
+                str(path),
+                f"declared JSON exceeds nesting depth {MAX_DECLARED_JSON_DEPTH}",
+            )
+        ]
+    return data, []
 
 
 def _lookup(value: Any, dotted_path: str) -> tuple[bool, Any]:

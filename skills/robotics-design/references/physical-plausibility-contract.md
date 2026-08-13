@@ -29,7 +29,8 @@ The contract must contain:
   evidence source, an evidence level, and optional drift tolerance;
 - a component ledger with exact architecture bindings, interfaces, lifecycle
   state, limits, provenance, and supported claims;
-- hash-bound CAD/URDF/SDF/SRDF/ROS/BOM inputs and normalized observations;
+- hash-bound CAD/URDF/SDF/SRDF/ROS/BOM inputs, with normalized observations
+  from native URDF or bounded `declared_json` adapters;
 - named analysis plug-ins whose numeric inputs are quantity references;
 - evidence edges that explicitly support each quantity or artifact they claim.
 
@@ -46,8 +47,8 @@ dependency.
 
 Architecture declarations create mandatory component responsibilities.
 
-- Differential drive requires traction motor, reducer, wheel, bearing, and
-  motor driver records.
+- Differential drive requires explicit left/right drive responsibilities, each
+  with traction motor, reducer, wheel, bearing, and motor driver records.
 - Battery power requires battery, BMS, main protection, contactor, and DC
   converter records.
 - Every declared actuator requires a specifically bound motor, reducer, bearing, and motor driver. A motor, reducer, or bearing cannot be shared
@@ -58,8 +59,9 @@ Architecture declarations create mandatory component responsibilities.
 
 `missing` is an explicit error. `engineering_placeholder` is useful during
 exploration but cannot support a promoted claim. `verified_part` and
-`qualified_substitute` require manufacturer, part number, source URL/date, and
-non-empty limits. Catalog values require exact part provenance; a similar
+`qualified_substitute` require manufacturer, part number, absolute source
+URL/date, and component-owned quantity references for limits. Catalog values
+require exact part provenance; a similar
 product family or remembered rating is assumed evidence.
 
 An incomplete drive example is a wheel and motor without its reducer, bearing,
@@ -70,7 +72,8 @@ conversion, continuous/peak current checks, and usable-energy budget.
 
 ## Conservative analytical plug-ins
 
-All plug-ins use normalized SI values and publish their validity assumptions,
+All plug-ins use normalized SI values and a closed expected dimension for every
+input. A mismatched quantity dimension is invalid before evaluation. They publish their validity assumptions,
 outputs, signed margins, diagnostics, version, and `calculated` evidence level.
 
 ### `drivetrain_v1`
@@ -88,7 +91,10 @@ omega_motor = v * G / r
 It checks peak torque, duty-scaled continuous torque, and maximum motor speed.
 The scalar efficiency and equal wheel-load assumptions bound an operating
 point; they do not replace a motor curve, traction limit, transient model,
-braking calculation, or gearbox life check.
+braking calculation, or gearbox life check. A downhill point whose declared
+acceleration produces negative net tractive force is indeterminate until a
+braking or regenerative model is supplied; negative motor demand never passes
+as if it were ordinary positive traction.
 
 ### `battery_v1`
 
@@ -104,13 +110,13 @@ or regenerative charge acceptance.
 
 ### `stability_v1`
 
-The current plug-in projects center of mass along gravity using declared COM
-height and base-frame x/y support-plane slopes:
+The current plug-in treats the declared x/y slope magnitudes as directionally
+uncertain and evaluates both signs, retaining the worst support-edge margin:
 
 ```text
-x_projected = x_com + h_com * tan(slope_x)
-y_projected = y_com + h_com * tan(slope_y)
-margin = min(distance from projected COM to each rectangular support bound)
+x_candidates = x_com +/- h_com * tan(abs(slope_x))
+y_candidates = y_com +/- h_com * tan(abs(slope_y))
+margin = min(distance from every candidate projection to each support bound)
 ```
 
 A negative margin fails. This is a rigid-contact static screen, not proof for
@@ -148,9 +154,12 @@ unknown plug-ins fail closed with stable diagnostics instead of tracebacks.
 
 ## Artifact ownership and drift
 
-Each quantity has one owner. Hash every source file used as evidence. Bind
-owned URDF observations such as link mass and joint limit to normalized paths;
-the validator rejects stale hashes, changed owned values, absent transmissions,
+Each quantity has one owner. Hash every source file used as evidence. Git
+attributes force checkout-stable LF bytes for hash-bound text. Bind owned URDF
+observations such as link mass and joint limit to normalized paths. A bounded
+`declared_json` adapter carries normalized observations emitted by
+CAD/BOM/SDF/SRDF/ROS exporters without claiming native parsing of those formats.
+The validator rejects stale hashes, changed owned values, absent transmissions,
 unsafe XML constructs, and missing observations. Repair the owning artifact,
 regenerate dependents, and rerun the complete gate.
 

@@ -8,14 +8,132 @@ from pathlib import Path
 from typing import Any
 
 from .analyses import AnalysisResult, run_plugin
-from .artifacts import compare_observations, observe_urdf
+from .artifacts import compare_observations, observe_declared_json, observe_urdf
 from .contract import load_contract
 from .ledger import validate_ledger
 from .model import Diagnostic, EvidenceLevel, Report
+from .plugin_contracts import required_analysis_coverage
 from .units import QuantityError, to_si
 
 
 KERNEL_VERSION = "0.3.0"
+
+
+def _analysis_coverage_diagnostics(data: dict[str, Any]) -> list[Diagnostic]:
+    analyses = data.get("analyses", [])
+    diagnostics: list[Diagnostic] = []
+    if not analyses and (data.get("requirements") or data.get("quantities")):
+        diagnostics.append(
+            Diagnostic(
+                "PHY.ANALYSIS.MISSING",
+                "indeterminate",
+                "analyses",
+                "physical requirements or quantities exist but no analysis is declared",
+            )
+        )
+        return diagnostics
+
+    coverage_edges = {
+        (str(item.get("plugin")), coverage)
+        for item in analyses
+        if isinstance(item, dict)
+        for coverage in item.get("covers", [])
+        if isinstance(coverage, str)
+    }
+    covered_responsibilities = {coverage for _, coverage in coverage_edges}
+    for requirement in data.get("requirements", []):
+        responsibility = f"requirement:{requirement.get('id')}"
+        if responsibility not in covered_responsibilities:
+            diagnostics.append(
+                Diagnostic(
+                    "PHY.ANALYSIS.MISSING_COVERAGE",
+                    "indeterminate",
+                    "analyses",
+                    f"no analysis covers declared requirement {requirement.get('id')}",
+                )
+            )
+
+    architecture = data.get("architecture", {})
+    for plugin, responsibility in sorted(required_analysis_coverage(architecture)):
+        if (plugin, responsibility) not in coverage_edges:
+            diagnostics.append(
+                Diagnostic(
+                    "PHY.ANALYSIS.MISSING_COVERAGE",
+                    "indeterminate",
+                    "analyses",
+                    f"{responsibility} requires analysis {plugin}",
+                )
+            )
+
+    declared_actuators = set(architecture.get("actuators", []))
+    for index, analysis in enumerate(analyses):
+        if analysis.get("plugin") != "arm_gravity_v1":
+            continue
+        joint_ids = {
+            joint.get("id")
+            for joint in analysis.get("inputs", {}).get("joints", [])
+            if isinstance(joint, dict) and isinstance(joint.get("id"), str)
+        }
+        covered_actuators = {
+            value[9:]
+            for value in analysis.get("covers", [])
+            if isinstance(value, str) and value.startswith("actuator:")
+        }
+        for actuator in sorted(covered_actuators - joint_ids):
+            diagnostics.append(
+                Diagnostic(
+                    "PHY.ANALYSIS.COVERAGE_MISMATCH",
+                    "indeterminate",
+                    f"analyses[{index}].covers",
+                    f"arm analysis claims actuator coverage without a joint load: {actuator}",
+                )
+            )
+        for joint_id in sorted(joint_ids - declared_actuators):
+            if declared_actuators:
+                diagnostics.append(
+                    Diagnostic(
+                        "PHY.ANALYSIS.COVERAGE_MISMATCH",
+                        "indeterminate",
+                        f"analyses[{index}].inputs.joints",
+                        f"arm analysis contains undeclared actuator joint: {joint_id}",
+                    )
+                )
+    drive_units = architecture.get("drive_units", [])
+    if isinstance(drive_units, list) and drive_units:
+        quantities = {
+            item.get("id"): item
+            for item in data.get("quantities", [])
+            if isinstance(item, dict)
+        }
+        for index, analysis in enumerate(analyses):
+            if analysis.get("plugin") != "drivetrain_v1":
+                continue
+            reference = analysis.get("inputs", {}).get("driven_wheels")
+            quantity = (
+                quantities.get(reference[9:])
+                if isinstance(reference, str) and reference.startswith("quantity:")
+                else None
+            )
+            if quantity is None:
+                continue
+            try:
+                declared_count = to_si(
+                    quantity.get("value"),
+                    quantity.get("dimension"),
+                    f"analyses[{index}].inputs.driven_wheels",
+                )
+            except QuantityError:
+                continue
+            if declared_count != float(len(drive_units)):
+                diagnostics.append(
+                    Diagnostic(
+                        "PHY.DRIVE.CARDINALITY_MISMATCH",
+                        "error",
+                        f"analyses[{index}].inputs.driven_wheels",
+                        f"declared driven wheel count {declared_count:g} does not match {len(drive_units)} drive responsibilities",
+                    )
+                )
+    return diagnostics
 
 
 def _sha256(path: Path) -> str:
@@ -190,17 +308,25 @@ def evaluate_contract(path: Path) -> tuple[Report | None, list[str]]:
     )
     for diagnostic in validate_ledger(data):
         report.add(diagnostic)
+    for diagnostic in _analysis_coverage_diagnostics(data):
+        report.add(diagnostic)
 
     contract_dir = path.parent
     observations: dict[str, Any] = {}
     for index, artifact in enumerate(data.get("artifacts", [])):
-        artifact_path, _ = _resolve_file(
+        artifact_path, valid_artifact = _resolve_file(
             contract_dir, artifact, f"artifacts[{index}]", report
         )
-        if artifact_path is None or not artifact_path.is_file():
+        if artifact_path is None or not valid_artifact:
             continue
         if artifact.get("kind") == "urdf":
             observation, diagnostics = observe_urdf(artifact_path)
+            for diagnostic in diagnostics:
+                report.add(diagnostic)
+            if observation is not None:
+                observations[str(artifact.get("id"))] = observation
+        elif artifact.get("kind") == "declared_json":
+            observation, diagnostics = observe_declared_json(artifact_path)
             for diagnostic in diagnostics:
                 report.add(diagnostic)
             if observation is not None:

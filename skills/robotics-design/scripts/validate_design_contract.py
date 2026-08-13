@@ -23,13 +23,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: report already exists: {args.report}", file=sys.stderr)
         return 2
 
-    report, errors = evaluate_contract(args.contract)
+    try:
+        report, errors = evaluate_contract(args.contract)
+    except Exception as exc:  # Last-resort fail-closed CLI boundary.
+        print(f"ERROR: assurance evaluation failed safely: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 2
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 2
     assert report is not None
-    serialized = serialize_report(report)
+    try:
+        serialized = serialize_report(report)
+    except (TypeError, ValueError, OverflowError) as exc:
+        print(f"ERROR: assurance report is not serializable: {exc}", file=sys.stderr)
+        return 2
     if args.report is not None:
         try:
             args.report.parent.mkdir(parents=True, exist_ok=True)

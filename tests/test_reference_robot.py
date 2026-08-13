@@ -36,6 +36,42 @@ def apply_mutation(data, mutation):
 
 
 class ReferenceRobotTests(unittest.TestCase):
+    def test_wrong_dimension_blocks_each_known_plugin_before_evaluation(self):
+        selected_fields = {
+            "drivetrain_v1": ("wheel_radius_m",),
+            "battery_v1": ("voltage_v",),
+            "stability_v1": ("com_height_m",),
+            "arm_gravity_v1": ("joints", 0, "rated_continuous_torque_nm"),
+            "thermal_duty_v1": ("ambient_temperature_k",),
+        }
+        baseline = json.loads(
+            (REFERENCE / "design-contract.json").read_text(encoding="utf-8")
+        )
+        for analysis in baseline["analyses"]:
+            plugin = analysis["plugin"]
+            if plugin not in selected_fields:
+                continue
+            with self.subTest(plugin=plugin), tempfile.TemporaryDirectory() as temp_dir:
+                mutated = copy.deepcopy(baseline)
+                target = next(item for item in mutated["analyses"] if item["plugin"] == plugin)
+                reference = target["inputs"]
+                for part in selected_fields[plugin]:
+                    reference = reference[part]
+                quantity_id = reference.removeprefix("quantity:")
+                quantity = next(
+                    item for item in mutated["quantities"] if item["id"] == quantity_id
+                )
+                quantity["dimension"] = "mass"
+                quantity["value"] = {"value": 1.0, "unit": "kg"}
+                contract = Path(temp_dir) / "design-contract.json"
+                contract.write_text(json.dumps(mutated, indent=2), encoding="utf-8")
+                report, errors = evaluate_contract(contract)
+                self.assertIsNone(report)
+                self.assertTrue(
+                    any(plugin in error and "expects dimension" in error for error in errors),
+                    errors,
+                )
+
     def test_reference_baseline_is_structurally_sound_but_unpromoted(self):
         report, errors = evaluate_contract(REFERENCE / "design-contract.json")
         self.assertEqual(errors, [])
@@ -60,7 +96,25 @@ class ReferenceRobotTests(unittest.TestCase):
             (REFERENCE / "design-contract.json").read_text(encoding="utf-8")
         )
         fault_paths = sorted((REFERENCE / "faults").glob("*.json"))
-        self.assertGreaterEqual(len(fault_paths), 25)
+        expected_ids = {
+            "missing-traction-motor", "missing-reducer", "missing-wheel",
+            "missing-bearing", "missing-motor-driver", "missing-battery",
+            "missing-bms", "missing-main-protection", "missing-contactor",
+            "missing-dc-converter", "missing-arm-motor", "missing-brake",
+            "missing-cable", "missing-connector", "missing-strain-relief",
+            "missing-cable-management", "negative-base-mass", "zero-wheel-radius",
+            "efficiency-over-one", "insufficient-continuous-torque",
+            "motor-overspeed", "insufficient-continuous-current",
+            "insufficient-peak-current", "insufficient-energy",
+            "com-outside-support", "arm-torque-overload",
+            "brake-holding-overload", "stale-artifact-hash", "base-mass-drift",
+            "joint-limit-drift", "thermal-over-temperature", "slope-tip-over",
+        }
+        actual_ids = {
+            json.loads(path.read_text(encoding="utf-8"))["id"] for path in fault_paths
+        }
+        self.assertEqual(len(fault_paths), 32)
+        self.assertEqual(actual_ids, expected_ids)
         seen = set()
         for fault_path in fault_paths:
             fault = json.loads(fault_path.read_text(encoding="utf-8"))
@@ -81,6 +135,26 @@ class ReferenceRobotTests(unittest.TestCase):
                 codes = {item.code for item in report.diagnostics}
                 self.assertIn(fault["expected_diagnostic"], codes)
                 self.assertFalse(report.promotable)
+
+    def test_driven_wheel_count_matches_explicit_left_right_responsibilities(self):
+        data = json.loads(
+            (REFERENCE / "design-contract.json").read_text(encoding="utf-8")
+        )
+        quantity = next(
+            item for item in data["quantities"] if item["id"] == "Q-DRIVEN-WHEELS"
+        )
+        quantity["value"] = {"value": 1, "unit": "1"}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            for source_name in ("robot.urdf", "assumptions.json"):
+                (temp / source_name).write_bytes((REFERENCE / source_name).read_bytes())
+            contract = temp / "design-contract.json"
+            contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            report, errors = evaluate_contract(contract)
+        self.assertEqual(errors, [])
+        self.assertTrue(
+            any(item.code == "PHY.DRIVE.CARDINALITY_MISMATCH" for item in report.diagnostics)
+        )
 
 
 if __name__ == "__main__":

@@ -157,6 +157,19 @@ def _drivetrain(inputs: dict[str, Any]) -> AnalysisResult:
             + math.sin(slope)
         )
     )
+    if force < 0.0:
+        outputs["tractive_force_n"] = force
+        diagnostics.append(
+            _diagnostic(
+                "PHY.DRIVE.BRAKING_REGIME",
+                "indeterminate",
+                "analyses.drivetrain_v1",
+                "negative net tractive force requires an explicit downhill braking or regenerative model",
+            )
+        )
+        return AnalysisResult(
+            "drivetrain_v1", "1", dict(inputs), outputs, tuple(diagnostics), assumptions
+        )
     wheel_torque = force * values["wheel_radius_m"] / values["driven_wheels"]
     motor_torque = wheel_torque / values["gear_ratio"] / values["efficiency"]
     motor_speed = (
@@ -329,11 +342,25 @@ def _stability(inputs: dict[str, Any]) -> AnalysisResult:
             )
         )
         return AnalysisResult("stability_v1", "1", dict(values), outputs, tuple(diagnostics), assumptions)
-    projected_x = values["com_x_m"] + values["com_height_m"] * math.tan(
-        values["slope_x_rad"]
+    shift_x = values["com_height_m"] * math.tan(abs(values["slope_x_rad"]))
+    shift_y = values["com_height_m"] * math.tan(abs(values["slope_y_rad"]))
+    x_candidates = (values["com_x_m"] + shift_x, values["com_x_m"] - shift_x)
+    y_candidates = (values["com_y_m"] + shift_y, values["com_y_m"] - shift_y)
+
+    def axis_margin(value: float, lower: float, upper: float) -> float:
+        return min(value - lower, upper - value)
+
+    projected_x = min(
+        x_candidates,
+        key=lambda value: axis_margin(
+            value, values["support_min_x_m"], values["support_max_x_m"]
+        ),
     )
-    projected_y = values["com_y_m"] + values["com_height_m"] * math.tan(
-        values["slope_y_rad"]
+    projected_y = min(
+        y_candidates,
+        key=lambda value: axis_margin(
+            value, values["support_min_y_m"], values["support_max_y_m"]
+        ),
     )
     margins = (
         projected_x - values["support_min_x_m"],
@@ -346,6 +373,8 @@ def _stability(inputs: dict[str, Any]) -> AnalysisResult:
         {
             "projected_com_x_m": projected_x,
             "projected_com_y_m": projected_y,
+            "projected_com_x_range_m": [min(x_candidates), max(x_candidates)],
+            "projected_com_y_range_m": [min(y_candidates), max(y_candidates)],
             "static_margin_m": margin,
         }
     )
@@ -613,4 +642,51 @@ def run_plugin(name: str, inputs: dict[str, Any]) -> AnalysisResult:
             ),
             validity_assumptions=(),
         )
-    return plugin.run(inputs)
+    try:
+        result = plugin.run(inputs)
+    except ArithmeticError:
+        return AnalysisResult(
+            name=plugin.name,
+            version=plugin.version,
+            inputs=dict(inputs),
+            outputs={},
+            diagnostics=(
+                _diagnostic(
+                    "PHY.NUMERIC.OVERFLOW",
+                    "error",
+                    f"analyses.{name}",
+                    "finite inputs overflowed the plug-in's numerical validity domain",
+                ),
+            ),
+            validity_assumptions=(),
+        )
+
+    def contains_nonfinite(value: Any) -> bool:
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, (int, float)):
+            return not math.isfinite(float(value))
+        if isinstance(value, dict):
+            return any(contains_nonfinite(item) for item in value.values())
+        if isinstance(value, (list, tuple)):
+            return any(contains_nonfinite(item) for item in value)
+        return False
+
+    if contains_nonfinite(result.outputs):
+        return AnalysisResult(
+            name=result.name,
+            version=result.version,
+            inputs=result.inputs,
+            outputs={},
+            diagnostics=(
+                *result.diagnostics,
+                _diagnostic(
+                    "PHY.NUMERIC.OVERFLOW",
+                    "error",
+                    f"analyses.{name}",
+                    "plug-in produced a non-finite derived value",
+                ),
+            ),
+            validity_assumptions=result.validity_assumptions,
+        )
+    return result

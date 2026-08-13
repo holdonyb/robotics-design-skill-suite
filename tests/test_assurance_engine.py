@@ -28,6 +28,7 @@ def write_fixture(root, plugin=None):
     digest = hashlib.sha256(robot.read_bytes()).hexdigest()
     data = valid_contract()
     data["architecture"]["features"] = []
+    data["architecture"]["drive_units"] = []
     data["components"] = []
     data["artifacts"][0]["sha256"] = digest
     data["evidence"][0]["source"]["sha256"] = digest
@@ -38,9 +39,15 @@ def write_fixture(root, plugin=None):
             "observation": "artifact:robot-model#links.base.mass_kg",
         }
     )
-    data["analyses"] = []
     if plugin:
-        data["analyses"] = [{"id": "AN-X", "plugin": plugin, "inputs": {}}]
+        data["analyses"] = [
+            {
+                "id": "AN-X",
+                "plugin": plugin,
+                "covers": ["requirement:REQ-PAYLOAD"],
+                "inputs": {},
+            }
+        ]
     contract = root / "design-contract.json"
     contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
     return contract, robot
@@ -60,9 +67,9 @@ class AssuranceEngineTests(unittest.TestCase):
         self.assertEqual(report["metadata"]["schema_version"], 1)
         self.assertRegex(report["metadata"]["contract_sha256"], r"^[0-9a-f]{64}$")
         self.assertEqual(report["metadata"]["evidence_coverage"], "1/1")
-        self.assertEqual(report["metadata"]["minimum_evidence_level"], "parsed")
+        self.assertEqual(report["metadata"]["minimum_evidence_level"], "assumed")
         self.assertEqual(
-            report["metadata"]["evidence_level_counts"], {"parsed": 1}
+            report["metadata"]["evidence_level_counts"], {"assumed": 4, "parsed": 1}
         )
 
     def test_changed_artifact_invalidates_hash_bound_evidence(self):
@@ -83,51 +90,23 @@ class AssuranceEngineTests(unittest.TestCase):
         self.assertFalse(report.promotable)
         self.assertTrue(any(item.code == "PHY.PLUGIN.UNKNOWN" for item in report.diagnostics))
 
+    def test_nonempty_physical_contract_without_analysis_is_not_promotable(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            contract, _ = write_fixture(Path(temp_dir))
+            data = json.loads(contract.read_text(encoding="utf-8"))
+            data["analyses"] = []
+            contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            report, errors = evaluate_contract(contract)
+        self.assertEqual(errors, [])
+        self.assertFalse(report.promotable)
+        self.assertTrue(
+            any(item.code == "PHY.ANALYSIS.MISSING" for item in report.diagnostics)
+        )
+
     def test_nested_arm_inputs_resolve_owned_quantities(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             contract, _ = write_fixture(root)
-            data = json.loads(contract.read_text(encoding="utf-8"))
-            for quantity_id, dimension, value, unit in (
-                ("Q-LEVER", "length", 0.5, "m"),
-                ("Q-RATING", "torque", 100.0, "N*m"),
-                ("Q-BRAKE", "torque", 100.0, "N*m"),
-                ("Q-SF", "dimensionless", 1.5, "1"),
-            ):
-                data["quantities"].append(
-                    {
-                        "id": quantity_id,
-                        "dimension": dimension,
-                        "value": {"value": value, "unit": unit},
-                        "owner": "artifact:robot-model",
-                        "source": "evidence:EV-URDF",
-                        "evidence_level": "assumed",
-                    }
-                )
-                data["evidence"][0]["supports"].append(f"quantity:{quantity_id}")
-            data["analyses"] = [
-                {
-                    "id": "AN-ARM",
-                    "plugin": "arm_gravity_v1",
-                    "inputs": {
-                        "joints": [
-                            {
-                                "id": "joint_2",
-                                "loads": [
-                                    {
-                                        "mass_kg": "quantity:Q-PAYLOAD",
-                                        "horizontal_lever_m": "quantity:Q-LEVER",
-                                    }
-                                ],
-                                "rated_continuous_torque_nm": "quantity:Q-RATING",
-                                "brake_holding_torque_nm": "quantity:Q-BRAKE",
-                                "safety_factor": "quantity:Q-SF",
-                            }
-                        ]
-                    },
-                }
-            ]
-            contract.write_text(json.dumps(data, indent=2), encoding="utf-8")
             report, errors = evaluate_contract(contract)
         self.assertEqual(errors, [])
         self.assertTrue(report.promotable)

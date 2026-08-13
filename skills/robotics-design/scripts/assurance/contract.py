@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import urlparse
 
 from .model import EvidenceLevel
+from .plugin_contracts import validate_plugin_inputs
 from .units import QuantityError, to_si
 
 
@@ -74,7 +77,7 @@ RECORD_FIELDS = {
         }
     ),
     "artifacts": frozenset({"id", "kind", "path", "sha256"}),
-    "analyses": frozenset({"id", "plugin", "inputs"}),
+    "analyses": frozenset({"id", "plugin", "covers", "inputs"}),
     "evidence": frozenset(
         {
             "id",
@@ -87,7 +90,7 @@ RECORD_FIELDS = {
     ),
 }
 ARCHITECTURE_FIELDS = frozenset(
-    {"features", "actuators", "moving_cables", "claimed_safety_functions"}
+    {"features", "drive_units", "actuators", "moving_cables", "claimed_safety_functions"}
 )
 
 
@@ -241,6 +244,16 @@ def validate_contract(data: Any) -> list[str]:
     quantity_ids = {
         item.get("id") for item in collections["quantities"] if _nonempty(item.get("id"))
     }
+    quantities_by_id = {
+        item.get("id"): item
+        for item in collections["quantities"]
+        if _nonempty(item.get("id"))
+    }
+    requirement_ids = {
+        item.get("id")
+        for item in collections["requirements"]
+        if _nonempty(item.get("id"))
+    }
     known_owners = {"project:system"}
     known_owners.update(f"artifact:{item}" for item in artifact_ids)
     known_owners.update(f"component:{item}" for item in component_ids)
@@ -248,6 +261,7 @@ def validate_contract(data: Any) -> list[str]:
     if isinstance(architecture, dict):
         for field, prefix in (
             ("features", "feature"),
+            ("drive_units", "drive"),
             ("actuators", "actuator"),
             ("moving_cables", "moving_cable"),
             ("claimed_safety_functions", "safety_function"),
@@ -257,6 +271,10 @@ def validate_contract(data: Any) -> list[str]:
                 architecture_responsibilities.update(
                     f"{prefix}:{item}" for item in values if _nonempty(item)
                 )
+    known_analysis_coverage = set(architecture_responsibilities)
+    known_analysis_coverage.update(
+        f"requirement:{item}" for item in requirement_ids
+    )
 
     for name in ("requirements", "assumptions", "quantities"):
         for index, item in enumerate(collections[name]):
@@ -346,11 +364,66 @@ def validate_contract(data: Any) -> list[str]:
                     f"components[{index}].bindings references unknown architecture responsibility: {binding}"
                 )
         if "supports_claims" in item:
-            _string_list(
+            supported_claims = _string_list(
                 item.get("supports_claims"),
                 f"components[{index}].supports_claims",
                 errors,
             )
+            for claim_id in supported_claims:
+                if claim_id not in requirement_ids:
+                    errors.append(
+                        f"components[{index}].supports_claims references unknown "
+                        f"requirement: {claim_id}"
+                    )
+        component_state = item.get("state")
+        if isinstance(component_state, str) and component_state in {
+            "verified_part",
+            "qualified_substitute",
+        }:
+            source_url = item.get("source_url")
+            parsed_url = urlparse(source_url) if isinstance(source_url, str) else None
+            if (
+                parsed_url is None
+                or parsed_url.scheme not in {"http", "https"}
+                or not parsed_url.netloc
+            ):
+                errors.append(
+                    f"components[{index}].source_url must be an absolute HTTP(S) URL"
+                )
+            source_date = item.get("source_date")
+            try:
+                if not isinstance(source_date, str):
+                    raise ValueError
+                date.fromisoformat(source_date)
+            except ValueError:
+                errors.append(
+                    f"components[{index}].source_date must be an ISO calendar date"
+                )
+            limits = item.get("limits")
+            if not isinstance(limits, dict) or not limits:
+                errors.append(f"components[{index}].limits must be a non-empty object")
+            else:
+                for limit_name, reference in sorted(limits.items()):
+                    limit_path = f"components[{index}].limits.{limit_name}"
+                    if not _nonempty(limit_name):
+                        errors.append(
+                            f"components[{index}].limits keys must be non-empty strings"
+                        )
+                        continue
+                    if (
+                        not isinstance(reference, str)
+                        or not reference.startswith("quantity:")
+                        or reference[9:] not in quantity_ids
+                    ):
+                        errors.append(
+                            f"{limit_path} must reference a quantity owned by the component"
+                        )
+                        continue
+                    quantity = quantities_by_id[reference[9:]]
+                    if quantity.get("owner") != f"component:{item.get('id')}":
+                        errors.append(
+                            f"{limit_path} quantity must be owned by component:{item.get('id')}"
+                        )
 
     for index, item in enumerate(collections["artifacts"]):
         if not _nonempty(item.get("kind")):
@@ -368,6 +441,14 @@ def validate_contract(data: Any) -> list[str]:
         if not isinstance(inputs, dict):
             errors.append(f"analyses[{index}].inputs must be an object")
             continue
+        covers = _string_list(
+            item.get("covers"), f"analyses[{index}].covers", errors
+        )
+        for coverage in covers:
+            if coverage not in known_analysis_coverage:
+                errors.append(
+                    f"analyses[{index}].covers references unknown responsibility: {coverage}"
+                )
         for name, reference in sorted(inputs.items()):
             if not _nonempty(name):
                 errors.append(f"analyses[{index}].inputs keys must be non-empty strings")
@@ -378,6 +459,14 @@ def validate_contract(data: Any) -> list[str]:
                     quantity_ids,
                     errors,
                 )
+        errors.extend(
+            validate_plugin_inputs(
+                item.get("plugin"),
+                inputs,
+                quantities_by_id,
+                f"analyses[{index}]({item.get('plugin')}).inputs",
+            )
+        )
 
     known_supports = {f"quantity:{item_id}" for item_id in quantity_ids}
     known_supports.update(f"artifact:{item_id}" for item_id in artifact_ids)
@@ -444,6 +533,8 @@ def load_contract(path: Path) -> tuple[Any | None, list[str]]:
         return None, [f"contract does not exist: {path}"]
     except json.JSONDecodeError as exc:
         return None, [f"contract is not valid JSON: {exc}"]
+    except UnicodeError as exc:
+        return None, [f"contract is not valid UTF-8: {exc}"]
     except OSError as exc:
         return None, [f"cannot read contract: {exc}"]
     return data, validate_contract(data)

@@ -26,6 +26,7 @@ REQUIRED = {
     "skills/robotics-design/scripts/validate_visual_manifest.py",
     "skills/robotics-design/scripts/validate_mission_animation_manifest.py",
     ".github/workflows/ci.yml",
+    ".gitattributes",
 }
 TEXT_SUFFIXES = {".md", ".py", ".json", ".yml", ".yaml", ".txt"}
 FORBIDDEN = {
@@ -50,6 +51,23 @@ def deployable_text_files():
 
 
 class PublicHygieneTests(unittest.TestCase):
+    def test_hash_bound_text_has_checkout_stable_lf_attributes(self):
+        completed = subprocess.run(
+            [
+                "git", "check-attr", "eol", "--",
+                "reference/mobile-manipulator/robot.urdf",
+                "reference/mobile-manipulator/assumptions.json",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        )
+        lines = [line for line in completed.stdout.splitlines() if line]
+        self.assertEqual(len(lines), 2)
+        self.assertTrue(all(line.endswith("eol: lf") for line in lines), lines)
+
     def test_local_delta_record_has_no_unresolved_disposition(self):
         record = (ROOT / "docs/research/2026-08-13-active-local-delta.md").read_text(
             encoding="utf-8"

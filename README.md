@@ -59,8 +59,9 @@ $sdf Build a Gazebo Harmonic world and identify every validation gate that was n
 
 Version 0.3.0 adds a closed, machine-readable design contract before nominal
 simulation or training. It binds explicit-unit quantities to evidence, binds
-components to each architecture responsibility, checks artifact hashes and
-owned URDF observations, and emits deterministic diagnostics and signed
+components to explicit left/right drive and per-joint responsibilities, closes
+each plug-in input to an expected physical dimension, checks artifact hashes,
+owned URDF observations, and bounded declared-JSON observations, and emits deterministic diagnostics and signed
 margins for drivetrain, battery/runtime, static stability, arm gravity/brake
 holding, and conservative steady-state winding thermal duty.
 
@@ -71,7 +72,7 @@ python skills/robotics-design/scripts/validate_design_contract.py path/to/design
 Exit `0` means only that the declared contract passes the implemented
 analytical screens at its recorded evidence levels. Missing or placeholder
 parts, stale evidence, invalid units, incomplete actuator/load paths, and
-failed or indeterminate analyses block promotion. Simulation cannot replace a
+missing architecture-derived analysis coverage, failed or indeterminate analyses block promotion. Simulation cannot replace a
 missing motor, reducer, bearing, driver, brake, power-protection element, or
 unsupported continuous/thermal rating.
 

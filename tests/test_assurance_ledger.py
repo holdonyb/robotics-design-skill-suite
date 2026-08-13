@@ -29,12 +29,13 @@ class AssuranceLedgerTests(unittest.TestCase):
         roles = required_roles(
             {
                 "features": ["differential_drive", "battery_powered"],
+                "drive_units": ["left", "right"],
                 "actuators": [],
                 "moving_cables": [],
                 "claimed_safety_functions": ["holding_brake"],
             }
         )
-        self.assertIn("reducer", roles["feature:differential_drive"])
+        self.assertIn("reducer", roles["drive:left"])
         self.assertIn("bms", roles["feature:battery_powered"])
         self.assertEqual(roles["safety_function:holding_brake"], {"brake"})
 

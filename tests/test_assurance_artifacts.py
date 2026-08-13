@@ -1,4 +1,5 @@
 import copy
+import json
 import sys
 import tempfile
 import unittest
@@ -9,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "skills" / "robotics-design" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from assurance.artifacts import compare_observations, observe_urdf  # noqa: E402
+from assurance.artifacts import compare_observations, observe_declared_json, observe_urdf  # noqa: E402
 from tests.test_assurance_contract import valid_contract  # noqa: E402
 
 
@@ -91,6 +92,24 @@ class AssuranceArtifactTests(unittest.TestCase):
         quantity["tolerance"] = {"value": 1.1, "unit": "kg"}
         findings = compare_observations(data, {"robot-model": observation})
         self.assertFalse(any(item.code == "DRIFT.VALUE" for item in findings))
+
+    def test_declared_json_adapter_supports_bounded_cross_artifact_observations(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "bom-observations.json"
+            path.write_text(
+                json.dumps({"components": {"motor": {"continuous_torque_nm": 2.0}}}),
+                encoding="utf-8",
+            )
+            observation, diagnostics = observe_declared_json(path)
+            self.assertEqual(diagnostics, [])
+            self.assertEqual(
+                observation["components"]["motor"]["continuous_torque_nm"], 2.0
+            )
+
+            path.write_text('{"x": NaN}', encoding="utf-8")
+            observation, diagnostics = observe_declared_json(path)
+            self.assertIsNone(observation)
+            self.assertTrue(any(item.code == "ARTIFACT.JSON" for item in diagnostics))
 
     def test_joint_limit_drift_and_missing_observation_are_reported(self):
         data = valid_contract()

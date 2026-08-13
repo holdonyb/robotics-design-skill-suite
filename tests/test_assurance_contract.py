@@ -44,7 +44,39 @@ def valid_contract():
                 "owner": "artifact:robot-model",
                 "source": "evidence:EV-URDF",
                 "evidence_level": "assumed",
-            }
+            },
+            {
+                "id": "Q-LEVER",
+                "dimension": "length",
+                "value": {"value": 0.5, "unit": "m"},
+                "owner": "project:system",
+                "source": "evidence:EV-URDF",
+                "evidence_level": "assumed",
+            },
+            {
+                "id": "Q-RATING",
+                "dimension": "torque",
+                "value": {"value": 100.0, "unit": "N*m"},
+                "owner": "project:system",
+                "source": "evidence:EV-URDF",
+                "evidence_level": "assumed",
+            },
+            {
+                "id": "Q-BRAKE",
+                "dimension": "torque",
+                "value": {"value": 100.0, "unit": "N*m"},
+                "owner": "project:system",
+                "source": "evidence:EV-URDF",
+                "evidence_level": "assumed",
+            },
+            {
+                "id": "Q-SAFETY",
+                "dimension": "dimensionless",
+                "value": {"value": 1.5, "unit": "1"},
+                "owner": "project:system",
+                "source": "evidence:EV-URDF",
+                "evidence_level": "assumed",
+            },
         ],
         "components": [
             {
@@ -57,6 +89,7 @@ def valid_contract():
         ],
         "architecture": {
             "features": ["differential_drive", "battery_powered"],
+            "drive_units": ["left", "right"],
             "actuators": [],
             "moving_cables": [],
             "claimed_safety_functions": [],
@@ -73,7 +106,23 @@ def valid_contract():
             {
                 "id": "AN-ARM-GRAVITY",
                 "plugin": "arm_gravity_v1",
-                "inputs": {"payload": "quantity:Q-PAYLOAD"},
+                "covers": ["requirement:REQ-PAYLOAD"],
+                "inputs": {
+                    "joints": [
+                        {
+                            "id": "joint_2",
+                            "loads": [
+                                {
+                                    "mass_kg": "quantity:Q-PAYLOAD",
+                                    "horizontal_lever_m": "quantity:Q-LEVER",
+                                }
+                            ],
+                            "rated_continuous_torque_nm": "quantity:Q-RATING",
+                            "brake_holding_torque_nm": "quantity:Q-BRAKE",
+                            "safety_factor": "quantity:Q-SAFETY",
+                        }
+                    ]
+                },
             }
         ],
         "evidence": [
@@ -84,7 +133,13 @@ def valid_contract():
                     "path": "robot.urdf",
                     "sha256": "0" * 64,
                 },
-                "supports": ["quantity:Q-PAYLOAD"],
+                "supports": [
+                    "quantity:Q-PAYLOAD",
+                    "quantity:Q-LEVER",
+                    "quantity:Q-RATING",
+                    "quantity:Q-BRAKE",
+                    "quantity:Q-SAFETY",
+                ],
             }
         ],
     }
@@ -175,6 +230,53 @@ class AssuranceContractTests(unittest.TestCase):
             validate_contract(data),
         )
 
+    def test_component_claim_support_must_reference_declared_requirement(self):
+        data = valid_contract()
+        data["components"][0]["supports_claims"] = ["REQ-MISSING"]
+        self.assertIn(
+            "components[0].supports_claims references unknown requirement: REQ-MISSING",
+            validate_contract(data),
+        )
+
+    def test_verified_component_limits_are_owned_quantity_references(self):
+        data = valid_contract()
+        component = data["components"][0]
+        component.update(
+            {
+                "state": "verified_part",
+                "manufacturer": "Example Robotics",
+                "part_number": "M-100",
+                "source_url": "https://example.invalid/M-100",
+                "source_date": "2026-08-13",
+                "limits": {"continuous_torque": "quantity:Q-RATING"},
+            }
+        )
+        data["quantities"][2]["owner"] = f"component:{component['id']}"
+        self.assertEqual(validate_contract(data), [])
+
+        component["limits"] = {"continuous_torque": {"value": float("nan")}}
+        self.assertTrue(
+            any("limits.continuous_torque must reference a quantity" in error for error in validate_contract(data))
+        )
+
+    def test_verified_component_source_url_and_date_are_closed(self):
+        data = valid_contract()
+        component = data["components"][0]
+        component.update(
+            {
+                "state": "verified_part",
+                "manufacturer": "Example Robotics",
+                "part_number": "M-100",
+                "source_url": "remembered catalog",
+                "source_date": "soon",
+                "limits": {"continuous_torque": "quantity:Q-RATING"},
+            }
+        )
+        data["quantities"][2]["owner"] = f"component:{component['id']}"
+        errors = validate_contract(data)
+        self.assertTrue(any("source_url must be an absolute HTTP(S) URL" in error for error in errors))
+        self.assertTrue(any("source_date must be an ISO calendar date" in error for error in errors))
+
     def test_malformed_architecture_and_supports_are_actionable_not_tracebacks(self):
         data = valid_contract()
         data["architecture"]["actuators"] = None
@@ -216,20 +318,48 @@ class AssuranceContractTests(unittest.TestCase):
 
     def test_analysis_inputs_may_nest_quantity_references(self):
         data = valid_contract()
-        data["analyses"][0]["inputs"] = {
-            "joints": [
-                {
-                    "id": "joint_2",
-                    "loads": [
-                        {
-                            "mass_kg": "quantity:Q-PAYLOAD",
-                            "horizontal_lever_m": "quantity:Q-PAYLOAD",
-                        }
-                    ],
-                }
-            ]
-        }
         self.assertEqual(validate_contract(data), [])
+
+    def test_every_known_plugin_rejects_wrong_quantity_dimensions(self):
+        reference = json.loads(
+            (ROOT / "reference" / "mobile-manipulator" / "design-contract.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        selected_fields = {
+            "drivetrain_v1": ("wheel_radius_m",),
+            "battery_v1": ("voltage_v",),
+            "stability_v1": ("com_height_m",),
+            "arm_gravity_v1": ("joints", 0, "rated_continuous_torque_nm"),
+            "thermal_duty_v1": ("ambient_temperature_k",),
+        }
+        for analysis in reference["analyses"]:
+            plugin = analysis["plugin"]
+            if plugin not in selected_fields:
+                continue
+            with self.subTest(plugin=plugin):
+                value = analysis["inputs"]
+                for part in selected_fields[plugin]:
+                    value = value[part]
+                quantity_id = value.removeprefix("quantity:")
+                quantity = next(
+                    item for item in reference["quantities"] if item["id"] == quantity_id
+                )
+                original_dimension = quantity["dimension"]
+                original_value = copy.deepcopy(quantity["value"])
+                quantity["dimension"] = "mass"
+                quantity["value"] = {"value": 1.0, "unit": "kg"}
+                errors = validate_contract(reference)
+                self.assertTrue(
+                    any(
+                        plugin in error
+                        and f"expects dimension {original_dimension}" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+                quantity["dimension"] = original_dimension
+                quantity["value"] = original_value
 
     def test_load_errors_are_actionable_without_traceback(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -243,6 +373,11 @@ class AssuranceContractTests(unittest.TestCase):
             loaded, errors = load_contract(path)
             self.assertIsNone(loaded)
             self.assertTrue(errors[0].startswith("contract is not valid JSON:"))
+
+            path.write_bytes(b"\xff\xfe")
+            loaded, errors = load_contract(path)
+            self.assertIsNone(loaded)
+            self.assertTrue(errors[0].startswith("contract is not valid UTF-8:"))
 
 
 if __name__ == "__main__":
