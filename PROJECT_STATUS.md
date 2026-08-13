@@ -18,6 +18,25 @@ ROS 2, and simulation skills to audited commits.
 - Released version: `0.4.0` in `manifest.json`.
 - Third-party source locks are unchanged from v0.3.0.
 
+## v0.5 Development Checkpoint
+
+The local v0.5 branch adds closed simulation admission, source-bound ROS 2
+workspace artifacts, ten deterministic scenarios, trace receipts and replay,
+two distinct portable dynamics calculations, bounded calibration, and a
+train/evaluation/held-out synthetic policy firewall. The portable reference
+benchmark at `0a7c250` compiles and replays 10/10 scenarios, returns a
+placeholder-only simulation admission (`hardware_promotable: false`), a passed
+calculated backend comparison, simulated synthetic calibration, and a
+simulated/not-justified training result. It is explicitly not a live Gazebo or
+hardware result.
+
+Python 3.11 full regression passed 367 tests at this checkpoint, with
+distribution validation and installer dry-run also passing. The Linux
+Jazzy/Harmonic workflow is committed but not executed locally: Docker Desktop's
+Linux containerd metadata store returned an I/O error while pulling the pinned
+base image. Retained live CI evidence is required before v0.5 release or any
+consumer-load claim.
+
 ## v0.4 Candidate Capability
 
 The candidate adds a closed, deterministic, bounded hypothesis layer on top of

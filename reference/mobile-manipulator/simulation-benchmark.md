@@ -33,6 +33,12 @@ Gazebo, checks ros2_control, MoveIt, and Nav2 consumer presence, and uploads its
 logs and environment inventory. Until that job has a retained successful run,
 there is no live-consumer claim.
 
+As of 2026-08-14, this Windows development host cannot execute that Docker gate:
+the Docker Desktop Linux containerd metadata store returns an I/O error before
+the pinned image can be pulled. This is an environment failure, not successful
+live evidence and not a reason to weaken the CI gate. A clean Ubuntu runner must
+retain the first live-consumer result.
+
 ## Hardware boundary
 
 All claim-driving components remain engineering placeholders. Neither the
