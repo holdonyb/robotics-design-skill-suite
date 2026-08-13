@@ -237,32 +237,74 @@ class HypothesisResult:
                         f"candidate {candidate_id_value} {field_name} "
                         f"target must exist in candidates: {target}"
                     )
+                if field_name == "alias_of":
+                    alias_target = candidates_by_id[target]
+                    if alias_target.status == "alias" or alias_target.alias_of is not None:
+                        raise ValueError(
+                            f"candidate {candidate_id_value} alias_of target "
+                            f"must be canonical non-alias: {target}"
+                        )
+                    if (
+                        item.resolved_contract_sha256
+                        != alias_target.resolved_contract_sha256
+                    ):
+                        raise ValueError(
+                            f"candidate {candidate_id_value} alias_of "
+                            "resolved_contract_sha256 must match target"
+                        )
+                    if item.evaluation_key != alias_target.evaluation_key:
+                        raise ValueError(
+                            f"candidate {candidate_id_value} alias_of "
+                            "evaluation_key must match target"
+                        )
 
         visit_state: dict[str, int] = {}
-        visit_stack: list[str] = []
+        for start_id in sorted(candidates_by_id):
+            if visit_state.get(start_id, 0) != 0:
+                continue
+            start = candidates_by_id[start_id]
+            start_targets = tuple(
+                target
+                for target in (start.parent_id, start.alias_of)
+                if target is not None
+            )
+            visit_state[start_id] = 1
+            visit_stack: list[tuple[str, tuple[str, ...], int]] = [
+                (start_id, start_targets, 0)
+            ]
+            active_positions = {start_id: 0}
 
-        def visit(candidate_id_value: str) -> None:
-            visit_state[candidate_id_value] = 1
-            visit_stack.append(candidate_id_value)
-            item = candidates_by_id[candidate_id_value]
-            for target in (item.parent_id, item.alias_of):
-                if target is None:
+            while visit_stack:
+                candidate_id_value, targets, next_index = visit_stack[-1]
+                if next_index == len(targets):
+                    visit_stack.pop()
+                    del active_positions[candidate_id_value]
+                    visit_state[candidate_id_value] = 2
                     continue
+
+                target = targets[next_index]
+                visit_stack[-1] = (
+                    candidate_id_value,
+                    targets,
+                    next_index + 1,
+                )
                 state = visit_state.get(target, 0)
                 if state == 1:
-                    cycle_start = visit_stack.index(target)
-                    cycle = visit_stack[cycle_start:] + [target]
+                    cycle_length = len(visit_stack) - active_positions[target]
                     raise ValueError(
-                        "candidates contains lineage cycle: " + " -> ".join(cycle)
+                        "candidates contains lineage cycle at "
+                        f"{target} (cycle length {cycle_length})"
                     )
                 if state == 0:
-                    visit(target)
-            visit_stack.pop()
-            visit_state[candidate_id_value] = 2
-
-        for candidate_id_value in sorted(candidates_by_id):
-            if visit_state.get(candidate_id_value, 0) == 0:
-                visit(candidate_id_value)
+                    target_item = candidates_by_id[target]
+                    target_references = tuple(
+                        reference
+                        for reference in (target_item.parent_id, target_item.alias_of)
+                        if reference is not None
+                    )
+                    visit_state[target] = 1
+                    active_positions[target] = len(visit_stack)
+                    visit_stack.append((target, target_references, 0))
 
         stages = _sequence(self.stages, "stages")
         for index, item in enumerate(stages):

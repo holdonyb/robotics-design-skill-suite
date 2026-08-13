@@ -27,6 +27,7 @@ SHA_B = "b" * 64
 SHA_C = "c" * 64
 CANDIDATE_A = "candidate-" + "1" * 24
 CANDIDATE_B = "candidate-" + "2" * 24
+CANDIDATE_C = "candidate-" + "3" * 24
 
 
 class CanonicalIdentityTests(unittest.TestCase):
@@ -175,14 +176,16 @@ class RecordTests(unittest.TestCase):
         status="accepted",
         alias_of=None,
         parent_id=None,
+        resolved_contract_sha256=SHA_B,
+        evaluation_key="evaluation-1",
     ):
         return CandidateLineage(
             candidate_id=candidate,
             parent_id=parent_id,
             assignments={"axis-b": "choice-2", "axis-a": "choice-1"},
             repair_rule_id=None,
-            resolved_contract_sha256=SHA_B,
-            evaluation_key="evaluation-1",
+            resolved_contract_sha256=resolved_contract_sha256,
+            evaluation_key=evaluation_key,
             status=status,
             alias_of=alias_of,
         )
@@ -203,6 +206,25 @@ class RecordTests(unittest.TestCase):
 
     def make_result(self, candidates=(), stages=()):
         return HypothesisResult("space-1", SHA_A, 1, candidates, stages, {})
+
+    def make_deep_parent_chain(self, count, cycle=False):
+        candidate_ids = tuple(f"candidate-{index:024x}" for index in range(count))
+        return tuple(
+            CandidateLineage(
+                candidate_id=candidate_id_value,
+                parent_id=(
+                    candidate_ids[index + 1]
+                    if index + 1 < count
+                    else candidate_ids[0] if cycle else None
+                ),
+                assignments={},
+                repair_rule_id=None,
+                resolved_contract_sha256=SHA_B,
+                evaluation_key="evaluation-1",
+                status="accepted",
+            )
+            for index, candidate_id_value in enumerate(candidate_ids)
+        )
 
     def test_candidate_decision_is_frozen_and_derives_identity(self):
         decision = CandidateDecision(
@@ -382,10 +404,6 @@ class RecordTests(unittest.TestCase):
                 self.make_lineage(CANDIDATE_B, parent_id=CANDIDATE_A),
             ),
             (
-                self.make_lineage(CANDIDATE_A, status="alias", alias_of=CANDIDATE_B),
-                self.make_lineage(CANDIDATE_B, status="alias", alias_of=CANDIDATE_A),
-            ),
-            (
                 self.make_lineage(CANDIDATE_A, parent_id=CANDIDATE_B),
                 self.make_lineage(CANDIDATE_B, status="alias", alias_of=CANDIDATE_A),
             ),
@@ -394,6 +412,66 @@ class RecordTests(unittest.TestCase):
             with self.subTest(cycle=index):
                 with self.assertRaisesRegex(ValueError, "lineage cycle"):
                     self.make_result(candidates=candidates)
+
+    def test_hypothesis_result_handles_a_valid_10000_node_parent_chain(self):
+        result = self.make_result(candidates=self.make_deep_parent_chain(10_000))
+
+        self.assertEqual(len(result.candidates), 10_000)
+
+    def test_hypothesis_result_rejects_a_deep_cycle_without_recursion_error(self):
+        with self.assertRaisesRegex(ValueError, "lineage cycle"):
+            self.make_result(candidates=self.make_deep_parent_chain(10_000, cycle=True))
+
+    def test_hypothesis_result_accepts_alias_matching_a_canonical_target(self):
+        target = self.make_lineage(CANDIDATE_B)
+        valid_alias = self.make_lineage(
+            CANDIDATE_A,
+            status="alias",
+            alias_of=CANDIDATE_B,
+        )
+        self.assertEqual(
+            len(self.make_result(candidates=(valid_alias, target)).candidates),
+            2,
+        )
+
+    def test_hypothesis_result_rejects_alias_to_alias(self):
+        valid_alias = self.make_lineage(
+            CANDIDATE_A,
+            status="alias",
+            alias_of=CANDIDATE_B,
+        )
+        alias_target = self.make_lineage(
+            CANDIDATE_B,
+            status="alias",
+            alias_of=CANDIDATE_C,
+        )
+        canonical_target = self.make_lineage(CANDIDATE_C)
+        with self.assertRaisesRegex(ValueError, "canonical non-alias"):
+            self.make_result(
+                candidates=(valid_alias, alias_target, canonical_target)
+            )
+
+    def test_hypothesis_result_rejects_alias_hash_mismatch(self):
+        target = self.make_lineage(CANDIDATE_B)
+        hash_mismatch = self.make_lineage(
+            CANDIDATE_A,
+            status="alias",
+            alias_of=CANDIDATE_B,
+            resolved_contract_sha256=SHA_C,
+        )
+        with self.assertRaisesRegex(ValueError, "resolved_contract_sha256.*match"):
+            self.make_result(candidates=(hash_mismatch, target))
+
+    def test_hypothesis_result_rejects_alias_evaluation_key_mismatch(self):
+        target = self.make_lineage(CANDIDATE_B)
+        evaluation_mismatch = self.make_lineage(
+            CANDIDATE_A,
+            status="alias",
+            alias_of=CANDIDATE_B,
+            evaluation_key="evaluation-2",
+        )
+        with self.assertRaisesRegex(ValueError, "evaluation_key.*match"):
+            self.make_result(candidates=(evaluation_mismatch, target))
 
     def test_records_reject_bad_hash_status_and_nested_types(self):
         with self.assertRaisesRegex(ValueError, "resolved_contract_sha256"):
