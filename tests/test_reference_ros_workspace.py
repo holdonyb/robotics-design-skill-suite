@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "003af61a82a71c18bdc73c20105dc7b12d1c880ee309b3d2be1c87eb47740742"
+ROS_MANIFEST_RECEIPT = "4b10e77d42348ea2cfe0d146420e5f25c54b3688d180f56c5a1011a1f55939ba"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -212,6 +212,8 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
         self.assertIn('get_package_share_directory("jx_mobile_manipulator_moveit_config")', move_group)
         self.assertIn('"config" / "reference_mobile_manipulator.urdf"', move_group)
         self.assertIn('.robot_description(file_path=description_urdf)', move_group)
+        self.assertIn('{"use_sim_time": True}', move_group)
+        self.assertNotIn("LaunchConfiguration", move_group)
         self.assertIn("planning_pipelines", move_group)
         def normalized_xml(path):
             def walk(node):

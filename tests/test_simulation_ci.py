@@ -44,6 +44,7 @@ class SimulationCiTests(unittest.TestCase):
         )
         self.assertIn("if: always()", workflow)
         self.assertIn("upload-artifact", workflow)
+        self.assertIn("include-hidden-files: true", workflow)
         self.assertNotIn("continue-on-error: true", workflow)
 
 

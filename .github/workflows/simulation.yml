@@ -34,3 +34,4 @@ jobs:
           name: simulation-evidence-${{ github.sha }}
           path: .simulation-evidence
           if-no-files-found: warn
+          include-hidden-files: true
