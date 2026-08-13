@@ -12,6 +12,7 @@ from .model import (
     TrajectoryRecord,
 )
 from .admission import evaluate_simulation_admission
+from .artifacts import validate_artifact_manifest
 from .schema import load_simulation_contract, validate_simulation_contract
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "TraceSample",
     "TrajectoryRecord",
     "evaluate_simulation_admission",
+    "validate_artifact_manifest",
     "load_simulation_contract",
     "validate_simulation_contract",
 ]

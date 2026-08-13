@@ -1,4 +1,5 @@
 # Hash-bound text evidence must have checkout-stable bytes on every platform.
+.gitattributes text eol=lf
 *.json text eol=lf
 *.urdf text eol=lf
 *.sdf text eol=lf
@@ -9,3 +10,4 @@
 *.md text eol=lf
 *.py text eol=lf
 *.ps1 text eol=crlf
+*.step binary
