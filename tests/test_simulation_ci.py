@@ -19,6 +19,7 @@ class SimulationCiTests(unittest.TestCase):
         self.assertNotIn(":latest", dockerfile + workflow)
         for token in ("xacro", "colcon test", "gz sim", "ros2_control", "move_group", "nav2", "timeout", "trap", "validate_simulation_bundle.py"):
             self.assertIn(token, gate)
+        self.assertLess(gate.index("source /opt/ros/jazzy/setup.bash"), gate.index('test "${ROS_DISTRO:-}" = "jazzy"'))
         self.assertIn("if: always()", workflow)
         self.assertIn("upload-artifact", workflow)
         self.assertNotIn("continue-on-error: true", workflow)

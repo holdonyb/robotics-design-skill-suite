@@ -17,12 +17,12 @@ cleanup() {
 trap cleanup EXIT INT TERM
 run() { timeout --preserve-status 90s "$@"; }
 
+source /opt/ros/jazzy/setup.bash
 test "${ROS_DISTRO:-}" = "jazzy"
 gz sim --versions > "$EVIDENCE/gazebo-versions.txt"
 dpkg-query -W > "$EVIDENCE/dpkg-inventory.txt"
 docker image inspect "${SIMULATION_IMAGE_REF:-unavailable}" > "$EVIDENCE/image-inspect.json" 2>/dev/null || true
 
-source /opt/ros/jazzy/setup.bash
 run xacro "$WORKSPACE/src/jx_mobile_manipulator_description/urdf/reference_mobile_manipulator.urdf.xacro" use_sim:=true > "$EVIDENCE/robot.urdf"
 run colcon build --base-paths "$WORKSPACE/src" --event-handlers console_direct+
 source "$WORKSPACE/install/setup.bash"
