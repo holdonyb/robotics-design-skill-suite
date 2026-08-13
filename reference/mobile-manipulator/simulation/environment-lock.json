@@ -1,0 +1,1 @@
+{"base_os":"ubuntu-24.04","image_digest":"4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90","packages":["ros-jazzy-desktop","ros-jazzy-ros-gz","ros-jazzy-ros2-control","ros-jazzy-gz-ros2-control","ros-jazzy-moveit","ros-jazzy-nav2-bringup","ros-jazzy-xacro","python3-colcon-common-extensions"],"ros_distro":"jazzy","schema_version":1,"simulator":"gazebo-harmonic"}

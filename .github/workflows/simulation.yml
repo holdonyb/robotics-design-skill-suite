@@ -1,0 +1,36 @@
+name: simulation
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  jazzy-harmonic-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build immutable Jazzy/Harmonic consumer image
+        run: |
+          docker build --pull=false \
+            --tag robotics-design-jazzy-harmonic:${{ github.sha }} \
+            --file reference/mobile-manipulator/simulation/Dockerfile.jazzy-harmonic .
+      - name: Run headless consumer gate
+        run: |
+          docker run --rm --network=host \
+            --name robotics-design-live-gate \
+            -e SIMULATION_IMAGE_REF=robotics-design-jazzy-harmonic:${{ github.sha }} \
+            -v "$PWD:/workspace" -w /workspace \
+            robotics-design-jazzy-harmonic:${{ github.sha }} \
+            bash scripts/run_live_simulation_gate.sh
+      - name: Retain live simulation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-evidence-${{ github.sha }}
+          path: .simulation-evidence
+          if-no-files-found: warn
