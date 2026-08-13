@@ -11,6 +11,16 @@ from .model import (
 from .schema import load_space, validate_space
 from .overlay import OverlayError, ResolvedCandidate, apply_operation, generate_candidates
 from .scheduler import HypothesisScheduler, SchedulerError, default_registry
+from .uncertainty import (
+    CounterexampleResult,
+    SensitivityRecord,
+    UncertaintyCase,
+    UncertaintyError,
+    apply_case,
+    evaluate_sensitivity,
+    ordered_cases,
+    search_counterexample,
+)
 
 __all__ = [
     "CandidateDecision",
@@ -30,4 +40,12 @@ __all__ = [
     "HypothesisScheduler",
     "SchedulerError",
     "default_registry",
+    "CounterexampleResult",
+    "SensitivityRecord",
+    "UncertaintyCase",
+    "UncertaintyError",
+    "apply_case",
+    "evaluate_sensitivity",
+    "ordered_cases",
+    "search_counterexample",
 ]
