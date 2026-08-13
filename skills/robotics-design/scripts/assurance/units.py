@@ -35,6 +35,8 @@ UNITS: dict[str, tuple[str, float, float]] = {
     "kWh": ("energy", 3_600_000.0, 0.0),
     "V": ("voltage", 1.0, 0.0),
     "A": ("current", 1.0, 0.0),
+    "ohm": ("resistance", 1.0, 0.0),
+    "K/W": ("thermal_resistance", 1.0, 0.0),
     "K": ("temperature", 1.0, 0.0),
     "degC": ("temperature", 1.0, 273.15),
     "kg*m^2": ("inertia", 1.0, 0.0),

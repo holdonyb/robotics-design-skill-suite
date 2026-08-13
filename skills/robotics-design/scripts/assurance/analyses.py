@@ -451,11 +451,110 @@ def _arm_gravity(inputs: dict[str, Any]) -> AnalysisResult:
     return AnalysisResult("arm_gravity_v1", "1", dict(inputs), outputs, tuple(diagnostics), assumptions)
 
 
+THERMAL_DUTY_INPUTS = (
+    "ambient_temperature_k",
+    "winding_resistance_ohm",
+    "on_current_a",
+    "duty_cycle",
+    "thermal_resistance_k_per_w",
+    "max_winding_temperature_k",
+)
+
+
+def _thermal_duty(inputs: dict[str, Any]) -> AnalysisResult:
+    values, diagnostics = _finite_inputs(
+        "thermal_duty_v1", inputs, THERMAL_DUTY_INPUTS
+    )
+    outputs: dict[str, Any] = {}
+    assumptions = (
+        "winding resistance is evaluated at the declared conservative operating point",
+        "duty is periodic and average copper loss is on-current squared times resistance times duty",
+        "scalar thermal resistance represents the complete winding-to-ambient path at steady state",
+        "transient hot spots and controller or gearbox heating require higher-fidelity analysis",
+    )
+    if diagnostics:
+        return AnalysisResult(
+            "thermal_duty_v1",
+            "1",
+            dict(inputs),
+            outputs,
+            tuple(diagnostics),
+            assumptions,
+        )
+
+    invalid: list[str] = []
+    for field in ("ambient_temperature_k", "winding_resistance_ohm", "thermal_resistance_k_per_w", "max_winding_temperature_k"):
+        if values[field] <= 0.0:
+            invalid.append(field)
+    if values["on_current_a"] < 0.0:
+        invalid.append("on_current_a")
+    if not 0.0 <= values["duty_cycle"] <= 1.0:
+        invalid.append("duty_cycle")
+    if values["max_winding_temperature_k"] <= values["ambient_temperature_k"]:
+        invalid.append("max_winding_temperature_k")
+    if invalid:
+        diagnostics.append(
+            _diagnostic(
+                "PHY.INPUT.DOMAIN",
+                "error",
+                "analyses.thermal_duty_v1.inputs",
+                "inputs outside thermal-duty validity domain: "
+                + ", ".join(sorted(set(invalid))),
+            )
+        )
+        return AnalysisResult(
+            "thermal_duty_v1",
+            "1",
+            dict(inputs),
+            outputs,
+            tuple(diagnostics),
+            assumptions,
+        )
+
+    copper_loss = (
+        values["on_current_a"] ** 2
+        * values["winding_resistance_ohm"]
+        * values["duty_cycle"]
+    )
+    estimated_temperature = (
+        values["ambient_temperature_k"]
+        + copper_loss * values["thermal_resistance_k_per_w"]
+    )
+    margin = values["max_winding_temperature_k"] - estimated_temperature
+    outputs.update(
+        {
+            "copper_loss_w": copper_loss,
+            "estimated_steady_state_temperature_k": estimated_temperature,
+            "temperature_margin_k": margin,
+        }
+    )
+    if margin < 0.0:
+        diagnostics.append(
+            _diagnostic(
+                "PHY.THERMAL.WINDING_OVER_TEMPERATURE",
+                "error",
+                "analyses.thermal_duty_v1",
+                "estimated steady-state winding temperature exceeds declared maximum",
+            )
+        )
+    return AnalysisResult(
+        "thermal_duty_v1",
+        "1",
+        dict(values),
+        outputs,
+        tuple(diagnostics),
+        assumptions,
+    )
+
+
 PLUGINS: dict[str, AnalysisPlugin] = {
     "drivetrain_v1": AnalysisPlugin("drivetrain_v1", "1", DRIVETRAIN_INPUTS, _drivetrain),
     "battery_v1": AnalysisPlugin("battery_v1", "1", BATTERY_INPUTS, _battery),
     "stability_v1": AnalysisPlugin("stability_v1", "1", STABILITY_INPUTS, _stability),
     "arm_gravity_v1": AnalysisPlugin("arm_gravity_v1", "1", ("joints",), _arm_gravity),
+    "thermal_duty_v1": AnalysisPlugin(
+        "thermal_duty_v1", "1", THERMAL_DUTY_INPUTS, _thermal_duty
+    ),
 }
 
 

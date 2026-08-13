@@ -159,6 +159,32 @@ class AssuranceAnalysisTests(unittest.TestCase):
         result = run_plugin("drivetrain_v1", invalid)
         self.assertTrue(any(item.code == "PHY.INPUT.DOMAIN" for item in result.diagnostics))
 
+    def test_thermal_duty_checks_steady_state_winding_margin(self):
+        inputs = {
+            "ambient_temperature_k": 298.15,
+            "winding_resistance_ohm": 0.5,
+            "on_current_a": 10.0,
+            "duty_cycle": 0.5,
+            "thermal_resistance_k_per_w": 2.0,
+            "max_winding_temperature_k": 373.15,
+        }
+        result = run_plugin("thermal_duty_v1", inputs)
+        self.assertAlmostEqual(result.outputs["copper_loss_w"], 25.0)
+        self.assertAlmostEqual(
+            result.outputs["estimated_steady_state_temperature_k"], 348.15
+        )
+        self.assertAlmostEqual(result.outputs["temperature_margin_k"], 25.0)
+        self.assertTrue(result.passed)
+
+        inputs["on_current_a"] = 20.0
+        overloaded = run_plugin("thermal_duty_v1", inputs)
+        self.assertTrue(
+            any(
+                item.code == "PHY.THERMAL.WINDING_OVER_TEMPERATURE"
+                for item in overloaded.diagnostics
+            )
+        )
+
     def test_unknown_plugin_is_indeterminate(self):
         result = run_plugin("imaginary_solver", {})
         self.assertTrue(any(item.code == "PHY.PLUGIN.UNKNOWN" for item in result.diagnostics))

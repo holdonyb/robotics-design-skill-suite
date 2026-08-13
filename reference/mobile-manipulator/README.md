@@ -22,4 +22,8 @@ Expected baseline result: exit `1` with
 `BOM.PLACEHOLDER_BLOCKS_CLAIM`; structural, reference, hash, drift and physical
 analysis diagnostics remain clear. Files under `faults/` mutate one critical
 condition at a time and must add their declared diagnostic without allowing
-promotion.
+promotion. The baseline runs drivetrain, battery/runtime, support-polygon
+stability, arm gravity/brake holding, and conservative steady-state winding
+thermal-duty checks. Thermal values remain assumptions until replaced with an
+exact motor curve, temperature-dependent resistance, thermal network, and
+bench data.

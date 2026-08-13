@@ -45,7 +45,13 @@ class ReferenceRobotTests(unittest.TestCase):
         self.assertEqual(codes, {"BOM.PLACEHOLDER_BLOCKS_CLAIM"})
         self.assertEqual(
             {item["name"] for item in report.analyses},
-            {"drivetrain_v1", "battery_v1", "stability_v1", "arm_gravity_v1"},
+            {
+                "drivetrain_v1",
+                "battery_v1",
+                "stability_v1",
+                "arm_gravity_v1",
+                "thermal_duty_v1",
+            },
         )
         self.assertTrue(all(item["passed"] for item in report.analyses))
 

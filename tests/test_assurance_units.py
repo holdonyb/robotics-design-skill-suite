@@ -23,6 +23,10 @@ class AssuranceUnitTests(unittest.TestCase):
             to_si({"value": 25, "unit": "degC"}, "temperature"),
             298.15,
         )
+        self.assertEqual(to_si({"value": 0.5, "unit": "ohm"}, "resistance"), 0.5)
+        self.assertEqual(
+            to_si({"value": 2.0, "unit": "K/W"}, "thermal_resistance"), 2.0
+        )
 
     def test_dimension_mismatch_fails_closed(self):
         with self.assertRaisesRegex(QuantityError, "expected torque"):
