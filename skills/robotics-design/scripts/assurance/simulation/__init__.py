@@ -16,6 +16,7 @@ from .artifacts import validate_artifact_manifest
 from .schema import load_simulation_contract, validate_simulation_contract
 from .scenario import CompiledScenario, ScenarioError, compile_scenarios, load_scenario_registry
 from .trace import TraceError, publish_trace_bundle, replay_trace_bundle
+from .backend import BackendError, BackendMetric, BackendResult, compare_backends, evaluate_independent_dynamics
 
 __all__ = [
     "EVIDENCE_LEVELS",
@@ -38,4 +39,9 @@ __all__ = [
     "TraceError",
     "publish_trace_bundle",
     "replay_trace_bundle",
+    "BackendError",
+    "BackendMetric",
+    "BackendResult",
+    "compare_backends",
+    "evaluate_independent_dynamics",
 ]
