@@ -10,15 +10,12 @@ ROS 2, and simulation skills to audited commits.
 
 ## Live State
 
-- Public release: `v0.3.0`; pull request `#2`, tag, GitHub Release, and merged
-  release status are complete.
-- Pre-release branch: `feature/v040-hypothesis-engine`.
-- Candidate version: `0.4.0` in `manifest.json`.
-- v0.4 release candidate head: `6881a2c` on public draft pull request `#4`.
-- Fresh local dual-version tests, GitHub matrix CI, the fresh staged install,
-  and whole-release adversarial review are complete. Merge, annotated tag,
-  GitHub Release, public tag verification, and controlled local-skill refresh
-  remain open Task 12 gates.
+- Public release: `v0.4.0`; pull request `#4` merged as `f37cd3b`, annotated tag,
+  GitHub Release, tag CI, public verification, and controlled local-skill
+  refresh are complete.
+- Current development baseline: public `main` at `f37cd3b`; v0.5 planning is
+  the next active engineering phase.
+- Released version: `0.4.0` in `manifest.json`.
 - Third-party source locks are unchanged from v0.3.0.
 
 ## v0.4 Candidate Capability
@@ -93,11 +90,25 @@ On 2026-08-13, before Task 12 release publication:
   bytecode/partial/transaction residue, a generated `host-runtime.md`, and an
   exact full-file/hash match for the installed `robotics-design` skill.
 
-These are pre-release branch results. Merged-commit checks, public tag checks,
-and local refresh remain open until executed. The current host repeatedly lost
-the 8.67 MiB pinned text-to-cad response over codeload and Git smart protocol;
-no incomplete checkout or archive was accepted, so the retained fresh-install
-evidence was produced on the clean GitHub runner instead.
+Release closure evidence:
+
+- PR `#4` merged as `f37cd3b`; main workflow run `31716689574` passed all five
+  jobs, and the merge tree exactly matched reviewed head `c2af7ef`;
+- annotated tag `v0.4.0` resolves to `f37cd3b`; tag workflow run `31716834403`
+  passed all five jobs, including the strengthened `release-install` gate;
+- the public GitHub Release is published, not draft or prerelease, and the
+  public tag's manifest reports suite version `0.4.0`;
+- the public tag was staged through the Codex `skill-installer`, passed the
+  official local validator and compileall, received a host-specific runtime
+  overlay, and replaced only the installed `robotics-design` skill;
+- the previous local integration skill remains recoverable at
+  backup directory `robotics-design-pre-v040-20260813-2350`.
+
+The current host repeatedly lost the 8.67 MiB pinned text-to-cad response over
+codeload and Git smart protocol; no incomplete checkout or archive was accepted.
+The complete-suite install evidence therefore comes from clean GitHub runners,
+while the controlled local refresh intentionally changed only the locally owned
+`robotics-design` integration skill and preserved all third-party installations.
 
 ## Claim Boundary and Open Engineering Risks
 
@@ -129,18 +140,14 @@ report 0 accepted because placeholders remain.
 
 ## Roadmap and Next Action
 
-1. Finish v0.4 Task 12: fresh dual-version/cross-platform verification,
-   reproducibility/install checks, independent adversarial review, public PR and
-   matrix CI, merge, annotated `v0.4.0` tag, GitHub Release, public verification,
-   and controlled local-skill refresh.
-2. Start v0.5: accepted-model consumer generation, Linux ROS 2 Jazzy/Gazebo
+1. Start v0.5: accepted-model consumer generation, Linux ROS 2 Jazzy/Gazebo
    Harmonic and MoveIt scenario regression, second dynamics backend, structured
    replay traces, calibration/system-identification contracts, training adapter,
    domain randomization, held-out evaluation, and simulation-evidence bundles.
-3. Continue v0.6-v0.9 with supplier/BOM, curves, traction/braking, structure,
+2. Continue v0.6-v0.9 with supplier/BOM, curves, traction/braking, structure,
    transient thermal/electrical, safety faults, bench evidence, controlled
    integration, field trials, and reliability evidence.
-4. Complete v1.0 only after the end-to-end evidence chain and every required
+3. Complete v1.0 only after the end-to-end evidence chain and every required
    real-hardware dependency/authorization are genuinely satisfied.
 
 ## Durable Sources
