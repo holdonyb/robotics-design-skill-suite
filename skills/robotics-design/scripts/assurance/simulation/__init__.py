@@ -19,6 +19,7 @@ from .trace import TraceError, publish_trace_bundle, replay_trace_bundle
 from .backend import BackendError, BackendMetric, BackendResult, compare_backends, evaluate_independent_dynamics, evaluate_trace_kinematics
 from .calibration import CalibrationError, CalibrationResult, fit_calibration, load_calibration_dataset
 from .training import PolicyResult, TrainingError, evaluate_policy, validate_training_contract
+from .live_trace import LiveTraceError, publish_live_trace_bundle, validate_live_capture, validate_retained_live_trace_bundle
 
 __all__ = [
     "EVIDENCE_LEVELS",
@@ -55,4 +56,8 @@ __all__ = [
     "TrainingError",
     "evaluate_policy",
     "validate_training_contract",
+    "LiveTraceError",
+    "publish_live_trace_bundle",
+    "validate_live_capture",
+    "validate_retained_live_trace_bundle",
 ]
