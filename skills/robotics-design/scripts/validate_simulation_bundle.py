@@ -258,6 +258,14 @@ def _load_backend_profile(root: Path) -> dict[str, Any]:
             assert name is not None
             if name in wheel_y:
                 raise BenchmarkError(f"xacro profile has duplicate {name}")
+            if node.get("type") != "continuous":
+                raise BenchmarkError(f"xacro {name} must be a continuous wheel joint")
+            parent, child = node.find("parent"), node.find("child")
+            if parent is None or parent.get("link") != "base_link":
+                raise BenchmarkError(f"xacro {name} must have parent link base_link")
+            expected_child = "left_wheel_link" if name == "left_wheel_joint" else "right_wheel_link"
+            if child is None or child.get("link") != expected_child:
+                raise BenchmarkError(f"xacro {name} must have child link {expected_child}")
             origin = node.find("origin")
             if origin is None or origin.get("xyz") is None:
                 raise BenchmarkError(f"xacro {name} must declare origin xyz")

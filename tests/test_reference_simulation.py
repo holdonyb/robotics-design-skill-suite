@@ -156,6 +156,24 @@ class ReferenceSimulationTests(unittest.TestCase):
             with self.assertRaisesRegex(BenchmarkError, "top-level drive wheels"):
                 _load_backend_profile(root)
 
+    def test_backend_profile_requires_wheel_joint_link_ownership(self):
+        xacro = b'''<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="fake">
+  <link name="base_link"><xacro:inertial mass="100" ixx="1" iyy="1" izz="1"/></link>
+  <xacro:cylinder_link name="left_wheel_link" radius="0.15" mass="5"/>
+  <xacro:cylinder_link name="right_wheel_link" radius="0.15" mass="5"/>
+  <joint name="left_wheel_joint" type="continuous"><parent link="base_link"/><child link="not_left_wheel_link"/><origin xyz="0 0.34 0"/></joint>
+  <joint name="right_wheel_joint" type="continuous"><parent link="base_link"/><child link="right_wheel_link"/><origin xyz="0 -0.34 0"/></joint>
+</robot>'''
+        root = ROOT / "reference" / "mobile-manipulator"
+        snapshot = {
+            simulation_bundle._PROFILE_SOURCES[0]: xacro,
+            simulation_bundle._PROFILE_SOURCES[1]: (root / simulation_bundle._PROFILE_SOURCES[1]).read_bytes(),
+            simulation_bundle._PROFILE_SOURCES[2]: (root / simulation_bundle._PROFILE_SOURCES[2]).read_bytes(),
+        }
+        with patch("validate_simulation_bundle._profile_source_snapshot", return_value=snapshot):
+            with self.assertRaisesRegex(BenchmarkError, "child link"):
+                _load_backend_profile(root)
+
     def test_backend_rejects_missing_or_nonfinite_replayed_wheel_state(self):
         profile = _load_backend_profile(ROOT / "reference" / "mobile-manipulator")
         replay = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")["replays"][0]
