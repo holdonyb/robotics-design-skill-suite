@@ -11,6 +11,8 @@ SCRIPTS = ROOT / "skills" / "robotics-design" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from assurance.contract import load_contract, validate_contract  # noqa: E402
+from assurance.engine import _analysis_rating_owner_diagnostics  # noqa: E402
+from assurance.plugin_contracts import validate_plugin_inputs  # noqa: E402
 
 
 def valid_contract():
@@ -147,7 +149,132 @@ def valid_contract():
     }
 
 
+def load_envelope_quantities():
+    dimensions = {
+        "Q-LENGTH": "length",
+        "Q-ANGLE": "angle",
+        "Q-AXIS": "dimensionless",
+        "Q-MASS": "mass",
+        "Q-GRAVITY": "acceleration",
+        "Q-TORQUE": "torque",
+        "Q-FACTOR": "dimensionless",
+    }
+    return {name: {"id": name, "dimension": dimension} for name, dimension in dimensions.items()}
+
+
+def valid_load_envelope_inputs():
+    return {
+        "joint_order": ["joint_1"],
+        "joints": [
+            {
+                "id": "joint_1",
+                "parent": "base_link",
+                "child": "arm_link_1",
+                "origin_xyz_m": ["quantity:Q-LENGTH"] * 3,
+                "origin_rpy_rad": ["quantity:Q-ANGLE"] * 3,
+                "axis_xyz": ["quantity:Q-AXIS", "quantity:Q-AXIS", "quantity:Q-AXIS"],
+            }
+        ],
+        "links": [
+            {
+                "id": "arm_link_1",
+                "mass_kg": "quantity:Q-MASS",
+                "com_xyz_m": ["quantity:Q-LENGTH"] * 3,
+            }
+        ],
+        "payload": {
+            "mass_kg": "quantity:Q-MASS",
+            "parent": "arm_link_1",
+            "origin_xyz_m": ["quantity:Q-LENGTH"] * 3,
+        },
+        "load_cases": [
+            {
+                "id": "LC-HORIZONTAL",
+                "joint_positions_rad": ["quantity:Q-ANGLE"],
+                "gravity_xyz_m_s2": ["quantity:Q-GRAVITY"] * 3,
+            }
+        ],
+        "continuous_safety_factor": "quantity:Q-FACTOR",
+        "brake_safety_factor": "quantity:Q-FACTOR",
+        "rated_continuous_torque_nm": [
+            {"id": "joint_1", "value": "quantity:Q-TORQUE"}
+        ],
+        "brake_holding_torque_nm": [
+            {"id": "joint_1", "value": "quantity:Q-TORQUE"}
+        ],
+    }
+
+
 class AssuranceContractTests(unittest.TestCase):
+    def test_arm_load_envelope_ratings_bind_to_the_named_actuator_components(self):
+        data = {
+            "architecture": {"actuators": ["joint_1", "joint_2"], "drive_units": []},
+            "quantities": [
+                {"id": "Q-M1", "owner": "component:CMP-M1"},
+                {"id": "Q-B1", "owner": "component:CMP-B1"},
+                {"id": "Q-M2", "owner": "component:CMP-M2"},
+                {"id": "Q-B2", "owner": "component:CMP-B2"},
+            ],
+            "components": [
+                {"id": "CMP-M1", "role": "motor", "state": "engineering_placeholder", "bindings": ["actuator:joint_1"]},
+                {"id": "CMP-B1", "role": "brake", "state": "engineering_placeholder", "bindings": ["actuator:joint_1"]},
+                {"id": "CMP-M2", "role": "motor", "state": "engineering_placeholder", "bindings": ["actuator:joint_2"]},
+                {"id": "CMP-B2", "role": "brake", "state": "engineering_placeholder", "bindings": ["actuator:joint_2"]},
+            ],
+            "analyses": [
+                {
+                    "plugin": "arm_load_envelope_v1",
+                    "covers": ["actuator:joint_1", "actuator:joint_2"],
+                    "inputs": {
+                        "rated_continuous_torque_nm": [
+                            {"id": "joint_1", "value": "quantity:Q-M1"},
+                            {"id": "joint_2", "value": "quantity:Q-M2"},
+                        ],
+                        "brake_holding_torque_nm": [
+                            {"id": "joint_1", "value": "quantity:Q-B1"},
+                            {"id": "joint_2", "value": "quantity:Q-B2"},
+                        ],
+                    },
+                }
+            ],
+        }
+        self.assertEqual(_analysis_rating_owner_diagnostics(data), [])
+        data["analyses"][0]["inputs"]["rated_continuous_torque_nm"][1]["value"] = "quantity:Q-M1"
+        self.assertIn(
+            "PHY.ANALYSIS.RATING_OWNER",
+            {item.code for item in _analysis_rating_owner_diagnostics(data)},
+        )
+
+    def test_arm_load_envelope_has_closed_dimensioned_inputs(self):
+        self.assertEqual(
+            validate_plugin_inputs(
+                "arm_load_envelope_v1",
+                valid_load_envelope_inputs(),
+                load_envelope_quantities(),
+                "analyses[0].inputs",
+            ),
+            [],
+        )
+
+    def test_arm_load_envelope_rejects_shape_identity_and_dimension_errors(self):
+        quantities = load_envelope_quantities()
+        cases = {
+            "unknown": lambda value: value.update(extra=True),
+            "wrong-dimension": lambda value: quantities["Q-MASS"].update(dimension="length"),
+            "duplicate-joint": lambda value: value.update(joint_order=["joint_1", "joint_1"]),
+            "missing-rating": lambda value: value.update(brake_holding_torque_nm=[]),
+            "not-chain": lambda value: value["joints"][0].update(parent="arm_link_9"),
+            "wrong-case-count": lambda value: value["load_cases"][0].update(joint_positions_rad=[]),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(name=name):
+                value = valid_load_envelope_inputs()
+                mutate(value)
+                errors = validate_plugin_inputs(
+                    "arm_load_envelope_v1", value, quantities, "analyses[0].inputs"
+                )
+                self.assertTrue(errors)
+
     def test_minimal_contract_is_valid(self):
         self.assertEqual(validate_contract(valid_contract()), [])
 

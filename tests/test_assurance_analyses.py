@@ -31,6 +31,46 @@ def drivetrain_inputs():
     }
 
 
+def load_envelope_inputs():
+    return {
+        "joint_order": ["joint_1"],
+        "joints": [
+            {
+                "id": "joint_1",
+                "parent": "base_link",
+                "child": "arm_link_1",
+                "origin_xyz_m": [0.0, 0.0, 0.0],
+                "origin_rpy_rad": [0.0, 0.0, 0.0],
+                "axis_xyz": [0.0, 1.0, 0.0],
+            }
+        ],
+        "links": [
+            {"id": "arm_link_1", "mass_kg": 2.0, "com_xyz_m": [1.0, 0.0, 0.0]}
+        ],
+        "payload": {
+            "mass_kg": 0.0,
+            "parent": "arm_link_1",
+            "origin_xyz_m": [0.0, 0.0, 0.0],
+        },
+        "load_cases": [
+            {
+                "id": "LC-HORIZONTAL",
+                "joint_positions_rad": [0.0],
+                "gravity_xyz_m_s2": [0.0, 0.0, -9.80665],
+            },
+            {
+                "id": "LC-VERTICAL",
+                "joint_positions_rad": [math.pi / 2.0],
+                "gravity_xyz_m_s2": [0.0, 0.0, -9.80665],
+            },
+        ],
+        "continuous_safety_factor": 1.5,
+        "brake_safety_factor": 2.0,
+        "rated_continuous_torque_nm": [{"id": "joint_1", "value": 40.0}],
+        "brake_holding_torque_nm": [{"id": "joint_1", "value": 40.0}],
+    }
+
+
 class AssuranceAnalysisTests(unittest.TestCase):
     def test_drivetrain_matches_independent_level_ground_calculation(self):
         result = run_plugin("drivetrain_v1", drivetrain_inputs())
@@ -201,6 +241,43 @@ class AssuranceAnalysisTests(unittest.TestCase):
         codes = {item.code for item in result.diagnostics}
         self.assertIn("PHY.ARM.CONTINUOUS_TORQUE", codes)
         self.assertIn("PHY.ARM.BRAKE_HOLDING", codes)
+
+    def test_arm_load_envelope_calculates_pose_dependent_static_torque(self):
+        result = run_plugin("arm_load_envelope_v1", load_envelope_inputs())
+        joint = result.outputs["joints"][0]
+        self.assertAlmostEqual(joint["maximum_gravity_torque_nm"], 19.6133)
+        self.assertEqual(joint["worst_case_id"], "LC-HORIZONTAL")
+        self.assertAlmostEqual(joint["continuous_required_torque_nm"], 29.41995)
+        self.assertAlmostEqual(joint["brake_required_torque_nm"], 39.2266)
+        per_case = {item["id"]: item["gravity_torque_nm"] for item in joint["cases"]}
+        self.assertAlmostEqual(per_case["LC-HORIZONTAL"], 19.6133)
+        self.assertAlmostEqual(per_case["LC-VERTICAL"], 0.0, places=10)
+        self.assertTrue(result.passed)
+
+    def test_arm_load_envelope_increasing_downstream_mass_cannot_reduce_demand(self):
+        baseline = run_plugin("arm_load_envelope_v1", load_envelope_inputs())
+        heavier = load_envelope_inputs()
+        heavier["links"][0]["mass_kg"] = 3.0
+        increased = run_plugin("arm_load_envelope_v1", heavier)
+        self.assertGreater(
+            increased.outputs["joints"][0]["maximum_gravity_torque_nm"],
+            baseline.outputs["joints"][0]["maximum_gravity_torque_nm"],
+        )
+
+    def test_arm_load_envelope_rejects_bad_axis_and_finite_extremes(self):
+        bad_axis = load_envelope_inputs()
+        bad_axis["joints"][0]["axis_xyz"] = [0.0, 0.0, 0.0]
+        bad_result = run_plugin("arm_load_envelope_v1", bad_axis)
+        self.assertFalse(bad_result.passed)
+        self.assertTrue(any(item.code == "PHY.INPUT.DOMAIN" for item in bad_result.diagnostics))
+
+        extreme = load_envelope_inputs()
+        extreme["links"][0]["mass_kg"] = 1e308
+        extreme["links"][0]["com_xyz_m"] = [1e308, 0.0, 0.0]
+        extreme_result = run_plugin("arm_load_envelope_v1", extreme)
+        self.assertFalse(extreme_result.passed)
+        self.assertEqual(extreme_result.outputs, {})
+        self.assertTrue(any(item.code == "PHY.NUMERIC.OVERFLOW" for item in extreme_result.diagnostics))
 
     def test_missing_and_invalid_inputs_are_fail_closed_not_tracebacks(self):
         missing = run_plugin("drivetrain_v1", {"base_mass_kg": 10.0})

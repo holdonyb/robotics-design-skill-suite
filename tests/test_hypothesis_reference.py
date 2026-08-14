@@ -31,6 +31,11 @@ class ReferenceHypothesisTests(unittest.TestCase):
     def _run(self, root: Path, name="out"):
         for filename in ("design-contract.json", "robot.urdf", "assumptions.json"):
             shutil.copy2(REFERENCE / filename, root / filename)
+        (root / "model").mkdir(exist_ok=True)
+        shutil.copy2(
+            REFERENCE / "model" / "load-envelope.json",
+            root / "model" / "load-envelope.json",
+        )
         shutil.copy2(REFERENCE / "hypothesis-space.json", root / "hypothesis-space.json")
         output = root / name
         result = run_space(root / "hypothesis-space.json", output, seed=20260813)

@@ -21,169 +21,3481 @@
     }
   ],
   "quantities": [
-    {"id":"Q-BASE-MASS","dimension":"mass","value":{"value":100,"unit":"kg"},"owner":"artifact:robot-model","source":"evidence:EV-URDF","evidence_level":"parsed","observation":"artifact:robot-model#links.base_link.mass_kg"},
-    {"id":"Q-PAYLOAD","dimension":"mass","value":{"value":5,"unit":"kg"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-ROLLING-RESISTANCE","dimension":"dimensionless","value":{"value":0.02,"unit":"1"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-SLOPE","dimension":"angle","value":{"value":5,"unit":"deg"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-ACCELERATION","dimension":"acceleration","value":{"value":0.5,"unit":"m/s^2"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-WHEEL-RADIUS-L","dimension":"length","value":{"value":0.15,"unit":"m"},"owner":"component:CMP-WHEEL-L","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-WHEEL-RADIUS-R","dimension":"length","value":{"value":0.15,"unit":"m"},"owner":"component:CMP-WHEEL-R","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-DRIVEN-WHEELS","dimension":"dimensionless","value":{"value":2,"unit":"1"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-GEAR-RATIO-L","dimension":"dimensionless","value":{"value":20,"unit":"1"},"owner":"component:CMP-REDUCER-L","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-GEAR-RATIO-R","dimension":"dimensionless","value":{"value":20,"unit":"1"},"owner":"component:CMP-REDUCER-R","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-DRIVE-EFFICIENCY-L","dimension":"dimensionless","value":{"value":0.8,"unit":"1"},"owner":"component:CMP-REDUCER-L","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-DRIVE-EFFICIENCY-R","dimension":"dimensionless","value":{"value":0.8,"unit":"1"},"owner":"component:CMP-REDUCER-R","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-TARGET-SPEED","dimension":"speed","value":{"value":1,"unit":"m/s"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MOTOR-CONTINUOUS-TORQUE-L","dimension":"torque","value":{"value":4,"unit":"N*m"},"owner":"component:CMP-TRACTION-MOTOR-L","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MOTOR-CONTINUOUS-TORQUE-R","dimension":"torque","value":{"value":4,"unit":"N*m"},"owner":"component:CMP-TRACTION-MOTOR-R","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MOTOR-PEAK-TORQUE-L","dimension":"torque","value":{"value":8,"unit":"N*m"},"owner":"component:CMP-TRACTION-MOTOR-L","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MOTOR-PEAK-TORQUE-R","dimension":"torque","value":{"value":8,"unit":"N*m"},"owner":"component:CMP-TRACTION-MOTOR-R","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MOTOR-MAX-SPEED-L","dimension":"angular_velocity","value":{"value":200,"unit":"rad/s"},"owner":"component:CMP-TRACTION-MOTOR-L","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MOTOR-MAX-SPEED-R","dimension":"angular_velocity","value":{"value":200,"unit":"rad/s"},"owner":"component:CMP-TRACTION-MOTOR-R","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-DRIVE-DUTY","dimension":"dimensionless","value":{"value":0.5,"unit":"1"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-BATTERY-VOLTAGE","dimension":"voltage","value":{"value":48,"unit":"V"},"owner":"component:CMP-BATTERY","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-PEAK-POWER","dimension":"power","value":{"value":3000,"unit":"W"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-CONTINUOUS-POWER","dimension":"power","value":{"value":800,"unit":"W"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MAX-CONTINUOUS-CURRENT","dimension":"current","value":{"value":50,"unit":"A"},"owner":"component:CMP-BATTERY","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MAX-PEAK-CURRENT","dimension":"current","value":{"value":100,"unit":"A"},"owner":"component:CMP-BATTERY","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-USABLE-ENERGY","dimension":"energy","value":{"value":5000,"unit":"Wh"},"owner":"component:CMP-BATTERY","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-REQUIRED-RUNTIME","dimension":"time","value":{"value":4,"unit":"h"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-SUPPORT-MIN-X","dimension":"length","value":{"value":-0.4,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-SUPPORT-MAX-X","dimension":"length","value":{"value":0.4,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-SUPPORT-MIN-Y","dimension":"length","value":{"value":-0.3,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-SUPPORT-MAX-Y","dimension":"length","value":{"value":0.3,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-COM-X","dimension":"length","value":{"value":0.05,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-COM-Y","dimension":"length","value":{"value":0,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-COM-HEIGHT","dimension":"length","value":{"value":0.8,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-SLOPE-Y","dimension":"angle","value":{"value":0,"unit":"deg"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-ARM-LEVER","dimension":"length","value":{"value":1,"unit":"m"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-ARM-CONTINUOUS-TORQUE-J1","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J1","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-ARM-CONTINUOUS-TORQUE-J2","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J2","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-ARM-CONTINUOUS-TORQUE-J3","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J3","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-ARM-CONTINUOUS-TORQUE-J4","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J4","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-ARM-CONTINUOUS-TORQUE-J5","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J5","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-ARM-CONTINUOUS-TORQUE-J6","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J6","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-BRAKE-HOLDING-TORQUE-J1","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-BRAKE-J1","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-BRAKE-HOLDING-TORQUE-J2","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-BRAKE-J2","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-BRAKE-HOLDING-TORQUE-J3","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-BRAKE-J3","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-BRAKE-HOLDING-TORQUE-J4","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-BRAKE-J4","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-BRAKE-HOLDING-TORQUE-J5","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-BRAKE-J5","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-BRAKE-HOLDING-TORQUE-J6","dimension":"torque","value":{"value":100,"unit":"N*m"},"owner":"component:CMP-BRAKE-J6","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-ARM-SAFETY-FACTOR","dimension":"dimensionless","value":{"value":1.5,"unit":"1"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-AMBIENT-TEMPERATURE","dimension":"temperature","value":{"value":25,"unit":"degC"},"owner":"project:system","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-WINDING-RESISTANCE-DRIVE-L","dimension":"resistance","value":{"value":0.4,"unit":"ohm"},"owner":"component:CMP-TRACTION-MOTOR-L","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-ON-CURRENT-DRIVE-L","dimension":"current","value":{"value":10,"unit":"A"},"owner":"component:CMP-TRACTION-MOTOR-L","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-RESISTANCE-DRIVE-L","dimension":"thermal_resistance","value":{"value":1.5,"unit":"K/W"},"owner":"component:CMP-TRACTION-MOTOR-L","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MAX-WINDING-TEMPERATURE-DRIVE-L","dimension":"temperature","value":{"value":100,"unit":"degC"},"owner":"component:CMP-TRACTION-MOTOR-L","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-WINDING-RESISTANCE-DRIVE-R","dimension":"resistance","value":{"value":0.4,"unit":"ohm"},"owner":"component:CMP-TRACTION-MOTOR-R","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-ON-CURRENT-DRIVE-R","dimension":"current","value":{"value":10,"unit":"A"},"owner":"component:CMP-TRACTION-MOTOR-R","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-RESISTANCE-DRIVE-R","dimension":"thermal_resistance","value":{"value":1.5,"unit":"K/W"},"owner":"component:CMP-TRACTION-MOTOR-R","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MAX-WINDING-TEMPERATURE-DRIVE-R","dimension":"temperature","value":{"value":100,"unit":"degC"},"owner":"component:CMP-TRACTION-MOTOR-R","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-WINDING-RESISTANCE-J1","dimension":"resistance","value":{"value":0.4,"unit":"ohm"},"owner":"component:CMP-ARM-MOTOR-J1","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-ON-CURRENT-J1","dimension":"current","value":{"value":10,"unit":"A"},"owner":"component:CMP-ARM-MOTOR-J1","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-RESISTANCE-J1","dimension":"thermal_resistance","value":{"value":1.5,"unit":"K/W"},"owner":"component:CMP-ARM-MOTOR-J1","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MAX-WINDING-TEMPERATURE-J1","dimension":"temperature","value":{"value":100,"unit":"degC"},"owner":"component:CMP-ARM-MOTOR-J1","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-WINDING-RESISTANCE-J2","dimension":"resistance","value":{"value":0.4,"unit":"ohm"},"owner":"component:CMP-ARM-MOTOR-J2","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-ON-CURRENT-J2","dimension":"current","value":{"value":10,"unit":"A"},"owner":"component:CMP-ARM-MOTOR-J2","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-RESISTANCE-J2","dimension":"thermal_resistance","value":{"value":1.5,"unit":"K/W"},"owner":"component:CMP-ARM-MOTOR-J2","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MAX-WINDING-TEMPERATURE-J2","dimension":"temperature","value":{"value":100,"unit":"degC"},"owner":"component:CMP-ARM-MOTOR-J2","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-WINDING-RESISTANCE-J3","dimension":"resistance","value":{"value":0.4,"unit":"ohm"},"owner":"component:CMP-ARM-MOTOR-J3","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-ON-CURRENT-J3","dimension":"current","value":{"value":10,"unit":"A"},"owner":"component:CMP-ARM-MOTOR-J3","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-RESISTANCE-J3","dimension":"thermal_resistance","value":{"value":1.5,"unit":"K/W"},"owner":"component:CMP-ARM-MOTOR-J3","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MAX-WINDING-TEMPERATURE-J3","dimension":"temperature","value":{"value":100,"unit":"degC"},"owner":"component:CMP-ARM-MOTOR-J3","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-WINDING-RESISTANCE-J4","dimension":"resistance","value":{"value":0.4,"unit":"ohm"},"owner":"component:CMP-ARM-MOTOR-J4","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-ON-CURRENT-J4","dimension":"current","value":{"value":10,"unit":"A"},"owner":"component:CMP-ARM-MOTOR-J4","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-RESISTANCE-J4","dimension":"thermal_resistance","value":{"value":1.5,"unit":"K/W"},"owner":"component:CMP-ARM-MOTOR-J4","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MAX-WINDING-TEMPERATURE-J4","dimension":"temperature","value":{"value":100,"unit":"degC"},"owner":"component:CMP-ARM-MOTOR-J4","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-WINDING-RESISTANCE-J5","dimension":"resistance","value":{"value":0.4,"unit":"ohm"},"owner":"component:CMP-ARM-MOTOR-J5","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-ON-CURRENT-J5","dimension":"current","value":{"value":10,"unit":"A"},"owner":"component:CMP-ARM-MOTOR-J5","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-RESISTANCE-J5","dimension":"thermal_resistance","value":{"value":1.5,"unit":"K/W"},"owner":"component:CMP-ARM-MOTOR-J5","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MAX-WINDING-TEMPERATURE-J5","dimension":"temperature","value":{"value":100,"unit":"degC"},"owner":"component:CMP-ARM-MOTOR-J5","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-WINDING-RESISTANCE-J6","dimension":"resistance","value":{"value":0.4,"unit":"ohm"},"owner":"component:CMP-ARM-MOTOR-J6","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-ON-CURRENT-J6","dimension":"current","value":{"value":10,"unit":"A"},"owner":"component:CMP-ARM-MOTOR-J6","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-THERMAL-RESISTANCE-J6","dimension":"thermal_resistance","value":{"value":1.5,"unit":"K/W"},"owner":"component:CMP-ARM-MOTOR-J6","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-MAX-WINDING-TEMPERATURE-J6","dimension":"temperature","value":{"value":100,"unit":"degC"},"owner":"component:CMP-ARM-MOTOR-J6","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
-    {"id":"Q-J1-UPPER","dimension":"angle","value":{"value":3.14,"unit":"rad"},"owner":"artifact:robot-model","source":"evidence:EV-URDF","evidence_level":"parsed","observation":"artifact:robot-model#joints.joint_1.limit.upper"}
+    {
+      "id": "Q-BASE-MASS",
+      "dimension": "mass",
+      "value": {
+        "value": 100,
+        "unit": "kg"
+      },
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed",
+      "observation": "artifact:robot-model#links.base_link.mass_kg"
+    },
+    {
+      "id": "Q-PAYLOAD",
+      "dimension": "mass",
+      "value": {
+        "value": 5,
+        "unit": "kg"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-ROLLING-RESISTANCE",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0.02,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-SLOPE",
+      "dimension": "angle",
+      "value": {
+        "value": 5,
+        "unit": "deg"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-ACCELERATION",
+      "dimension": "acceleration",
+      "value": {
+        "value": 0.5,
+        "unit": "m/s^2"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-WHEEL-RADIUS-L",
+      "dimension": "length",
+      "value": {
+        "value": 0.15,
+        "unit": "m"
+      },
+      "owner": "component:CMP-WHEEL-L",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-WHEEL-RADIUS-R",
+      "dimension": "length",
+      "value": {
+        "value": 0.15,
+        "unit": "m"
+      },
+      "owner": "component:CMP-WHEEL-R",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-DRIVEN-WHEELS",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 2,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-GEAR-RATIO-L",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 20,
+        "unit": "1"
+      },
+      "owner": "component:CMP-REDUCER-L",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-GEAR-RATIO-R",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 20,
+        "unit": "1"
+      },
+      "owner": "component:CMP-REDUCER-R",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-DRIVE-EFFICIENCY-L",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0.8,
+        "unit": "1"
+      },
+      "owner": "component:CMP-REDUCER-L",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-DRIVE-EFFICIENCY-R",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0.8,
+        "unit": "1"
+      },
+      "owner": "component:CMP-REDUCER-R",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-TARGET-SPEED",
+      "dimension": "speed",
+      "value": {
+        "value": 1,
+        "unit": "m/s"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MOTOR-CONTINUOUS-TORQUE-L",
+      "dimension": "torque",
+      "value": {
+        "value": 4,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-L",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MOTOR-CONTINUOUS-TORQUE-R",
+      "dimension": "torque",
+      "value": {
+        "value": 4,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-R",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MOTOR-PEAK-TORQUE-L",
+      "dimension": "torque",
+      "value": {
+        "value": 8,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-L",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MOTOR-PEAK-TORQUE-R",
+      "dimension": "torque",
+      "value": {
+        "value": 8,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-R",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MOTOR-MAX-SPEED-L",
+      "dimension": "angular_velocity",
+      "value": {
+        "value": 200,
+        "unit": "rad/s"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-L",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MOTOR-MAX-SPEED-R",
+      "dimension": "angular_velocity",
+      "value": {
+        "value": 200,
+        "unit": "rad/s"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-R",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-DRIVE-DUTY",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0.5,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-BATTERY-VOLTAGE",
+      "dimension": "voltage",
+      "value": {
+        "value": 48,
+        "unit": "V"
+      },
+      "owner": "component:CMP-BATTERY",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-PEAK-POWER",
+      "dimension": "power",
+      "value": {
+        "value": 3000,
+        "unit": "W"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-CONTINUOUS-POWER",
+      "dimension": "power",
+      "value": {
+        "value": 800,
+        "unit": "W"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MAX-CONTINUOUS-CURRENT",
+      "dimension": "current",
+      "value": {
+        "value": 50,
+        "unit": "A"
+      },
+      "owner": "component:CMP-BATTERY",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MAX-PEAK-CURRENT",
+      "dimension": "current",
+      "value": {
+        "value": 100,
+        "unit": "A"
+      },
+      "owner": "component:CMP-BATTERY",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-USABLE-ENERGY",
+      "dimension": "energy",
+      "value": {
+        "value": 5000,
+        "unit": "Wh"
+      },
+      "owner": "component:CMP-BATTERY",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-REQUIRED-RUNTIME",
+      "dimension": "time",
+      "value": {
+        "value": 4,
+        "unit": "h"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-SUPPORT-MIN-X",
+      "dimension": "length",
+      "value": {
+        "value": -0.4,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-SUPPORT-MAX-X",
+      "dimension": "length",
+      "value": {
+        "value": 0.4,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-SUPPORT-MIN-Y",
+      "dimension": "length",
+      "value": {
+        "value": -0.3,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-SUPPORT-MAX-Y",
+      "dimension": "length",
+      "value": {
+        "value": 0.3,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-COM-X",
+      "dimension": "length",
+      "value": {
+        "value": 0.05,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-COM-Y",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-COM-HEIGHT",
+      "dimension": "length",
+      "value": {
+        "value": 0.8,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-SLOPE-Y",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "deg"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-ARM-LEVER",
+      "dimension": "length",
+      "value": {
+        "value": 1,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-ARM-CONTINUOUS-TORQUE-J1",
+      "dimension": "torque",
+      "value": {
+        "value": 20,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J1",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-ARM-CONTINUOUS-TORQUE-J2",
+      "dimension": "torque",
+      "value": {
+        "value": 300,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J2",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-ARM-CONTINUOUS-TORQUE-J3",
+      "dimension": "torque",
+      "value": {
+        "value": 170,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J3",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-ARM-CONTINUOUS-TORQUE-J4",
+      "dimension": "torque",
+      "value": {
+        "value": 20,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J4",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-ARM-CONTINUOUS-TORQUE-J5",
+      "dimension": "torque",
+      "value": {
+        "value": 40,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J5",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-ARM-CONTINUOUS-TORQUE-J6",
+      "dimension": "torque",
+      "value": {
+        "value": 20,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J6",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-BRAKE-HOLDING-TORQUE-J1",
+      "dimension": "torque",
+      "value": {
+        "value": 30,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-BRAKE-J1",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-BRAKE-HOLDING-TORQUE-J2",
+      "dimension": "torque",
+      "value": {
+        "value": 400,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-BRAKE-J2",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-BRAKE-HOLDING-TORQUE-J3",
+      "dimension": "torque",
+      "value": {
+        "value": 230,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-BRAKE-J3",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-BRAKE-HOLDING-TORQUE-J4",
+      "dimension": "torque",
+      "value": {
+        "value": 30,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-BRAKE-J4",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-BRAKE-HOLDING-TORQUE-J5",
+      "dimension": "torque",
+      "value": {
+        "value": 50,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-BRAKE-J5",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-BRAKE-HOLDING-TORQUE-J6",
+      "dimension": "torque",
+      "value": {
+        "value": 30,
+        "unit": "N*m"
+      },
+      "owner": "component:CMP-BRAKE-J6",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-ARM-SAFETY-FACTOR",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 1.5,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-AMBIENT-TEMPERATURE",
+      "dimension": "temperature",
+      "value": {
+        "value": 25,
+        "unit": "degC"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-WINDING-RESISTANCE-DRIVE-L",
+      "dimension": "resistance",
+      "value": {
+        "value": 0.4,
+        "unit": "ohm"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-L",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-ON-CURRENT-DRIVE-L",
+      "dimension": "current",
+      "value": {
+        "value": 10,
+        "unit": "A"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-L",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-RESISTANCE-DRIVE-L",
+      "dimension": "thermal_resistance",
+      "value": {
+        "value": 1.5,
+        "unit": "K/W"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-L",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MAX-WINDING-TEMPERATURE-DRIVE-L",
+      "dimension": "temperature",
+      "value": {
+        "value": 100,
+        "unit": "degC"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-L",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-WINDING-RESISTANCE-DRIVE-R",
+      "dimension": "resistance",
+      "value": {
+        "value": 0.4,
+        "unit": "ohm"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-R",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-ON-CURRENT-DRIVE-R",
+      "dimension": "current",
+      "value": {
+        "value": 10,
+        "unit": "A"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-R",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-RESISTANCE-DRIVE-R",
+      "dimension": "thermal_resistance",
+      "value": {
+        "value": 1.5,
+        "unit": "K/W"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-R",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MAX-WINDING-TEMPERATURE-DRIVE-R",
+      "dimension": "temperature",
+      "value": {
+        "value": 100,
+        "unit": "degC"
+      },
+      "owner": "component:CMP-TRACTION-MOTOR-R",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-WINDING-RESISTANCE-J1",
+      "dimension": "resistance",
+      "value": {
+        "value": 0.4,
+        "unit": "ohm"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J1",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-ON-CURRENT-J1",
+      "dimension": "current",
+      "value": {
+        "value": 10,
+        "unit": "A"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J1",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-RESISTANCE-J1",
+      "dimension": "thermal_resistance",
+      "value": {
+        "value": 1.5,
+        "unit": "K/W"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J1",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MAX-WINDING-TEMPERATURE-J1",
+      "dimension": "temperature",
+      "value": {
+        "value": 100,
+        "unit": "degC"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J1",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-WINDING-RESISTANCE-J2",
+      "dimension": "resistance",
+      "value": {
+        "value": 0.4,
+        "unit": "ohm"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J2",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-ON-CURRENT-J2",
+      "dimension": "current",
+      "value": {
+        "value": 10,
+        "unit": "A"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J2",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-RESISTANCE-J2",
+      "dimension": "thermal_resistance",
+      "value": {
+        "value": 1.5,
+        "unit": "K/W"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J2",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MAX-WINDING-TEMPERATURE-J2",
+      "dimension": "temperature",
+      "value": {
+        "value": 100,
+        "unit": "degC"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J2",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-WINDING-RESISTANCE-J3",
+      "dimension": "resistance",
+      "value": {
+        "value": 0.4,
+        "unit": "ohm"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J3",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-ON-CURRENT-J3",
+      "dimension": "current",
+      "value": {
+        "value": 10,
+        "unit": "A"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J3",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-RESISTANCE-J3",
+      "dimension": "thermal_resistance",
+      "value": {
+        "value": 1.5,
+        "unit": "K/W"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J3",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MAX-WINDING-TEMPERATURE-J3",
+      "dimension": "temperature",
+      "value": {
+        "value": 100,
+        "unit": "degC"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J3",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-WINDING-RESISTANCE-J4",
+      "dimension": "resistance",
+      "value": {
+        "value": 0.4,
+        "unit": "ohm"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J4",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-ON-CURRENT-J4",
+      "dimension": "current",
+      "value": {
+        "value": 10,
+        "unit": "A"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J4",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-RESISTANCE-J4",
+      "dimension": "thermal_resistance",
+      "value": {
+        "value": 1.5,
+        "unit": "K/W"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J4",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MAX-WINDING-TEMPERATURE-J4",
+      "dimension": "temperature",
+      "value": {
+        "value": 100,
+        "unit": "degC"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J4",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-WINDING-RESISTANCE-J5",
+      "dimension": "resistance",
+      "value": {
+        "value": 0.4,
+        "unit": "ohm"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J5",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-ON-CURRENT-J5",
+      "dimension": "current",
+      "value": {
+        "value": 10,
+        "unit": "A"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J5",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-RESISTANCE-J5",
+      "dimension": "thermal_resistance",
+      "value": {
+        "value": 1.5,
+        "unit": "K/W"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J5",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MAX-WINDING-TEMPERATURE-J5",
+      "dimension": "temperature",
+      "value": {
+        "value": 100,
+        "unit": "degC"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J5",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-WINDING-RESISTANCE-J6",
+      "dimension": "resistance",
+      "value": {
+        "value": 0.4,
+        "unit": "ohm"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J6",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-ON-CURRENT-J6",
+      "dimension": "current",
+      "value": {
+        "value": 10,
+        "unit": "A"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J6",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-THERMAL-RESISTANCE-J6",
+      "dimension": "thermal_resistance",
+      "value": {
+        "value": 1.5,
+        "unit": "K/W"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J6",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MAX-WINDING-TEMPERATURE-J6",
+      "dimension": "temperature",
+      "value": {
+        "value": 100,
+        "unit": "degC"
+      },
+      "owner": "component:CMP-ARM-MOTOR-J6",
+      "source": "evidence:EV-ASSUMPTIONS",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-J1-UPPER",
+      "dimension": "angle",
+      "value": {
+        "value": 3.14,
+        "unit": "rad"
+      },
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed",
+      "observation": "artifact:robot-model#joints.joint_1.limit.upper"
+    },
+    {
+      "id": "Q-LE-1-OX",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-1-OY",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-1-OZ",
+      "dimension": "length",
+      "value": {
+        "value": 0.55,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-1-RX",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-1-RY",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-1-RZ",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-1-AX",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-1-AY",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-1-AZ",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 1,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-L1-MASS",
+      "dimension": "mass",
+      "value": {
+        "value": 8,
+        "unit": "kg"
+      },
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed",
+      "observation": "artifact:robot-model#links.arm_link_1.mass_kg"
+    },
+    {
+      "id": "Q-LE-L1-COM-X",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L1-COM-Y",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L1-COM-Z",
+      "dimension": "length",
+      "value": {
+        "value": 0.09,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-2-OX",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-2-OY",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-2-OZ",
+      "dimension": "length",
+      "value": {
+        "value": 0.18,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-2-RX",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-2-RY",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-2-RZ",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-2-AX",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-2-AY",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 1,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-2-AZ",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-L2-MASS",
+      "dimension": "mass",
+      "value": {
+        "value": 7,
+        "unit": "kg"
+      },
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed",
+      "observation": "artifact:robot-model#links.arm_link_2.mass_kg"
+    },
+    {
+      "id": "Q-LE-L2-COM-X",
+      "dimension": "length",
+      "value": {
+        "value": 0.175,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L2-COM-Y",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L2-COM-Z",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-3-OX",
+      "dimension": "length",
+      "value": {
+        "value": 0.35,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-3-OY",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-3-OZ",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-3-RX",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-3-RY",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-3-RZ",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-3-AX",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-3-AY",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 1,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-3-AZ",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-L3-MASS",
+      "dimension": "mass",
+      "value": {
+        "value": 5,
+        "unit": "kg"
+      },
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed",
+      "observation": "artifact:robot-model#links.arm_link_3.mass_kg"
+    },
+    {
+      "id": "Q-LE-L3-COM-X",
+      "dimension": "length",
+      "value": {
+        "value": 0.15,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L3-COM-Y",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L3-COM-Z",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-4-OX",
+      "dimension": "length",
+      "value": {
+        "value": 0.3,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-4-OY",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-4-OZ",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-4-RX",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-4-RY",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-4-RZ",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-4-AX",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 1,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-4-AY",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-4-AZ",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-L4-MASS",
+      "dimension": "mass",
+      "value": {
+        "value": 4,
+        "unit": "kg"
+      },
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed",
+      "observation": "artifact:robot-model#links.arm_link_4.mass_kg"
+    },
+    {
+      "id": "Q-LE-L4-COM-X",
+      "dimension": "length",
+      "value": {
+        "value": 0.1,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L4-COM-Y",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L4-COM-Z",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-5-OX",
+      "dimension": "length",
+      "value": {
+        "value": 0.2,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-5-OY",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-5-OZ",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-5-RX",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-5-RY",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-5-RZ",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-5-AX",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-5-AY",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 1,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-5-AZ",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-L5-MASS",
+      "dimension": "mass",
+      "value": {
+        "value": 3,
+        "unit": "kg"
+      },
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed",
+      "observation": "artifact:robot-model#links.arm_link_5.mass_kg"
+    },
+    {
+      "id": "Q-LE-L5-COM-X",
+      "dimension": "length",
+      "value": {
+        "value": 0.06,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L5-COM-Y",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L5-COM-Z",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-6-OX",
+      "dimension": "length",
+      "value": {
+        "value": 0.12,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-6-OY",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-6-OZ",
+      "dimension": "length",
+      "value": {
+        "value": 0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-6-RX",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-6-RY",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-6-RZ",
+      "dimension": "angle",
+      "value": {
+        "value": 0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-6-AX",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 1,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-6-AY",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-6-AZ",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-LE-L6-MASS",
+      "dimension": "mass",
+      "value": {
+        "value": 2,
+        "unit": "kg"
+      },
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-URDF",
+      "evidence_level": "parsed",
+      "observation": "artifact:robot-model#links.arm_link_6.mass_kg"
+    },
+    {
+      "id": "Q-LE-L6-COM-X",
+      "dimension": "length",
+      "value": {
+        "value": 0.05,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L6-COM-Y",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-L6-COM-Z",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-H-J1",
+      "dimension": "angle",
+      "value": {
+        "value": 0.0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-H-J2",
+      "dimension": "angle",
+      "value": {
+        "value": 0.0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-H-J3",
+      "dimension": "angle",
+      "value": {
+        "value": 0.0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-H-J4",
+      "dimension": "angle",
+      "value": {
+        "value": 0.0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-H-J5",
+      "dimension": "angle",
+      "value": {
+        "value": 0.0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-H-J6",
+      "dimension": "angle",
+      "value": {
+        "value": 0.0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-F-J1",
+      "dimension": "angle",
+      "value": {
+        "value": 0.0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-F-J2",
+      "dimension": "angle",
+      "value": {
+        "value": -1.2,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-F-J3",
+      "dimension": "angle",
+      "value": {
+        "value": 1.8,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-F-J4",
+      "dimension": "angle",
+      "value": {
+        "value": 0.0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-F-J5",
+      "dimension": "angle",
+      "value": {
+        "value": -0.6,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-F-J6",
+      "dimension": "angle",
+      "value": {
+        "value": 0.0,
+        "unit": "rad"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-G-X",
+      "dimension": "acceleration",
+      "value": {
+        "value": 0.0,
+        "unit": "m/s^2"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-G-Y",
+      "dimension": "acceleration",
+      "value": {
+        "value": 0.0,
+        "unit": "m/s^2"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-G-Z",
+      "dimension": "acceleration",
+      "value": {
+        "value": -9.80665,
+        "unit": "m/s^2"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-PAYLOAD-X",
+      "dimension": "length",
+      "value": {
+        "value": 0.1,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-PAYLOAD-Y",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-PAYLOAD-Z",
+      "dimension": "length",
+      "value": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-PAYLOAD-MASS",
+      "dimension": "mass",
+      "value": {
+        "value": 8.0,
+        "unit": "kg"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-CONTINUOUS-SF",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 1.5,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-LE-BRAKE-SF",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 2.0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-LOAD-ENVELOPE",
+      "evidence_level": "assumed"
+    }
   ],
   "components": [
-    {"id":"CMP-TRACTION-MOTOR-L","role":"traction_motor","state":"engineering_placeholder","interfaces":["IF-TRACTION-MOTOR-L"],"bindings":["drive:left"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-REDUCER-L","role":"reducer","state":"engineering_placeholder","interfaces":["IF-REDUCER-L"],"bindings":["drive:left"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-WHEEL-L","role":"wheel","state":"engineering_placeholder","interfaces":["IF-WHEEL-L"],"bindings":["drive:left"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-BEARING-L","role":"bearing","state":"engineering_placeholder","interfaces":["IF-BEARING-L"],"bindings":["drive:left"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-MOTOR-DRIVER-L","role":"motor_driver","state":"engineering_placeholder","interfaces":["IF-MOTOR-DRIVER-L"],"bindings":["drive:left"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-TRACTION-MOTOR-R","role":"traction_motor","state":"engineering_placeholder","interfaces":["IF-TRACTION-MOTOR-R"],"bindings":["drive:right"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-REDUCER-R","role":"reducer","state":"engineering_placeholder","interfaces":["IF-REDUCER-R"],"bindings":["drive:right"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-WHEEL-R","role":"wheel","state":"engineering_placeholder","interfaces":["IF-WHEEL-R"],"bindings":["drive:right"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-BEARING-R","role":"bearing","state":"engineering_placeholder","interfaces":["IF-BEARING-R"],"bindings":["drive:right"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-MOTOR-DRIVER-R","role":"motor_driver","state":"engineering_placeholder","interfaces":["IF-MOTOR-DRIVER-R"],"bindings":["drive:right"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-BATTERY","role":"battery","state":"engineering_placeholder","interfaces":["IF-BATTERY"],"bindings":["feature:battery_powered"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-BMS","role":"bms","state":"engineering_placeholder","interfaces":["IF-BMS"],"bindings":["feature:battery_powered"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-PROTECTION","role":"main_protection","state":"engineering_placeholder","interfaces":["IF-PROTECTION"],"bindings":["feature:battery_powered"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-CONTACTOR","role":"contactor","state":"engineering_placeholder","interfaces":["IF-CONTACTOR"],"bindings":["feature:battery_powered"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-CONVERTER","role":"dc_converter","state":"engineering_placeholder","interfaces":["IF-CONVERTER"],"bindings":["feature:battery_powered"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-MOTOR-J1","role":"motor","state":"engineering_placeholder","interfaces":["IF-ARM-MOTOR-J1"],"bindings":["actuator:joint_1"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-MOTOR-J2","role":"motor","state":"engineering_placeholder","interfaces":["IF-ARM-MOTOR-J2"],"bindings":["actuator:joint_2"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-MOTOR-J3","role":"motor","state":"engineering_placeholder","interfaces":["IF-ARM-MOTOR-J3"],"bindings":["actuator:joint_3"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-MOTOR-J4","role":"motor","state":"engineering_placeholder","interfaces":["IF-ARM-MOTOR-J4"],"bindings":["actuator:joint_4"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-MOTOR-J5","role":"motor","state":"engineering_placeholder","interfaces":["IF-ARM-MOTOR-J5"],"bindings":["actuator:joint_5"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-MOTOR-J6","role":"motor","state":"engineering_placeholder","interfaces":["IF-ARM-MOTOR-J6"],"bindings":["actuator:joint_6"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-REDUCER-J1","role":"reducer","state":"engineering_placeholder","interfaces":["IF-ARM-REDUCER-J1"],"bindings":["actuator:joint_1"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-REDUCER-J2","role":"reducer","state":"engineering_placeholder","interfaces":["IF-ARM-REDUCER-J2"],"bindings":["actuator:joint_2"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-REDUCER-J3","role":"reducer","state":"engineering_placeholder","interfaces":["IF-ARM-REDUCER-J3"],"bindings":["actuator:joint_3"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-REDUCER-J4","role":"reducer","state":"engineering_placeholder","interfaces":["IF-ARM-REDUCER-J4"],"bindings":["actuator:joint_4"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-REDUCER-J5","role":"reducer","state":"engineering_placeholder","interfaces":["IF-ARM-REDUCER-J5"],"bindings":["actuator:joint_5"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-REDUCER-J6","role":"reducer","state":"engineering_placeholder","interfaces":["IF-ARM-REDUCER-J6"],"bindings":["actuator:joint_6"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-BEARING-J1","role":"bearing","state":"engineering_placeholder","interfaces":["IF-ARM-BEARING-J1"],"bindings":["actuator:joint_1"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-BEARING-J2","role":"bearing","state":"engineering_placeholder","interfaces":["IF-ARM-BEARING-J2"],"bindings":["actuator:joint_2"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-BEARING-J3","role":"bearing","state":"engineering_placeholder","interfaces":["IF-ARM-BEARING-J3"],"bindings":["actuator:joint_3"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-BEARING-J4","role":"bearing","state":"engineering_placeholder","interfaces":["IF-ARM-BEARING-J4"],"bindings":["actuator:joint_4"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-BEARING-J5","role":"bearing","state":"engineering_placeholder","interfaces":["IF-ARM-BEARING-J5"],"bindings":["actuator:joint_5"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-BEARING-J6","role":"bearing","state":"engineering_placeholder","interfaces":["IF-ARM-BEARING-J6"],"bindings":["actuator:joint_6"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-DRIVER-J1","role":"motor_driver","state":"engineering_placeholder","interfaces":["IF-ARM-DRIVER-J1"],"bindings":["actuator:joint_1"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-DRIVER-J2","role":"motor_driver","state":"engineering_placeholder","interfaces":["IF-ARM-DRIVER-J2"],"bindings":["actuator:joint_2"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-DRIVER-J3","role":"motor_driver","state":"engineering_placeholder","interfaces":["IF-ARM-DRIVER-J3"],"bindings":["actuator:joint_3"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-DRIVER-J4","role":"motor_driver","state":"engineering_placeholder","interfaces":["IF-ARM-DRIVER-J4"],"bindings":["actuator:joint_4"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-DRIVER-J5","role":"motor_driver","state":"engineering_placeholder","interfaces":["IF-ARM-DRIVER-J5"],"bindings":["actuator:joint_5"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-ARM-DRIVER-J6","role":"motor_driver","state":"engineering_placeholder","interfaces":["IF-ARM-DRIVER-J6"],"bindings":["actuator:joint_6"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-BRAKE-J1","role":"brake","state":"engineering_placeholder","interfaces":["IF-BRAKE-J1"],"bindings":["actuator:joint_1","safety_function:holding_brake"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-BRAKE-J2","role":"brake","state":"engineering_placeholder","interfaces":["IF-BRAKE-J2"],"bindings":["actuator:joint_2"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-BRAKE-J3","role":"brake","state":"engineering_placeholder","interfaces":["IF-BRAKE-J3"],"bindings":["actuator:joint_3"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-BRAKE-J4","role":"brake","state":"engineering_placeholder","interfaces":["IF-BRAKE-J4"],"bindings":["actuator:joint_4"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-BRAKE-J5","role":"brake","state":"engineering_placeholder","interfaces":["IF-BRAKE-J5"],"bindings":["actuator:joint_5"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-BRAKE-J6","role":"brake","state":"engineering_placeholder","interfaces":["IF-BRAKE-J6"],"bindings":["actuator:joint_6"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-CABLE","role":"cable","state":"engineering_placeholder","interfaces":["IF-CABLE"],"bindings":["moving_cable:arm_harness"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-CONNECTOR","role":"connector","state":"engineering_placeholder","interfaces":["IF-CONNECTOR"],"bindings":["moving_cable:arm_harness"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-STRAIN-RELIEF","role":"strain_relief","state":"engineering_placeholder","interfaces":["IF-STRAIN-RELIEF"],"bindings":["moving_cable:arm_harness"],"supports_claims":["REQ-PHYSICAL"]},
-    {"id":"CMP-CABLE-MANAGEMENT","role":"cable_management","state":"engineering_placeholder","interfaces":["IF-CABLE-MANAGEMENT"],"bindings":["moving_cable:arm_harness"],"supports_claims":["REQ-PHYSICAL"]}
+    {
+      "id": "CMP-TRACTION-MOTOR-L",
+      "role": "traction_motor",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-TRACTION-MOTOR-L"
+      ],
+      "bindings": [
+        "drive:left"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-REDUCER-L",
+      "role": "reducer",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-REDUCER-L"
+      ],
+      "bindings": [
+        "drive:left"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-WHEEL-L",
+      "role": "wheel",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-WHEEL-L"
+      ],
+      "bindings": [
+        "drive:left"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-BEARING-L",
+      "role": "bearing",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-BEARING-L"
+      ],
+      "bindings": [
+        "drive:left"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-MOTOR-DRIVER-L",
+      "role": "motor_driver",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-MOTOR-DRIVER-L"
+      ],
+      "bindings": [
+        "drive:left"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-TRACTION-MOTOR-R",
+      "role": "traction_motor",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-TRACTION-MOTOR-R"
+      ],
+      "bindings": [
+        "drive:right"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-REDUCER-R",
+      "role": "reducer",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-REDUCER-R"
+      ],
+      "bindings": [
+        "drive:right"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-WHEEL-R",
+      "role": "wheel",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-WHEEL-R"
+      ],
+      "bindings": [
+        "drive:right"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-BEARING-R",
+      "role": "bearing",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-BEARING-R"
+      ],
+      "bindings": [
+        "drive:right"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-MOTOR-DRIVER-R",
+      "role": "motor_driver",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-MOTOR-DRIVER-R"
+      ],
+      "bindings": [
+        "drive:right"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-BATTERY",
+      "role": "battery",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-BATTERY"
+      ],
+      "bindings": [
+        "feature:battery_powered"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-BMS",
+      "role": "bms",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-BMS"
+      ],
+      "bindings": [
+        "feature:battery_powered"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-PROTECTION",
+      "role": "main_protection",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-PROTECTION"
+      ],
+      "bindings": [
+        "feature:battery_powered"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-CONTACTOR",
+      "role": "contactor",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-CONTACTOR"
+      ],
+      "bindings": [
+        "feature:battery_powered"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-CONVERTER",
+      "role": "dc_converter",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-CONVERTER"
+      ],
+      "bindings": [
+        "feature:battery_powered"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-MOTOR-J1",
+      "role": "motor",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-MOTOR-J1"
+      ],
+      "bindings": [
+        "actuator:joint_1"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-MOTOR-J2",
+      "role": "motor",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-MOTOR-J2"
+      ],
+      "bindings": [
+        "actuator:joint_2"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-MOTOR-J3",
+      "role": "motor",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-MOTOR-J3"
+      ],
+      "bindings": [
+        "actuator:joint_3"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-MOTOR-J4",
+      "role": "motor",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-MOTOR-J4"
+      ],
+      "bindings": [
+        "actuator:joint_4"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-MOTOR-J5",
+      "role": "motor",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-MOTOR-J5"
+      ],
+      "bindings": [
+        "actuator:joint_5"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-MOTOR-J6",
+      "role": "motor",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-MOTOR-J6"
+      ],
+      "bindings": [
+        "actuator:joint_6"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-REDUCER-J1",
+      "role": "reducer",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-REDUCER-J1"
+      ],
+      "bindings": [
+        "actuator:joint_1"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-REDUCER-J2",
+      "role": "reducer",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-REDUCER-J2"
+      ],
+      "bindings": [
+        "actuator:joint_2"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-REDUCER-J3",
+      "role": "reducer",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-REDUCER-J3"
+      ],
+      "bindings": [
+        "actuator:joint_3"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-REDUCER-J4",
+      "role": "reducer",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-REDUCER-J4"
+      ],
+      "bindings": [
+        "actuator:joint_4"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-REDUCER-J5",
+      "role": "reducer",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-REDUCER-J5"
+      ],
+      "bindings": [
+        "actuator:joint_5"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-REDUCER-J6",
+      "role": "reducer",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-REDUCER-J6"
+      ],
+      "bindings": [
+        "actuator:joint_6"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-BEARING-J1",
+      "role": "bearing",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-BEARING-J1"
+      ],
+      "bindings": [
+        "actuator:joint_1"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-BEARING-J2",
+      "role": "bearing",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-BEARING-J2"
+      ],
+      "bindings": [
+        "actuator:joint_2"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-BEARING-J3",
+      "role": "bearing",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-BEARING-J3"
+      ],
+      "bindings": [
+        "actuator:joint_3"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-BEARING-J4",
+      "role": "bearing",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-BEARING-J4"
+      ],
+      "bindings": [
+        "actuator:joint_4"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-BEARING-J5",
+      "role": "bearing",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-BEARING-J5"
+      ],
+      "bindings": [
+        "actuator:joint_5"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-BEARING-J6",
+      "role": "bearing",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-BEARING-J6"
+      ],
+      "bindings": [
+        "actuator:joint_6"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-DRIVER-J1",
+      "role": "motor_driver",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-DRIVER-J1"
+      ],
+      "bindings": [
+        "actuator:joint_1"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-DRIVER-J2",
+      "role": "motor_driver",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-DRIVER-J2"
+      ],
+      "bindings": [
+        "actuator:joint_2"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-DRIVER-J3",
+      "role": "motor_driver",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-DRIVER-J3"
+      ],
+      "bindings": [
+        "actuator:joint_3"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-DRIVER-J4",
+      "role": "motor_driver",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-DRIVER-J4"
+      ],
+      "bindings": [
+        "actuator:joint_4"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-DRIVER-J5",
+      "role": "motor_driver",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-DRIVER-J5"
+      ],
+      "bindings": [
+        "actuator:joint_5"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-ARM-DRIVER-J6",
+      "role": "motor_driver",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-ARM-DRIVER-J6"
+      ],
+      "bindings": [
+        "actuator:joint_6"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-BRAKE-J1",
+      "role": "brake",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-BRAKE-J1"
+      ],
+      "bindings": [
+        "actuator:joint_1",
+        "safety_function:holding_brake"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-BRAKE-J2",
+      "role": "brake",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-BRAKE-J2"
+      ],
+      "bindings": [
+        "actuator:joint_2"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-BRAKE-J3",
+      "role": "brake",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-BRAKE-J3"
+      ],
+      "bindings": [
+        "actuator:joint_3"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-BRAKE-J4",
+      "role": "brake",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-BRAKE-J4"
+      ],
+      "bindings": [
+        "actuator:joint_4"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-BRAKE-J5",
+      "role": "brake",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-BRAKE-J5"
+      ],
+      "bindings": [
+        "actuator:joint_5"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-BRAKE-J6",
+      "role": "brake",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-BRAKE-J6"
+      ],
+      "bindings": [
+        "actuator:joint_6"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-CABLE",
+      "role": "cable",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-CABLE"
+      ],
+      "bindings": [
+        "moving_cable:arm_harness"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-CONNECTOR",
+      "role": "connector",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-CONNECTOR"
+      ],
+      "bindings": [
+        "moving_cable:arm_harness"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-STRAIN-RELIEF",
+      "role": "strain_relief",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-STRAIN-RELIEF"
+      ],
+      "bindings": [
+        "moving_cable:arm_harness"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    },
+    {
+      "id": "CMP-CABLE-MANAGEMENT",
+      "role": "cable_management",
+      "state": "engineering_placeholder",
+      "interfaces": [
+        "IF-CABLE-MANAGEMENT"
+      ],
+      "bindings": [
+        "moving_cable:arm_harness"
+      ],
+      "supports_claims": [
+        "REQ-PHYSICAL"
+      ]
+    }
   ],
   "architecture": {
-    "features": ["differential_drive", "battery_powered"],
-    "drive_units": ["left", "right"],
-    "actuators": ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"],
-    "moving_cables": ["arm_harness"],
-    "claimed_safety_functions": ["holding_brake"]
+    "features": [
+      "differential_drive",
+      "battery_powered"
+    ],
+    "drive_units": [
+      "left",
+      "right"
+    ],
+    "actuators": [
+      "joint_1",
+      "joint_2",
+      "joint_3",
+      "joint_4",
+      "joint_5",
+      "joint_6"
+    ],
+    "moving_cables": [
+      "arm_harness"
+    ],
+    "claimed_safety_functions": [
+      "holding_brake"
+    ]
   },
   "artifacts": [
-    {"id":"robot-model","kind":"urdf","path":"robot.urdf","sha256":"ce16eb91a634df3dc136245f5c6bdd572a662f7c36277479aedb591b4f8bc429"},
-    {"id":"assumption-registry","kind":"assumptions","path":"assumptions.json","sha256":"434a5ebe0f9e250a016213da989abb17902773150fa44c85c0a663fa6577f240"}
+    {
+      "id": "robot-model",
+      "kind": "urdf",
+      "path": "robot.urdf",
+      "sha256": "ce16eb91a634df3dc136245f5c6bdd572a662f7c36277479aedb591b4f8bc429"
+    },
+    {
+      "id": "assumption-registry",
+      "kind": "assumptions",
+      "path": "assumptions.json",
+      "sha256": "434a5ebe0f9e250a016213da989abb17902773150fa44c85c0a663fa6577f240"
+    },
+    {
+      "id": "load-envelope-model",
+      "kind": "declared_json",
+      "path": "model/load-envelope.json",
+      "sha256": "36ef75afbc9539c1c029fb43bb52347af387eb437f1087008546ae81d81068af"
+    }
   ],
   "analyses": [
-    {"id":"AN-DRIVE-L","plugin":"drivetrain_v1","covers":["requirement:REQ-PHYSICAL","feature:differential_drive","drive:left"],"inputs":{"base_mass_kg":"quantity:Q-BASE-MASS","payload_mass_kg":"quantity:Q-PAYLOAD","rolling_resistance":"quantity:Q-ROLLING-RESISTANCE","slope_rad":"quantity:Q-SLOPE","acceleration_m_s2":"quantity:Q-ACCELERATION","wheel_radius_m":"quantity:Q-WHEEL-RADIUS-L","driven_wheels":"quantity:Q-DRIVEN-WHEELS","gear_ratio":"quantity:Q-GEAR-RATIO-L","efficiency":"quantity:Q-DRIVE-EFFICIENCY-L","target_speed_m_s":"quantity:Q-TARGET-SPEED","motor_continuous_torque_nm":"quantity:Q-MOTOR-CONTINUOUS-TORQUE-L","motor_peak_torque_nm":"quantity:Q-MOTOR-PEAK-TORQUE-L","motor_max_speed_rad_s":"quantity:Q-MOTOR-MAX-SPEED-L","duty_cycle":"quantity:Q-DRIVE-DUTY"}},
-    {"id":"AN-DRIVE-R","plugin":"drivetrain_v1","covers":["requirement:REQ-PHYSICAL","feature:differential_drive","drive:right"],"inputs":{"base_mass_kg":"quantity:Q-BASE-MASS","payload_mass_kg":"quantity:Q-PAYLOAD","rolling_resistance":"quantity:Q-ROLLING-RESISTANCE","slope_rad":"quantity:Q-SLOPE","acceleration_m_s2":"quantity:Q-ACCELERATION","wheel_radius_m":"quantity:Q-WHEEL-RADIUS-R","driven_wheels":"quantity:Q-DRIVEN-WHEELS","gear_ratio":"quantity:Q-GEAR-RATIO-R","efficiency":"quantity:Q-DRIVE-EFFICIENCY-R","target_speed_m_s":"quantity:Q-TARGET-SPEED","motor_continuous_torque_nm":"quantity:Q-MOTOR-CONTINUOUS-TORQUE-R","motor_peak_torque_nm":"quantity:Q-MOTOR-PEAK-TORQUE-R","motor_max_speed_rad_s":"quantity:Q-MOTOR-MAX-SPEED-R","duty_cycle":"quantity:Q-DRIVE-DUTY"}},
-    {"id":"AN-BATTERY","plugin":"battery_v1","covers":["requirement:REQ-PHYSICAL","feature:battery_powered"],"inputs":{"voltage_v":"quantity:Q-BATTERY-VOLTAGE","peak_power_w":"quantity:Q-PEAK-POWER","continuous_power_w":"quantity:Q-CONTINUOUS-POWER","max_continuous_current_a":"quantity:Q-MAX-CONTINUOUS-CURRENT","max_peak_current_a":"quantity:Q-MAX-PEAK-CURRENT","usable_energy_j":"quantity:Q-USABLE-ENERGY","required_runtime_s":"quantity:Q-REQUIRED-RUNTIME"}},
-    {"id":"AN-STABILITY","plugin":"stability_v1","covers":["requirement:REQ-PHYSICAL","feature:differential_drive","drive:left","drive:right"],"inputs":{"support_min_x_m":"quantity:Q-SUPPORT-MIN-X","support_max_x_m":"quantity:Q-SUPPORT-MAX-X","support_min_y_m":"quantity:Q-SUPPORT-MIN-Y","support_max_y_m":"quantity:Q-SUPPORT-MAX-Y","com_x_m":"quantity:Q-COM-X","com_y_m":"quantity:Q-COM-Y","com_height_m":"quantity:Q-COM-HEIGHT","slope_x_rad":"quantity:Q-SLOPE","slope_y_rad":"quantity:Q-SLOPE-Y"}},
-    {"id":"AN-ARM-GRAVITY","plugin":"arm_gravity_v1","covers":["requirement:REQ-PHYSICAL","actuator:joint_1","actuator:joint_2","actuator:joint_3","actuator:joint_4","actuator:joint_5","actuator:joint_6"],"inputs":{"joints":[{"id":"joint_1","loads":[{"mass_kg":"quantity:Q-PAYLOAD","horizontal_lever_m":"quantity:Q-ARM-LEVER"}],"rated_continuous_torque_nm":"quantity:Q-ARM-CONTINUOUS-TORQUE-J1","brake_holding_torque_nm":"quantity:Q-BRAKE-HOLDING-TORQUE-J1","safety_factor":"quantity:Q-ARM-SAFETY-FACTOR"},{"id":"joint_2","loads":[{"mass_kg":"quantity:Q-PAYLOAD","horizontal_lever_m":"quantity:Q-ARM-LEVER"}],"rated_continuous_torque_nm":"quantity:Q-ARM-CONTINUOUS-TORQUE-J2","brake_holding_torque_nm":"quantity:Q-BRAKE-HOLDING-TORQUE-J2","safety_factor":"quantity:Q-ARM-SAFETY-FACTOR"},{"id":"joint_3","loads":[{"mass_kg":"quantity:Q-PAYLOAD","horizontal_lever_m":"quantity:Q-ARM-LEVER"}],"rated_continuous_torque_nm":"quantity:Q-ARM-CONTINUOUS-TORQUE-J3","brake_holding_torque_nm":"quantity:Q-BRAKE-HOLDING-TORQUE-J3","safety_factor":"quantity:Q-ARM-SAFETY-FACTOR"},{"id":"joint_4","loads":[{"mass_kg":"quantity:Q-PAYLOAD","horizontal_lever_m":"quantity:Q-ARM-LEVER"}],"rated_continuous_torque_nm":"quantity:Q-ARM-CONTINUOUS-TORQUE-J4","brake_holding_torque_nm":"quantity:Q-BRAKE-HOLDING-TORQUE-J4","safety_factor":"quantity:Q-ARM-SAFETY-FACTOR"},{"id":"joint_5","loads":[{"mass_kg":"quantity:Q-PAYLOAD","horizontal_lever_m":"quantity:Q-ARM-LEVER"}],"rated_continuous_torque_nm":"quantity:Q-ARM-CONTINUOUS-TORQUE-J5","brake_holding_torque_nm":"quantity:Q-BRAKE-HOLDING-TORQUE-J5","safety_factor":"quantity:Q-ARM-SAFETY-FACTOR"},{"id":"joint_6","loads":[{"mass_kg":"quantity:Q-PAYLOAD","horizontal_lever_m":"quantity:Q-ARM-LEVER"}],"rated_continuous_torque_nm":"quantity:Q-ARM-CONTINUOUS-TORQUE-J6","brake_holding_torque_nm":"quantity:Q-BRAKE-HOLDING-TORQUE-J6","safety_factor":"quantity:Q-ARM-SAFETY-FACTOR"}]}},
-    {"id":"AN-THERMAL-DRIVE-L","plugin":"thermal_duty_v1","covers":["requirement:REQ-PHYSICAL","drive:left"],"inputs":{"ambient_temperature_k":"quantity:Q-AMBIENT-TEMPERATURE","winding_resistance_ohm":"quantity:Q-WINDING-RESISTANCE-DRIVE-L","on_current_a":"quantity:Q-THERMAL-ON-CURRENT-DRIVE-L","duty_cycle":"quantity:Q-DRIVE-DUTY","thermal_resistance_k_per_w":"quantity:Q-THERMAL-RESISTANCE-DRIVE-L","max_winding_temperature_k":"quantity:Q-MAX-WINDING-TEMPERATURE-DRIVE-L"}},
-    {"id":"AN-THERMAL-DRIVE-R","plugin":"thermal_duty_v1","covers":["requirement:REQ-PHYSICAL","drive:right"],"inputs":{"ambient_temperature_k":"quantity:Q-AMBIENT-TEMPERATURE","winding_resistance_ohm":"quantity:Q-WINDING-RESISTANCE-DRIVE-R","on_current_a":"quantity:Q-THERMAL-ON-CURRENT-DRIVE-R","duty_cycle":"quantity:Q-DRIVE-DUTY","thermal_resistance_k_per_w":"quantity:Q-THERMAL-RESISTANCE-DRIVE-R","max_winding_temperature_k":"quantity:Q-MAX-WINDING-TEMPERATURE-DRIVE-R"}},
-    {"id":"AN-THERMAL-J1","plugin":"thermal_duty_v1","covers":["requirement:REQ-PHYSICAL","actuator:joint_1"],"inputs":{"ambient_temperature_k":"quantity:Q-AMBIENT-TEMPERATURE","winding_resistance_ohm":"quantity:Q-WINDING-RESISTANCE-J1","on_current_a":"quantity:Q-THERMAL-ON-CURRENT-J1","duty_cycle":"quantity:Q-DRIVE-DUTY","thermal_resistance_k_per_w":"quantity:Q-THERMAL-RESISTANCE-J1","max_winding_temperature_k":"quantity:Q-MAX-WINDING-TEMPERATURE-J1"}},
-    {"id":"AN-THERMAL-J2","plugin":"thermal_duty_v1","covers":["requirement:REQ-PHYSICAL","actuator:joint_2"],"inputs":{"ambient_temperature_k":"quantity:Q-AMBIENT-TEMPERATURE","winding_resistance_ohm":"quantity:Q-WINDING-RESISTANCE-J2","on_current_a":"quantity:Q-THERMAL-ON-CURRENT-J2","duty_cycle":"quantity:Q-DRIVE-DUTY","thermal_resistance_k_per_w":"quantity:Q-THERMAL-RESISTANCE-J2","max_winding_temperature_k":"quantity:Q-MAX-WINDING-TEMPERATURE-J2"}},
-    {"id":"AN-THERMAL-J3","plugin":"thermal_duty_v1","covers":["requirement:REQ-PHYSICAL","actuator:joint_3"],"inputs":{"ambient_temperature_k":"quantity:Q-AMBIENT-TEMPERATURE","winding_resistance_ohm":"quantity:Q-WINDING-RESISTANCE-J3","on_current_a":"quantity:Q-THERMAL-ON-CURRENT-J3","duty_cycle":"quantity:Q-DRIVE-DUTY","thermal_resistance_k_per_w":"quantity:Q-THERMAL-RESISTANCE-J3","max_winding_temperature_k":"quantity:Q-MAX-WINDING-TEMPERATURE-J3"}},
-    {"id":"AN-THERMAL-J4","plugin":"thermal_duty_v1","covers":["requirement:REQ-PHYSICAL","actuator:joint_4"],"inputs":{"ambient_temperature_k":"quantity:Q-AMBIENT-TEMPERATURE","winding_resistance_ohm":"quantity:Q-WINDING-RESISTANCE-J4","on_current_a":"quantity:Q-THERMAL-ON-CURRENT-J4","duty_cycle":"quantity:Q-DRIVE-DUTY","thermal_resistance_k_per_w":"quantity:Q-THERMAL-RESISTANCE-J4","max_winding_temperature_k":"quantity:Q-MAX-WINDING-TEMPERATURE-J4"}},
-    {"id":"AN-THERMAL-J5","plugin":"thermal_duty_v1","covers":["requirement:REQ-PHYSICAL","actuator:joint_5"],"inputs":{"ambient_temperature_k":"quantity:Q-AMBIENT-TEMPERATURE","winding_resistance_ohm":"quantity:Q-WINDING-RESISTANCE-J5","on_current_a":"quantity:Q-THERMAL-ON-CURRENT-J5","duty_cycle":"quantity:Q-DRIVE-DUTY","thermal_resistance_k_per_w":"quantity:Q-THERMAL-RESISTANCE-J5","max_winding_temperature_k":"quantity:Q-MAX-WINDING-TEMPERATURE-J5"}},
-    {"id":"AN-THERMAL-J6","plugin":"thermal_duty_v1","covers":["requirement:REQ-PHYSICAL","actuator:joint_6"],"inputs":{"ambient_temperature_k":"quantity:Q-AMBIENT-TEMPERATURE","winding_resistance_ohm":"quantity:Q-WINDING-RESISTANCE-J6","on_current_a":"quantity:Q-THERMAL-ON-CURRENT-J6","duty_cycle":"quantity:Q-DRIVE-DUTY","thermal_resistance_k_per_w":"quantity:Q-THERMAL-RESISTANCE-J6","max_winding_temperature_k":"quantity:Q-MAX-WINDING-TEMPERATURE-J6"}}
+    {
+      "id": "AN-DRIVE-L",
+      "plugin": "drivetrain_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "feature:differential_drive",
+        "drive:left"
+      ],
+      "inputs": {
+        "base_mass_kg": "quantity:Q-BASE-MASS",
+        "payload_mass_kg": "quantity:Q-PAYLOAD",
+        "rolling_resistance": "quantity:Q-ROLLING-RESISTANCE",
+        "slope_rad": "quantity:Q-SLOPE",
+        "acceleration_m_s2": "quantity:Q-ACCELERATION",
+        "wheel_radius_m": "quantity:Q-WHEEL-RADIUS-L",
+        "driven_wheels": "quantity:Q-DRIVEN-WHEELS",
+        "gear_ratio": "quantity:Q-GEAR-RATIO-L",
+        "efficiency": "quantity:Q-DRIVE-EFFICIENCY-L",
+        "target_speed_m_s": "quantity:Q-TARGET-SPEED",
+        "motor_continuous_torque_nm": "quantity:Q-MOTOR-CONTINUOUS-TORQUE-L",
+        "motor_peak_torque_nm": "quantity:Q-MOTOR-PEAK-TORQUE-L",
+        "motor_max_speed_rad_s": "quantity:Q-MOTOR-MAX-SPEED-L",
+        "duty_cycle": "quantity:Q-DRIVE-DUTY"
+      }
+    },
+    {
+      "id": "AN-DRIVE-R",
+      "plugin": "drivetrain_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "feature:differential_drive",
+        "drive:right"
+      ],
+      "inputs": {
+        "base_mass_kg": "quantity:Q-BASE-MASS",
+        "payload_mass_kg": "quantity:Q-PAYLOAD",
+        "rolling_resistance": "quantity:Q-ROLLING-RESISTANCE",
+        "slope_rad": "quantity:Q-SLOPE",
+        "acceleration_m_s2": "quantity:Q-ACCELERATION",
+        "wheel_radius_m": "quantity:Q-WHEEL-RADIUS-R",
+        "driven_wheels": "quantity:Q-DRIVEN-WHEELS",
+        "gear_ratio": "quantity:Q-GEAR-RATIO-R",
+        "efficiency": "quantity:Q-DRIVE-EFFICIENCY-R",
+        "target_speed_m_s": "quantity:Q-TARGET-SPEED",
+        "motor_continuous_torque_nm": "quantity:Q-MOTOR-CONTINUOUS-TORQUE-R",
+        "motor_peak_torque_nm": "quantity:Q-MOTOR-PEAK-TORQUE-R",
+        "motor_max_speed_rad_s": "quantity:Q-MOTOR-MAX-SPEED-R",
+        "duty_cycle": "quantity:Q-DRIVE-DUTY"
+      }
+    },
+    {
+      "id": "AN-BATTERY",
+      "plugin": "battery_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "feature:battery_powered"
+      ],
+      "inputs": {
+        "voltage_v": "quantity:Q-BATTERY-VOLTAGE",
+        "peak_power_w": "quantity:Q-PEAK-POWER",
+        "continuous_power_w": "quantity:Q-CONTINUOUS-POWER",
+        "max_continuous_current_a": "quantity:Q-MAX-CONTINUOUS-CURRENT",
+        "max_peak_current_a": "quantity:Q-MAX-PEAK-CURRENT",
+        "usable_energy_j": "quantity:Q-USABLE-ENERGY",
+        "required_runtime_s": "quantity:Q-REQUIRED-RUNTIME"
+      }
+    },
+    {
+      "id": "AN-STABILITY",
+      "plugin": "stability_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "feature:differential_drive",
+        "drive:left",
+        "drive:right"
+      ],
+      "inputs": {
+        "support_min_x_m": "quantity:Q-SUPPORT-MIN-X",
+        "support_max_x_m": "quantity:Q-SUPPORT-MAX-X",
+        "support_min_y_m": "quantity:Q-SUPPORT-MIN-Y",
+        "support_max_y_m": "quantity:Q-SUPPORT-MAX-Y",
+        "com_x_m": "quantity:Q-COM-X",
+        "com_y_m": "quantity:Q-COM-Y",
+        "com_height_m": "quantity:Q-COM-HEIGHT",
+        "slope_x_rad": "quantity:Q-SLOPE",
+        "slope_y_rad": "quantity:Q-SLOPE-Y"
+      }
+    },
+    {
+      "id": "AN-ARM-LOAD-ENVELOPE",
+      "plugin": "arm_load_envelope_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "actuator:joint_1",
+        "actuator:joint_2",
+        "actuator:joint_3",
+        "actuator:joint_4",
+        "actuator:joint_5",
+        "actuator:joint_6"
+      ],
+      "inputs": {
+        "joint_order": [
+          "joint_1",
+          "joint_2",
+          "joint_3",
+          "joint_4",
+          "joint_5",
+          "joint_6"
+        ],
+        "joints": [
+          {
+            "id": "joint_1",
+            "parent": "base_link",
+            "child": "arm_link_1",
+            "origin_xyz_m": [
+              "quantity:Q-LE-1-OX",
+              "quantity:Q-LE-1-OY",
+              "quantity:Q-LE-1-OZ"
+            ],
+            "origin_rpy_rad": [
+              "quantity:Q-LE-1-RX",
+              "quantity:Q-LE-1-RY",
+              "quantity:Q-LE-1-RZ"
+            ],
+            "axis_xyz": [
+              "quantity:Q-LE-1-AX",
+              "quantity:Q-LE-1-AY",
+              "quantity:Q-LE-1-AZ"
+            ]
+          },
+          {
+            "id": "joint_2",
+            "parent": "arm_link_1",
+            "child": "arm_link_2",
+            "origin_xyz_m": [
+              "quantity:Q-LE-2-OX",
+              "quantity:Q-LE-2-OY",
+              "quantity:Q-LE-2-OZ"
+            ],
+            "origin_rpy_rad": [
+              "quantity:Q-LE-2-RX",
+              "quantity:Q-LE-2-RY",
+              "quantity:Q-LE-2-RZ"
+            ],
+            "axis_xyz": [
+              "quantity:Q-LE-2-AX",
+              "quantity:Q-LE-2-AY",
+              "quantity:Q-LE-2-AZ"
+            ]
+          },
+          {
+            "id": "joint_3",
+            "parent": "arm_link_2",
+            "child": "arm_link_3",
+            "origin_xyz_m": [
+              "quantity:Q-LE-3-OX",
+              "quantity:Q-LE-3-OY",
+              "quantity:Q-LE-3-OZ"
+            ],
+            "origin_rpy_rad": [
+              "quantity:Q-LE-3-RX",
+              "quantity:Q-LE-3-RY",
+              "quantity:Q-LE-3-RZ"
+            ],
+            "axis_xyz": [
+              "quantity:Q-LE-3-AX",
+              "quantity:Q-LE-3-AY",
+              "quantity:Q-LE-3-AZ"
+            ]
+          },
+          {
+            "id": "joint_4",
+            "parent": "arm_link_3",
+            "child": "arm_link_4",
+            "origin_xyz_m": [
+              "quantity:Q-LE-4-OX",
+              "quantity:Q-LE-4-OY",
+              "quantity:Q-LE-4-OZ"
+            ],
+            "origin_rpy_rad": [
+              "quantity:Q-LE-4-RX",
+              "quantity:Q-LE-4-RY",
+              "quantity:Q-LE-4-RZ"
+            ],
+            "axis_xyz": [
+              "quantity:Q-LE-4-AX",
+              "quantity:Q-LE-4-AY",
+              "quantity:Q-LE-4-AZ"
+            ]
+          },
+          {
+            "id": "joint_5",
+            "parent": "arm_link_4",
+            "child": "arm_link_5",
+            "origin_xyz_m": [
+              "quantity:Q-LE-5-OX",
+              "quantity:Q-LE-5-OY",
+              "quantity:Q-LE-5-OZ"
+            ],
+            "origin_rpy_rad": [
+              "quantity:Q-LE-5-RX",
+              "quantity:Q-LE-5-RY",
+              "quantity:Q-LE-5-RZ"
+            ],
+            "axis_xyz": [
+              "quantity:Q-LE-5-AX",
+              "quantity:Q-LE-5-AY",
+              "quantity:Q-LE-5-AZ"
+            ]
+          },
+          {
+            "id": "joint_6",
+            "parent": "arm_link_5",
+            "child": "arm_link_6",
+            "origin_xyz_m": [
+              "quantity:Q-LE-6-OX",
+              "quantity:Q-LE-6-OY",
+              "quantity:Q-LE-6-OZ"
+            ],
+            "origin_rpy_rad": [
+              "quantity:Q-LE-6-RX",
+              "quantity:Q-LE-6-RY",
+              "quantity:Q-LE-6-RZ"
+            ],
+            "axis_xyz": [
+              "quantity:Q-LE-6-AX",
+              "quantity:Q-LE-6-AY",
+              "quantity:Q-LE-6-AZ"
+            ]
+          }
+        ],
+        "links": [
+          {
+            "id": "arm_link_1",
+            "mass_kg": "quantity:Q-LE-L1-MASS",
+            "com_xyz_m": [
+              "quantity:Q-LE-L1-COM-X",
+              "quantity:Q-LE-L1-COM-Y",
+              "quantity:Q-LE-L1-COM-Z"
+            ]
+          },
+          {
+            "id": "arm_link_2",
+            "mass_kg": "quantity:Q-LE-L2-MASS",
+            "com_xyz_m": [
+              "quantity:Q-LE-L2-COM-X",
+              "quantity:Q-LE-L2-COM-Y",
+              "quantity:Q-LE-L2-COM-Z"
+            ]
+          },
+          {
+            "id": "arm_link_3",
+            "mass_kg": "quantity:Q-LE-L3-MASS",
+            "com_xyz_m": [
+              "quantity:Q-LE-L3-COM-X",
+              "quantity:Q-LE-L3-COM-Y",
+              "quantity:Q-LE-L3-COM-Z"
+            ]
+          },
+          {
+            "id": "arm_link_4",
+            "mass_kg": "quantity:Q-LE-L4-MASS",
+            "com_xyz_m": [
+              "quantity:Q-LE-L4-COM-X",
+              "quantity:Q-LE-L4-COM-Y",
+              "quantity:Q-LE-L4-COM-Z"
+            ]
+          },
+          {
+            "id": "arm_link_5",
+            "mass_kg": "quantity:Q-LE-L5-MASS",
+            "com_xyz_m": [
+              "quantity:Q-LE-L5-COM-X",
+              "quantity:Q-LE-L5-COM-Y",
+              "quantity:Q-LE-L5-COM-Z"
+            ]
+          },
+          {
+            "id": "arm_link_6",
+            "mass_kg": "quantity:Q-LE-L6-MASS",
+            "com_xyz_m": [
+              "quantity:Q-LE-L6-COM-X",
+              "quantity:Q-LE-L6-COM-Y",
+              "quantity:Q-LE-L6-COM-Z"
+            ]
+          }
+        ],
+        "payload": {
+          "mass_kg": "quantity:Q-LE-PAYLOAD-MASS",
+          "parent": "arm_link_6",
+          "origin_xyz_m": [
+            "quantity:Q-LE-PAYLOAD-X",
+            "quantity:Q-LE-PAYLOAD-Y",
+            "quantity:Q-LE-PAYLOAD-Z"
+          ]
+        },
+        "load_cases": [
+          {
+            "id": "LC-HORIZONTAL-REACH",
+            "joint_positions_rad": [
+              "quantity:Q-LE-H-J1",
+              "quantity:Q-LE-H-J2",
+              "quantity:Q-LE-H-J3",
+              "quantity:Q-LE-H-J4",
+              "quantity:Q-LE-H-J5",
+              "quantity:Q-LE-H-J6"
+            ],
+            "gravity_xyz_m_s2": [
+              "quantity:Q-LE-G-X",
+              "quantity:Q-LE-G-Y",
+              "quantity:Q-LE-G-Z"
+            ]
+          },
+          {
+            "id": "LC-FOLDED-SERVICE",
+            "joint_positions_rad": [
+              "quantity:Q-LE-F-J1",
+              "quantity:Q-LE-F-J2",
+              "quantity:Q-LE-F-J3",
+              "quantity:Q-LE-F-J4",
+              "quantity:Q-LE-F-J5",
+              "quantity:Q-LE-F-J6"
+            ],
+            "gravity_xyz_m_s2": [
+              "quantity:Q-LE-G-X",
+              "quantity:Q-LE-G-Y",
+              "quantity:Q-LE-G-Z"
+            ]
+          }
+        ],
+        "continuous_safety_factor": "quantity:Q-LE-CONTINUOUS-SF",
+        "brake_safety_factor": "quantity:Q-LE-BRAKE-SF",
+        "rated_continuous_torque_nm": [
+          {
+            "id": "joint_1",
+            "value": "quantity:Q-ARM-CONTINUOUS-TORQUE-J1"
+          },
+          {
+            "id": "joint_2",
+            "value": "quantity:Q-ARM-CONTINUOUS-TORQUE-J2"
+          },
+          {
+            "id": "joint_3",
+            "value": "quantity:Q-ARM-CONTINUOUS-TORQUE-J3"
+          },
+          {
+            "id": "joint_4",
+            "value": "quantity:Q-ARM-CONTINUOUS-TORQUE-J4"
+          },
+          {
+            "id": "joint_5",
+            "value": "quantity:Q-ARM-CONTINUOUS-TORQUE-J5"
+          },
+          {
+            "id": "joint_6",
+            "value": "quantity:Q-ARM-CONTINUOUS-TORQUE-J6"
+          }
+        ],
+        "brake_holding_torque_nm": [
+          {
+            "id": "joint_1",
+            "value": "quantity:Q-BRAKE-HOLDING-TORQUE-J1"
+          },
+          {
+            "id": "joint_2",
+            "value": "quantity:Q-BRAKE-HOLDING-TORQUE-J2"
+          },
+          {
+            "id": "joint_3",
+            "value": "quantity:Q-BRAKE-HOLDING-TORQUE-J3"
+          },
+          {
+            "id": "joint_4",
+            "value": "quantity:Q-BRAKE-HOLDING-TORQUE-J4"
+          },
+          {
+            "id": "joint_5",
+            "value": "quantity:Q-BRAKE-HOLDING-TORQUE-J5"
+          },
+          {
+            "id": "joint_6",
+            "value": "quantity:Q-BRAKE-HOLDING-TORQUE-J6"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AN-THERMAL-DRIVE-L",
+      "plugin": "thermal_duty_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "drive:left"
+      ],
+      "inputs": {
+        "ambient_temperature_k": "quantity:Q-AMBIENT-TEMPERATURE",
+        "winding_resistance_ohm": "quantity:Q-WINDING-RESISTANCE-DRIVE-L",
+        "on_current_a": "quantity:Q-THERMAL-ON-CURRENT-DRIVE-L",
+        "duty_cycle": "quantity:Q-DRIVE-DUTY",
+        "thermal_resistance_k_per_w": "quantity:Q-THERMAL-RESISTANCE-DRIVE-L",
+        "max_winding_temperature_k": "quantity:Q-MAX-WINDING-TEMPERATURE-DRIVE-L"
+      }
+    },
+    {
+      "id": "AN-THERMAL-DRIVE-R",
+      "plugin": "thermal_duty_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "drive:right"
+      ],
+      "inputs": {
+        "ambient_temperature_k": "quantity:Q-AMBIENT-TEMPERATURE",
+        "winding_resistance_ohm": "quantity:Q-WINDING-RESISTANCE-DRIVE-R",
+        "on_current_a": "quantity:Q-THERMAL-ON-CURRENT-DRIVE-R",
+        "duty_cycle": "quantity:Q-DRIVE-DUTY",
+        "thermal_resistance_k_per_w": "quantity:Q-THERMAL-RESISTANCE-DRIVE-R",
+        "max_winding_temperature_k": "quantity:Q-MAX-WINDING-TEMPERATURE-DRIVE-R"
+      }
+    },
+    {
+      "id": "AN-THERMAL-J1",
+      "plugin": "thermal_duty_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "actuator:joint_1"
+      ],
+      "inputs": {
+        "ambient_temperature_k": "quantity:Q-AMBIENT-TEMPERATURE",
+        "winding_resistance_ohm": "quantity:Q-WINDING-RESISTANCE-J1",
+        "on_current_a": "quantity:Q-THERMAL-ON-CURRENT-J1",
+        "duty_cycle": "quantity:Q-DRIVE-DUTY",
+        "thermal_resistance_k_per_w": "quantity:Q-THERMAL-RESISTANCE-J1",
+        "max_winding_temperature_k": "quantity:Q-MAX-WINDING-TEMPERATURE-J1"
+      }
+    },
+    {
+      "id": "AN-THERMAL-J2",
+      "plugin": "thermal_duty_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "actuator:joint_2"
+      ],
+      "inputs": {
+        "ambient_temperature_k": "quantity:Q-AMBIENT-TEMPERATURE",
+        "winding_resistance_ohm": "quantity:Q-WINDING-RESISTANCE-J2",
+        "on_current_a": "quantity:Q-THERMAL-ON-CURRENT-J2",
+        "duty_cycle": "quantity:Q-DRIVE-DUTY",
+        "thermal_resistance_k_per_w": "quantity:Q-THERMAL-RESISTANCE-J2",
+        "max_winding_temperature_k": "quantity:Q-MAX-WINDING-TEMPERATURE-J2"
+      }
+    },
+    {
+      "id": "AN-THERMAL-J3",
+      "plugin": "thermal_duty_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "actuator:joint_3"
+      ],
+      "inputs": {
+        "ambient_temperature_k": "quantity:Q-AMBIENT-TEMPERATURE",
+        "winding_resistance_ohm": "quantity:Q-WINDING-RESISTANCE-J3",
+        "on_current_a": "quantity:Q-THERMAL-ON-CURRENT-J3",
+        "duty_cycle": "quantity:Q-DRIVE-DUTY",
+        "thermal_resistance_k_per_w": "quantity:Q-THERMAL-RESISTANCE-J3",
+        "max_winding_temperature_k": "quantity:Q-MAX-WINDING-TEMPERATURE-J3"
+      }
+    },
+    {
+      "id": "AN-THERMAL-J4",
+      "plugin": "thermal_duty_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "actuator:joint_4"
+      ],
+      "inputs": {
+        "ambient_temperature_k": "quantity:Q-AMBIENT-TEMPERATURE",
+        "winding_resistance_ohm": "quantity:Q-WINDING-RESISTANCE-J4",
+        "on_current_a": "quantity:Q-THERMAL-ON-CURRENT-J4",
+        "duty_cycle": "quantity:Q-DRIVE-DUTY",
+        "thermal_resistance_k_per_w": "quantity:Q-THERMAL-RESISTANCE-J4",
+        "max_winding_temperature_k": "quantity:Q-MAX-WINDING-TEMPERATURE-J4"
+      }
+    },
+    {
+      "id": "AN-THERMAL-J5",
+      "plugin": "thermal_duty_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "actuator:joint_5"
+      ],
+      "inputs": {
+        "ambient_temperature_k": "quantity:Q-AMBIENT-TEMPERATURE",
+        "winding_resistance_ohm": "quantity:Q-WINDING-RESISTANCE-J5",
+        "on_current_a": "quantity:Q-THERMAL-ON-CURRENT-J5",
+        "duty_cycle": "quantity:Q-DRIVE-DUTY",
+        "thermal_resistance_k_per_w": "quantity:Q-THERMAL-RESISTANCE-J5",
+        "max_winding_temperature_k": "quantity:Q-MAX-WINDING-TEMPERATURE-J5"
+      }
+    },
+    {
+      "id": "AN-THERMAL-J6",
+      "plugin": "thermal_duty_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "actuator:joint_6"
+      ],
+      "inputs": {
+        "ambient_temperature_k": "quantity:Q-AMBIENT-TEMPERATURE",
+        "winding_resistance_ohm": "quantity:Q-WINDING-RESISTANCE-J6",
+        "on_current_a": "quantity:Q-THERMAL-ON-CURRENT-J6",
+        "duty_cycle": "quantity:Q-DRIVE-DUTY",
+        "thermal_resistance_k_per_w": "quantity:Q-THERMAL-RESISTANCE-J6",
+        "max_winding_temperature_k": "quantity:Q-MAX-WINDING-TEMPERATURE-J6"
+      }
+    }
   ],
   "evidence": [
-    {"id":"EV-URDF","level":"parsed","source":{"path":"robot.urdf","sha256":"ce16eb91a634df3dc136245f5c6bdd572a662f7c36277479aedb591b4f8bc429"},"supports":["artifact:robot-model","quantity:Q-BASE-MASS","quantity:Q-J1-UPPER"]},
-    {"id":"EV-ASSUMPTIONS","level":"assumed","source":{"path":"assumptions.json","sha256":"434a5ebe0f9e250a016213da989abb17902773150fa44c85c0a663fa6577f240"},"supports":["artifact:assumption-registry","quantity:Q-PAYLOAD","quantity:Q-ROLLING-RESISTANCE","quantity:Q-SLOPE","quantity:Q-ACCELERATION","quantity:Q-WHEEL-RADIUS-L","quantity:Q-WHEEL-RADIUS-R","quantity:Q-DRIVEN-WHEELS","quantity:Q-GEAR-RATIO-L","quantity:Q-GEAR-RATIO-R","quantity:Q-DRIVE-EFFICIENCY-L","quantity:Q-DRIVE-EFFICIENCY-R","quantity:Q-TARGET-SPEED","quantity:Q-MOTOR-CONTINUOUS-TORQUE-L","quantity:Q-MOTOR-CONTINUOUS-TORQUE-R","quantity:Q-MOTOR-PEAK-TORQUE-L","quantity:Q-MOTOR-PEAK-TORQUE-R","quantity:Q-MOTOR-MAX-SPEED-L","quantity:Q-MOTOR-MAX-SPEED-R","quantity:Q-DRIVE-DUTY","quantity:Q-BATTERY-VOLTAGE","quantity:Q-PEAK-POWER","quantity:Q-CONTINUOUS-POWER","quantity:Q-MAX-CONTINUOUS-CURRENT","quantity:Q-MAX-PEAK-CURRENT","quantity:Q-USABLE-ENERGY","quantity:Q-REQUIRED-RUNTIME","quantity:Q-SUPPORT-MIN-X","quantity:Q-SUPPORT-MAX-X","quantity:Q-SUPPORT-MIN-Y","quantity:Q-SUPPORT-MAX-Y","quantity:Q-COM-X","quantity:Q-COM-Y","quantity:Q-COM-HEIGHT","quantity:Q-SLOPE-Y","quantity:Q-ARM-LEVER","quantity:Q-ARM-CONTINUOUS-TORQUE-J1","quantity:Q-ARM-CONTINUOUS-TORQUE-J2","quantity:Q-ARM-CONTINUOUS-TORQUE-J3","quantity:Q-ARM-CONTINUOUS-TORQUE-J4","quantity:Q-ARM-CONTINUOUS-TORQUE-J5","quantity:Q-ARM-CONTINUOUS-TORQUE-J6","quantity:Q-BRAKE-HOLDING-TORQUE-J1","quantity:Q-BRAKE-HOLDING-TORQUE-J2","quantity:Q-BRAKE-HOLDING-TORQUE-J3","quantity:Q-BRAKE-HOLDING-TORQUE-J4","quantity:Q-BRAKE-HOLDING-TORQUE-J5","quantity:Q-BRAKE-HOLDING-TORQUE-J6","quantity:Q-ARM-SAFETY-FACTOR","quantity:Q-AMBIENT-TEMPERATURE","quantity:Q-WINDING-RESISTANCE-DRIVE-L","quantity:Q-THERMAL-ON-CURRENT-DRIVE-L","quantity:Q-THERMAL-RESISTANCE-DRIVE-L","quantity:Q-MAX-WINDING-TEMPERATURE-DRIVE-L","quantity:Q-WINDING-RESISTANCE-DRIVE-R","quantity:Q-THERMAL-ON-CURRENT-DRIVE-R","quantity:Q-THERMAL-RESISTANCE-DRIVE-R","quantity:Q-MAX-WINDING-TEMPERATURE-DRIVE-R","quantity:Q-WINDING-RESISTANCE-J1","quantity:Q-THERMAL-ON-CURRENT-J1","quantity:Q-THERMAL-RESISTANCE-J1","quantity:Q-MAX-WINDING-TEMPERATURE-J1","quantity:Q-WINDING-RESISTANCE-J2","quantity:Q-THERMAL-ON-CURRENT-J2","quantity:Q-THERMAL-RESISTANCE-J2","quantity:Q-MAX-WINDING-TEMPERATURE-J2","quantity:Q-WINDING-RESISTANCE-J3","quantity:Q-THERMAL-ON-CURRENT-J3","quantity:Q-THERMAL-RESISTANCE-J3","quantity:Q-MAX-WINDING-TEMPERATURE-J3","quantity:Q-WINDING-RESISTANCE-J4","quantity:Q-THERMAL-ON-CURRENT-J4","quantity:Q-THERMAL-RESISTANCE-J4","quantity:Q-MAX-WINDING-TEMPERATURE-J4","quantity:Q-WINDING-RESISTANCE-J5","quantity:Q-THERMAL-ON-CURRENT-J5","quantity:Q-THERMAL-RESISTANCE-J5","quantity:Q-MAX-WINDING-TEMPERATURE-J5","quantity:Q-WINDING-RESISTANCE-J6","quantity:Q-THERMAL-ON-CURRENT-J6","quantity:Q-THERMAL-RESISTANCE-J6","quantity:Q-MAX-WINDING-TEMPERATURE-J6"]}
+    {
+      "id": "EV-URDF",
+      "level": "parsed",
+      "source": {
+        "path": "robot.urdf",
+        "sha256": "ce16eb91a634df3dc136245f5c6bdd572a662f7c36277479aedb591b4f8bc429"
+      },
+      "supports": [
+        "artifact:robot-model",
+        "quantity:Q-BASE-MASS",
+        "quantity:Q-J1-UPPER",
+        "quantity:Q-LE-1-OX",
+        "quantity:Q-LE-1-OY",
+        "quantity:Q-LE-1-OZ",
+        "quantity:Q-LE-1-RX",
+        "quantity:Q-LE-1-RY",
+        "quantity:Q-LE-1-RZ",
+        "quantity:Q-LE-1-AX",
+        "quantity:Q-LE-1-AY",
+        "quantity:Q-LE-1-AZ",
+        "quantity:Q-LE-L1-MASS",
+        "quantity:Q-LE-2-OX",
+        "quantity:Q-LE-2-OY",
+        "quantity:Q-LE-2-OZ",
+        "quantity:Q-LE-2-RX",
+        "quantity:Q-LE-2-RY",
+        "quantity:Q-LE-2-RZ",
+        "quantity:Q-LE-2-AX",
+        "quantity:Q-LE-2-AY",
+        "quantity:Q-LE-2-AZ",
+        "quantity:Q-LE-L2-MASS",
+        "quantity:Q-LE-3-OX",
+        "quantity:Q-LE-3-OY",
+        "quantity:Q-LE-3-OZ",
+        "quantity:Q-LE-3-RX",
+        "quantity:Q-LE-3-RY",
+        "quantity:Q-LE-3-RZ",
+        "quantity:Q-LE-3-AX",
+        "quantity:Q-LE-3-AY",
+        "quantity:Q-LE-3-AZ",
+        "quantity:Q-LE-L3-MASS",
+        "quantity:Q-LE-4-OX",
+        "quantity:Q-LE-4-OY",
+        "quantity:Q-LE-4-OZ",
+        "quantity:Q-LE-4-RX",
+        "quantity:Q-LE-4-RY",
+        "quantity:Q-LE-4-RZ",
+        "quantity:Q-LE-4-AX",
+        "quantity:Q-LE-4-AY",
+        "quantity:Q-LE-4-AZ",
+        "quantity:Q-LE-L4-MASS",
+        "quantity:Q-LE-5-OX",
+        "quantity:Q-LE-5-OY",
+        "quantity:Q-LE-5-OZ",
+        "quantity:Q-LE-5-RX",
+        "quantity:Q-LE-5-RY",
+        "quantity:Q-LE-5-RZ",
+        "quantity:Q-LE-5-AX",
+        "quantity:Q-LE-5-AY",
+        "quantity:Q-LE-5-AZ",
+        "quantity:Q-LE-L5-MASS",
+        "quantity:Q-LE-6-OX",
+        "quantity:Q-LE-6-OY",
+        "quantity:Q-LE-6-OZ",
+        "quantity:Q-LE-6-RX",
+        "quantity:Q-LE-6-RY",
+        "quantity:Q-LE-6-RZ",
+        "quantity:Q-LE-6-AX",
+        "quantity:Q-LE-6-AY",
+        "quantity:Q-LE-6-AZ",
+        "quantity:Q-LE-L6-MASS"
+      ]
+    },
+    {
+      "id": "EV-ASSUMPTIONS",
+      "level": "assumed",
+      "source": {
+        "path": "assumptions.json",
+        "sha256": "434a5ebe0f9e250a016213da989abb17902773150fa44c85c0a663fa6577f240"
+      },
+      "supports": [
+        "artifact:assumption-registry",
+        "quantity:Q-PAYLOAD",
+        "quantity:Q-ROLLING-RESISTANCE",
+        "quantity:Q-SLOPE",
+        "quantity:Q-ACCELERATION",
+        "quantity:Q-WHEEL-RADIUS-L",
+        "quantity:Q-WHEEL-RADIUS-R",
+        "quantity:Q-DRIVEN-WHEELS",
+        "quantity:Q-GEAR-RATIO-L",
+        "quantity:Q-GEAR-RATIO-R",
+        "quantity:Q-DRIVE-EFFICIENCY-L",
+        "quantity:Q-DRIVE-EFFICIENCY-R",
+        "quantity:Q-TARGET-SPEED",
+        "quantity:Q-MOTOR-CONTINUOUS-TORQUE-L",
+        "quantity:Q-MOTOR-CONTINUOUS-TORQUE-R",
+        "quantity:Q-MOTOR-PEAK-TORQUE-L",
+        "quantity:Q-MOTOR-PEAK-TORQUE-R",
+        "quantity:Q-MOTOR-MAX-SPEED-L",
+        "quantity:Q-MOTOR-MAX-SPEED-R",
+        "quantity:Q-DRIVE-DUTY",
+        "quantity:Q-BATTERY-VOLTAGE",
+        "quantity:Q-PEAK-POWER",
+        "quantity:Q-CONTINUOUS-POWER",
+        "quantity:Q-MAX-CONTINUOUS-CURRENT",
+        "quantity:Q-MAX-PEAK-CURRENT",
+        "quantity:Q-USABLE-ENERGY",
+        "quantity:Q-REQUIRED-RUNTIME",
+        "quantity:Q-SUPPORT-MIN-X",
+        "quantity:Q-SUPPORT-MAX-X",
+        "quantity:Q-SUPPORT-MIN-Y",
+        "quantity:Q-SUPPORT-MAX-Y",
+        "quantity:Q-COM-X",
+        "quantity:Q-COM-Y",
+        "quantity:Q-COM-HEIGHT",
+        "quantity:Q-SLOPE-Y",
+        "quantity:Q-ARM-LEVER",
+        "quantity:Q-ARM-CONTINUOUS-TORQUE-J1",
+        "quantity:Q-ARM-CONTINUOUS-TORQUE-J2",
+        "quantity:Q-ARM-CONTINUOUS-TORQUE-J3",
+        "quantity:Q-ARM-CONTINUOUS-TORQUE-J4",
+        "quantity:Q-ARM-CONTINUOUS-TORQUE-J5",
+        "quantity:Q-ARM-CONTINUOUS-TORQUE-J6",
+        "quantity:Q-BRAKE-HOLDING-TORQUE-J1",
+        "quantity:Q-BRAKE-HOLDING-TORQUE-J2",
+        "quantity:Q-BRAKE-HOLDING-TORQUE-J3",
+        "quantity:Q-BRAKE-HOLDING-TORQUE-J4",
+        "quantity:Q-BRAKE-HOLDING-TORQUE-J5",
+        "quantity:Q-BRAKE-HOLDING-TORQUE-J6",
+        "quantity:Q-ARM-SAFETY-FACTOR",
+        "quantity:Q-AMBIENT-TEMPERATURE",
+        "quantity:Q-WINDING-RESISTANCE-DRIVE-L",
+        "quantity:Q-THERMAL-ON-CURRENT-DRIVE-L",
+        "quantity:Q-THERMAL-RESISTANCE-DRIVE-L",
+        "quantity:Q-MAX-WINDING-TEMPERATURE-DRIVE-L",
+        "quantity:Q-WINDING-RESISTANCE-DRIVE-R",
+        "quantity:Q-THERMAL-ON-CURRENT-DRIVE-R",
+        "quantity:Q-THERMAL-RESISTANCE-DRIVE-R",
+        "quantity:Q-MAX-WINDING-TEMPERATURE-DRIVE-R",
+        "quantity:Q-WINDING-RESISTANCE-J1",
+        "quantity:Q-THERMAL-ON-CURRENT-J1",
+        "quantity:Q-THERMAL-RESISTANCE-J1",
+        "quantity:Q-MAX-WINDING-TEMPERATURE-J1",
+        "quantity:Q-WINDING-RESISTANCE-J2",
+        "quantity:Q-THERMAL-ON-CURRENT-J2",
+        "quantity:Q-THERMAL-RESISTANCE-J2",
+        "quantity:Q-MAX-WINDING-TEMPERATURE-J2",
+        "quantity:Q-WINDING-RESISTANCE-J3",
+        "quantity:Q-THERMAL-ON-CURRENT-J3",
+        "quantity:Q-THERMAL-RESISTANCE-J3",
+        "quantity:Q-MAX-WINDING-TEMPERATURE-J3",
+        "quantity:Q-WINDING-RESISTANCE-J4",
+        "quantity:Q-THERMAL-ON-CURRENT-J4",
+        "quantity:Q-THERMAL-RESISTANCE-J4",
+        "quantity:Q-MAX-WINDING-TEMPERATURE-J4",
+        "quantity:Q-WINDING-RESISTANCE-J5",
+        "quantity:Q-THERMAL-ON-CURRENT-J5",
+        "quantity:Q-THERMAL-RESISTANCE-J5",
+        "quantity:Q-MAX-WINDING-TEMPERATURE-J5",
+        "quantity:Q-WINDING-RESISTANCE-J6",
+        "quantity:Q-THERMAL-ON-CURRENT-J6",
+        "quantity:Q-THERMAL-RESISTANCE-J6",
+        "quantity:Q-MAX-WINDING-TEMPERATURE-J6"
+      ]
+    },
+    {
+      "id": "EV-LOAD-ENVELOPE",
+      "level": "assumed",
+      "source": {
+        "path": "model/load-envelope.json",
+        "sha256": "36ef75afbc9539c1c029fb43bb52347af387eb437f1087008546ae81d81068af"
+      },
+      "supports": [
+        "artifact:load-envelope-model",
+        "quantity:Q-LE-L1-COM-X",
+        "quantity:Q-LE-L1-COM-Y",
+        "quantity:Q-LE-L1-COM-Z",
+        "quantity:Q-LE-L2-COM-X",
+        "quantity:Q-LE-L2-COM-Y",
+        "quantity:Q-LE-L2-COM-Z",
+        "quantity:Q-LE-L3-COM-X",
+        "quantity:Q-LE-L3-COM-Y",
+        "quantity:Q-LE-L3-COM-Z",
+        "quantity:Q-LE-L4-COM-X",
+        "quantity:Q-LE-L4-COM-Y",
+        "quantity:Q-LE-L4-COM-Z",
+        "quantity:Q-LE-L5-COM-X",
+        "quantity:Q-LE-L5-COM-Y",
+        "quantity:Q-LE-L5-COM-Z",
+        "quantity:Q-LE-L6-COM-X",
+        "quantity:Q-LE-L6-COM-Y",
+        "quantity:Q-LE-L6-COM-Z",
+        "quantity:Q-LE-H-J1",
+        "quantity:Q-LE-H-J2",
+        "quantity:Q-LE-H-J3",
+        "quantity:Q-LE-H-J4",
+        "quantity:Q-LE-H-J5",
+        "quantity:Q-LE-H-J6",
+        "quantity:Q-LE-F-J1",
+        "quantity:Q-LE-F-J2",
+        "quantity:Q-LE-F-J3",
+        "quantity:Q-LE-F-J4",
+        "quantity:Q-LE-F-J5",
+        "quantity:Q-LE-F-J6",
+        "quantity:Q-LE-G-X",
+        "quantity:Q-LE-G-Y",
+        "quantity:Q-LE-G-Z",
+        "quantity:Q-LE-PAYLOAD-X",
+        "quantity:Q-LE-PAYLOAD-Y",
+        "quantity:Q-LE-PAYLOAD-Z",
+        "quantity:Q-LE-PAYLOAD-MASS",
+        "quantity:Q-LE-CONTINUOUS-SF",
+        "quantity:Q-LE-BRAKE-SF"
+      ]
+    }
   ]
 }
