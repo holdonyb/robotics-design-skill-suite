@@ -885,6 +885,45 @@ def _thermal_duty(inputs: dict[str, Any]) -> AnalysisResult:
         assumptions,
     )
 
+def _bearing_static(inputs: dict[str, Any]) -> AnalysisResult:
+    name = "bearing_static_v1"
+    assumptions = (
+        "static equivalent load uses declared radial, axial, and moment factors",
+        "mounting, preload, dynamic life, lubrication, shocks, and assembly fit require separate evidence",
+    )
+    diagnostics: list[Diagnostic] = []
+    outputs: dict[str, Any] = {"joints": []}
+    joints = inputs.get("joints")
+    if not isinstance(joints, list) or not joints:
+        diagnostics.append(_diagnostic("PHY.INPUT.MISSING", "error", f"analyses.{name}.inputs.joints", "at least one bearing joint record is required"))
+        return AnalysisResult(name, "1", dict(inputs), outputs, tuple(diagnostics), assumptions)
+    fields = ("radial_load_n", "axial_load_n", "moment_nm", "pitch_diameter_m", "static_load_rating_n", "safety_factor")
+    for index, joint in enumerate(joints):
+        path = f"analyses.{name}.inputs.joints[{index}]"
+        if not isinstance(joint, dict) or not isinstance(joint.get("id"), str) or not joint["id"]:
+            diagnostics.append(_diagnostic("PHY.INPUT.TYPE", "error", path, "bearing joint record must have a non-empty id"))
+            continue
+        numeric, errors = _finite_inputs(name, joint, fields)
+        diagnostics.extend(errors)
+        if errors:
+            continue
+        if numeric["pitch_diameter_m"] <= 0 or numeric["static_load_rating_n"] <= 0 or numeric["safety_factor"] <= 0:
+            diagnostics.append(_diagnostic("PHY.INPUT.DOMAIN", "error", path, "pitch diameter, static load rating, and safety factor must be positive"))
+            continue
+        try:
+            equivalent = abs(numeric["radial_load_n"]) + 0.44 * abs(numeric["axial_load_n"]) + 2.0 * abs(numeric["moment_nm"]) / numeric["pitch_diameter_m"]
+            required = equivalent * numeric["safety_factor"]
+            margin = numeric["static_load_rating_n"] - required
+            if not all(math.isfinite(value) for value in (equivalent, required, margin)):
+                raise OverflowError
+        except (OverflowError, ZeroDivisionError):
+            diagnostics.append(_diagnostic("PHY.NUMERIC.OVERFLOW", "error", path, "bearing static-load calculation overflowed"))
+            continue
+        outputs["joints"].append({"id": joint["id"], "static_equivalent_load_n": equivalent, "required_static_load_n": required, "static_margin_n": margin})
+        if margin < 0:
+            diagnostics.append(_diagnostic("PHY.BEARING.STATIC_LOAD", "error", path, f"joint {joint['id']} static load rating is below required safety-factored equivalent load"))
+    return AnalysisResult(name, "1", dict(inputs), outputs, tuple(diagnostics), assumptions)
+
 
 PLUGINS: dict[str, AnalysisPlugin] = {
     "drivetrain_v1": AnalysisPlugin("drivetrain_v1", "1", DRIVETRAIN_INPUTS, _drivetrain),
@@ -897,6 +936,7 @@ PLUGINS: dict[str, AnalysisPlugin] = {
         ("joint_order", "joints", "links", "payload", "load_cases"),
         _arm_load_envelope,
     ),
+    "bearing_static_v1": AnalysisPlugin("bearing_static_v1", "1", ("joints",), _bearing_static),
     "thermal_duty_v1": AnalysisPlugin(
         "thermal_duty_v1", "1", THERMAL_DUTY_INPUTS, _thermal_duty
     ),
