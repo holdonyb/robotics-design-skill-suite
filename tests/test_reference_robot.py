@@ -41,7 +41,7 @@ class ReferenceRobotTests(unittest.TestCase):
             "drivetrain_v1": ("wheel_radius_m",),
             "battery_v1": ("voltage_v",),
             "stability_v1": ("com_height_m",),
-            "arm_gravity_v1": ("joints", 0, "rated_continuous_torque_nm"),
+            "arm_load_envelope_v1": ("rated_continuous_torque_nm", 0, "value"),
             "thermal_duty_v1": ("ambient_temperature_k",),
         }
         baseline = json.loads(
@@ -85,11 +85,50 @@ class ReferenceRobotTests(unittest.TestCase):
                 "drivetrain_v1",
                 "battery_v1",
                 "stability_v1",
-                "arm_gravity_v1",
+                "arm_load_envelope_v1",
                 "thermal_duty_v1",
             },
         )
         self.assertTrue(all(item["passed"] for item in report.analyses))
+
+    def test_load_envelope_is_hash_bound_and_downstream_mass_is_monotone(self):
+        data = json.loads(
+            (REFERENCE / "design-contract.json").read_text(encoding="utf-8")
+        )
+        artifact = next(item for item in data["artifacts"] if item["id"] == "load-envelope-model")
+        self.assertEqual(artifact["kind"], "declared_json")
+        analysis = next(item for item in data["analyses"] if item["id"] == "AN-ARM-LOAD-ENVELOPE")
+        self.assertEqual(analysis["plugin"], "arm_load_envelope_v1")
+        self.assertEqual(analysis["inputs"]["joint_order"], [f"joint_{index}" for index in range(1, 7)])
+
+        baseline, errors = evaluate_contract(REFERENCE / "design-contract.json")
+        self.assertEqual(errors, [])
+        baseline_j2 = next(
+            item for item in next(record for record in baseline.analyses if record["analysis_id"] == "AN-ARM-LOAD-ENVELOPE")["outputs"]["joints"]
+            if item["id"] == "joint_2"
+        )["maximum_gravity_torque_nm"]
+        data["quantities"] = [
+            {**item, "value": {"value": 8.0, "unit": "kg"}}
+            if item["id"] == "Q-LE-L3-MASS" else item
+            for item in data["quantities"]
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            for source_name in ("robot.urdf", "assumptions.json"):
+                (temp / source_name).write_bytes((REFERENCE / source_name).read_bytes())
+            (temp / "model").mkdir()
+            (temp / "model" / "load-envelope.json").write_bytes(
+                (REFERENCE / "model" / "load-envelope.json").read_bytes()
+            )
+            contract = temp / "design-contract.json"
+            contract.write_text(json.dumps(data), encoding="utf-8")
+            heavier, errors = evaluate_contract(contract)
+        self.assertEqual(errors, [])
+        heavier_j2 = next(
+            item for item in next(record for record in heavier.analyses if record["analysis_id"] == "AN-ARM-LOAD-ENVELOPE")["outputs"]["joints"]
+            if item["id"] == "joint_2"
+        )["maximum_gravity_torque_nm"]
+        self.assertGreater(heavier_j2, baseline_j2)
 
     def test_all_critical_faults_are_rejected_by_expected_gate(self):
         baseline = json.loads(

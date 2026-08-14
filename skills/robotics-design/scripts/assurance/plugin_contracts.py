@@ -359,7 +359,7 @@ def required_analysis_coverage(architecture: dict[str, Any]) -> set[tuple[str, s
     if "battery_powered" in features:
         required.add(("battery_v1", "feature:battery_powered"))
     for actuator in architecture.get("actuators", []):
-        required.add(("arm_gravity_v1", f"actuator:{actuator}"))
+        required.add(("arm_load_envelope_v1", f"actuator:{actuator}"))
         required.add(("thermal_duty_v1", f"actuator:{actuator}"))
     for drive in architecture.get("drive_units", []):
         required.add(("thermal_duty_v1", f"drive:{drive}"))
