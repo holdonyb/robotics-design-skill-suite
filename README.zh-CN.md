@@ -104,6 +104,17 @@ Gazebo、ros2_control、MoveIt 和 Nav2，并在失败时保留日志和包清�
 [`simulation benchmark`](reference/mobile-manipulator/simulation-benchmark.md)。v0.5 候选版在
 `ced7dc3` 上已有两条保留的 consumer-gate 成功记录；它只是集成证据，绝不构成硬件晋级。
 
+## 工程冻结边界
+
+v0.6 工程冻结门禁记录哈希绑定的供应商快照、受控工件引用、危害、安全功能链路、验证与检查项，以及计划中的硬件测试卡。它只为未来工程评审提供输入，绝不构成采购、制造、通电或运动授权。
+
+```bash
+python skills/robotics-design/scripts/validate_engineering_freeze.py \
+  --package reference/mobile-manipulator/engineering-freeze/freeze-package.json
+```
+
+退出码 `0` 代表完整的审查包，`1` 代表输入有效但仍有开放工程缺口，`2` 代表输入非法或被篡改。`procurement_authorized` 与 `motion_authorized` 永远为 `false`。参考包会刻意返回 `1`，因为尚未有选定供应商部件、受控图纸或获授权的硬件测试条件。
+
 ## 结构保真的机器人效果图
 
 0.2.0 版禁止图像生成模型悄悄改写机器人的机构。拓扑与姿态必须由 CAD、URDF、SDF 或等价的确定性模型负责；生成图只允许改变材质、表面处理、颜色、光照、背景和不接触机器人的环境内容。

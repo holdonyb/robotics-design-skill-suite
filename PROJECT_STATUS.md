@@ -10,13 +10,13 @@ ROS 2, and simulation skills to audited commits.
 
 ## Live State
 
-- Public release: `v0.4.0`; pull request `#4` merged as `f37cd3b`, annotated tag,
-  GitHub Release, tag CI, public verification, and controlled local-skill
-  refresh are complete.
-- Current development baseline: public `main` at `f37cd3b`; v0.5.0 release
-  candidate is in pull request `#6` on `feature/v050-simulation-integration`.
-- Candidate version: `0.5.0` in `manifest.json`; public release remains
-  `v0.4.0` until PR `#6` is reviewed, merged, tagged, and verified.
+- Public release: `v0.5.0`; pull request `#6` merged as `135266f`, annotated
+  tag, GitHub Release, main CI, and Linux Jazzy/Harmonic consumer gate are
+  complete.
+- Current development baseline: v0.6.0 engineering-freeze candidate on
+  `feature/v060-engineering-freeze`; public release remains `v0.5.0` until
+  candidate CI, merge, tag, and release verification complete.
+- Candidate version: `0.6.0` in `manifest.json`.
 - Third-party source locks are unchanged from v0.3.0.
 
 ## v0.5 Development Checkpoint
@@ -31,8 +31,9 @@ backend comparison, simulated synthetic calibration, and a simulated/
 not-justified training result.
 
 Retained Linux Jazzy/Harmonic consumer evidence is now present: GitHub Actions
-`31754134659` and `31754138979` passed at `ced7dc3`; the artifact digest is
-`f83e27da5cb0f9832e8f58f43b83e9f8af6469b2319d5a0298a4b58a40493c41`.
+`31756050051` passed at the main merge commit; the candidate evidence was
+also retained at artifact digest
+`8c7acb48090911107a341238ba94d333e9497858b3fe1d64baa79e25560f7d02`.
 It records active controllers, MoveIt planning readiness, and Nav2 lifecycle
 servers. This is live simulator-consumer evidence, not task validation, bench
 calibration, hardware safety, or real robot motion evidence. The Windows host
@@ -161,11 +162,11 @@ report 0 accepted because placeholders remain.
 
 ## Roadmap and Next Action
 
-1. Start v0.5: accepted-model consumer generation, Linux ROS 2 Jazzy/Gazebo
-   Harmonic and MoveIt scenario regression, second dynamics backend, structured
-   replay traces, calibration/system-identification contracts, training adapter,
-   domain randomization, held-out evaluation, and simulation-evidence bundles.
-2. Continue v0.6-v0.9 with supplier/BOM, curves, traction/braking, structure,
+1. Execute v0.6 engineering freeze: supplier/BOM evidence schema, controlled
+   drawing and wiring/protection manifests, hazard/safety-function records,
+   verification matrix, inspection plan, and planned hardware test cards. This
+   must remain a no-purchase/no-motion release.
+2. Continue v0.7-v0.9 with supplier/BOM, curves, traction/braking, structure,
    transient thermal/electrical, safety faults, bench evidence, controlled
    integration, field trials, and reliability evidence.
 3. Complete v1.0 only after the end-to-end evidence chain and every required
