@@ -62,6 +62,10 @@ A bearing may additionally declare its catalog `pitch_diameter` as a length
 limit when a static equivalent-load analysis needs the exact roller
 pitch-circle geometry.
 
+A reducer may declare `continuous_output_torque` as a torque limit. Arm
+gravity/load-envelope analyses bind their output-side rating to this limit,
+not to an upstream motor torque value.
+
 Architecture contains string lists: `features`, `drive_units`, `actuators`, `moving_cables`,
 and `claimed_safety_functions`. The ledger maps these declarations to mandatory
 component roles; absence from the schema never means absence from the robot.

@@ -32,7 +32,7 @@ EXPECTED_OUTPUTS = {
     "model/generated/package.xml",
     "model/generated/CMakeLists.txt",
 }
-EXPECTED_MANIFEST_SHA256 = "85bbc287237fc83ffc9ac87c0b9e5c73234bfa1f60611a235044ac81a1d68038"
+EXPECTED_MANIFEST_SHA256 = "23a1c1f85d483353e9a4ad5d93c98e813bc8b6ad28da23d7fb7bdda7ad74c7c4"
 
 
 def sha256(path):

@@ -425,7 +425,7 @@
         "value": 20,
         "unit": "N*m"
       },
-      "owner": "component:CMP-ARM-MOTOR-J1",
+      "owner": "component:CMP-ARM-REDUCER-J1",
       "source": "evidence:EV-ASSUMPTIONS",
       "evidence_level": "assumed"
     },
@@ -436,7 +436,7 @@
         "value": 300,
         "unit": "N*m"
       },
-      "owner": "component:CMP-ARM-MOTOR-J2",
+      "owner": "component:CMP-ARM-REDUCER-J2",
       "source": "evidence:EV-ASSUMPTIONS",
       "evidence_level": "assumed"
     },
@@ -447,7 +447,7 @@
         "value": 170,
         "unit": "N*m"
       },
-      "owner": "component:CMP-ARM-MOTOR-J3",
+      "owner": "component:CMP-ARM-REDUCER-J3",
       "source": "evidence:EV-ASSUMPTIONS",
       "evidence_level": "assumed"
     },
@@ -458,7 +458,7 @@
         "value": 20,
         "unit": "N*m"
       },
-      "owner": "component:CMP-ARM-MOTOR-J4",
+      "owner": "component:CMP-ARM-REDUCER-J4",
       "source": "evidence:EV-ASSUMPTIONS",
       "evidence_level": "assumed"
     },
@@ -469,7 +469,7 @@
         "value": 40,
         "unit": "N*m"
       },
-      "owner": "component:CMP-ARM-MOTOR-J5",
+      "owner": "component:CMP-ARM-REDUCER-J5",
       "source": "evidence:EV-ASSUMPTIONS",
       "evidence_level": "assumed"
     },
@@ -480,7 +480,7 @@
         "value": 20,
         "unit": "N*m"
       },
-      "owner": "component:CMP-ARM-MOTOR-J6",
+      "owner": "component:CMP-ARM-REDUCER-J6",
       "source": "evidence:EV-ASSUMPTIONS",
       "evidence_level": "assumed"
     },

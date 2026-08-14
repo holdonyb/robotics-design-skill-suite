@@ -343,8 +343,8 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
                     joint,
                     "rated_continuous_torque_nm",
                     responsibility,
-                    "motor",
-                    "continuous_torque",
+                    "reducer",
+                    "continuous_output_torque",
                     nested,
                 )
                 check_owner(
@@ -358,7 +358,7 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
                 )
         elif plugin == "arm_load_envelope_v1":
             for field, role, limit_name in (
-                ("rated_continuous_torque_nm", "motor", "continuous_torque"),
+                ("rated_continuous_torque_nm", "reducer", "continuous_output_torque"),
                 ("brake_holding_torque_nm", "brake", "holding_torque"),
             ):
                 records = inputs.get(field, [])

@@ -55,6 +55,10 @@ Architecture declarations create mandatory component responsibilities.
   converter records.
 - Every declared actuator requires a specifically bound motor, reducer, bearing, and motor driver. A motor, reducer, or bearing cannot be shared
   across multiple actuator bindings merely to satisfy a role count.
+- Arm gravity and brake screens consume an output-side torque rating. That
+  rating must be owned by the reducer bound to the screened actuator; motor
+  current, winding, speed, and thermal limits remain motor-owned inputs. A
+  reducer ratio alone is not evidence of output torque capacity.
 - Every moving cable responsibility requires cable, connector, strain relief,
   and cable-management records.
 - A declared holding-brake safety function requires a bound brake.
