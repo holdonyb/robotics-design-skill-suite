@@ -21,7 +21,7 @@ ROS 2, and simulation skills to audited commits.
 - Current development baseline: v0.8.0 commissioning-evidence candidate on
   `feature/v080-commissioning`; the public release remains `v0.7.0` until
   candidate CI, merge, tag, and release verification complete.
-- Candidate evidence: 415 local tests, distribution validation, installer
+- Candidate evidence: 418 local tests, distribution validation, installer
   dry-run, compilation, and diff check passed. The reference commissioning
   intake intentionally returns `awaiting_authorization` with both
   authorization flags false.

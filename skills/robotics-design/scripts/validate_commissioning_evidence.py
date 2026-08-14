@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import sys
 from pathlib import Path, PurePosixPath
 
 from assurance.commissioning.evaluator import evaluate_commissioning_package
+from assurance.bench_evidence import validate_bench_package
 from assurance.contract import load_contract
 from assurance.engineering_freeze.evaluator import evaluate_engineering_freeze
 from assurance.engineering_freeze.schema import load_canonical_json
@@ -18,6 +20,9 @@ from assurance.commissioning.model import CommissioningFinding, CommissioningRep
 
 _EMPTY = frozenset({"schema_version", "commissioning_id", "phases"})
 _POPULATED = _EMPTY | {"design_contract", "freeze_package", "bench_index"}
+_BENCH_INDEX_EMPTY = frozenset({"schema_version", "intake_id", "packages"})
+_BENCH_INDEX_POPULATED = _BENCH_INDEX_EMPTY | {"design_contract"}
+_INTAKE_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
 
 
 def _safe_bound_file(root: Path, value: object, field: str) -> Path:
@@ -49,6 +54,60 @@ def _bound_file(root: Path, record: object, field: str) -> Path:
 def _bound_json(root: Path, record: object, field: str) -> tuple[Path, dict[str, object]]:
     target = _bound_file(root, record, field)
     return target, load_canonical_json(target)
+
+
+def _accepted_bench_intake(root: Path, data: object, commissioning_design_sha256: object) -> bool:
+    """Return whether the exact bound intake contains only accepted bench evidence."""
+    if not isinstance(data, dict) or set(data) not in {_BENCH_INDEX_EMPTY, _BENCH_INDEX_POPULATED}:
+        raise ValueError("bench_index must be a closed schema-v1 intake")
+    if data.get("schema_version") != 1 or not isinstance(data.get("packages"), list):
+        raise ValueError("bench_index must be a closed schema-v1 intake")
+    if not isinstance(data.get("intake_id"), str) or not _INTAKE_ID.fullmatch(data["intake_id"]):
+        raise ValueError("bench_index.intake_id must be a stable identifier")
+    packages = data["packages"]
+    if not packages:
+        if set(data) != _BENCH_INDEX_EMPTY:
+            raise ValueError("empty bench_index must not carry a design contract")
+        return False
+    if set(data) != _BENCH_INDEX_POPULATED:
+        raise ValueError("nonempty bench_index requires a hash-bound design_contract")
+    contract_path = _bound_file(root, data["design_contract"], "bench_index.design_contract")
+    if data["design_contract"].get("sha256") != commissioning_design_sha256:
+        raise ValueError("bench_index does not bind the commissioning design contract")
+    contract, contract_errors = load_contract(contract_path)
+    if contract_errors or not isinstance(contract, dict):
+        raise ValueError("bench_index design contract is invalid: " + "; ".join(contract_errors))
+    components = contract.get("components")
+    requirements = contract.get("requirements")
+    if not isinstance(components, list) or not isinstance(requirements, list):
+        raise ValueError("bench_index design contract must contain components and requirements")
+    component_ids = {item.get("id") for item in components if isinstance(item, dict) and isinstance(item.get("id"), str)}
+    requirement_ids = {item.get("id") for item in requirements if isinstance(item, dict) and isinstance(item.get("id"), str)}
+    package_ids: set[str] = set()
+    package_hashes: set[str] = set()
+    raw_hashes: set[str] = set()
+    for index_number, record in enumerate(packages):
+        package_path = _bound_file(root, record, f"bench_index.packages[{index_number}]")
+        package_sha256 = record["sha256"]
+        if package_sha256 in package_hashes:
+            raise ValueError(f"bench_index.packages[{index_number}] duplicates an earlier package hash")
+        package_hashes.add(package_sha256)
+        package = load_canonical_json(package_path)
+        if not isinstance(package, dict):
+            raise ValueError(f"bench_index.packages[{index_number}] must be an object")
+        package_id = package.get("package_id")
+        if not isinstance(package_id, str) or package_id in package_ids:
+            raise ValueError(f"bench_index.packages[{index_number}] must have a unique package_id")
+        package_ids.add(package_id)
+        raw_data = package.get("raw_data")
+        raw_sha256 = raw_data.get("sha256") if isinstance(raw_data, dict) else None
+        if not isinstance(raw_sha256, str) or raw_sha256 in raw_hashes:
+            raise ValueError(f"bench_index.packages[{index_number}] must bind a unique raw_data.sha256")
+        raw_hashes.add(raw_sha256)
+        result = validate_bench_package(root, package, component_ids, requirement_ids)
+        if result.status != "accepted" or result.evidence_level != "bench-tested" or result.fixture_only:
+            return False
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -83,14 +142,13 @@ def main(argv: list[str] | None = None) -> int:
             freeze_report = evaluate_engineering_freeze(args.index.parent, freeze_path, placeholder_components=placeholders)
             if freeze_report.freeze_id == "freeze-invalid":
                 raise ValueError("freeze package is invalid")
-            _, bench_index = _bound_json(args.index.parent, index["bench_index"], "bench_index")
-            if set(bench_index) not in ({"schema_version", "intake_id", "packages"}, {"schema_version", "intake_id", "packages", "design_contract"}) or bench_index.get("schema_version") != 1 or not isinstance(bench_index.get("packages"), list):
-                raise ValueError("bench_index must be a closed schema-v1 intake")
+            bench_index_path, bench_index = _bound_json(args.index.parent, index["bench_index"], "bench_index")
+            bench_ready = _accepted_bench_intake(bench_index_path.parent, bench_index, index["design_contract"]["sha256"])
             report = evaluate_commissioning_package(args.index.parent, {key: index[key] for key in _EMPTY})
             upstream_findings = []
             if not freeze_report.freeze_ready:
                 upstream_findings.append(CommissioningFinding("COMM.FREEZE_NOT_READY", "indeterminate", "freeze_package", "engineering freeze remains incomplete and blocks commissioning readiness"))
-            if not bench_index["packages"]:
+            if not bench_ready:
                 upstream_findings.append(CommissioningFinding("COMM.BENCH_EVIDENCE_REQUIRED", "indeterminate", "bench_index.packages", "commissioning readiness requires retained component bench evidence"))
             if upstream_findings and report.status != "rejected":
                 report = CommissioningReport(report.commissioning_id, "awaiting_authorization", report.findings + tuple(upstream_findings), report.highest_validated_phase)

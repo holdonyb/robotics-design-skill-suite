@@ -41,6 +41,15 @@ class CommissioningModelTests(unittest.TestCase):
                 motion_authorized=True,
             )
 
+    def test_model_derives_status_from_blocking_findings(self):
+        finding = CommissioningFinding("COMM.REJECT", "error", "phase", "record is rejected")
+        with self.assertRaisesRegex(ValueError, "derived"):
+            CommissioningReport("commissioning-reference", "ready", (finding,), None)
+
+    def test_report_rejects_mutable_findings_collection(self):
+        with self.assertRaisesRegex(ValueError, "tuple"):
+            CommissioningReport("commissioning-reference", "ready", [], None)
+
     def test_findings_are_closed_and_reports_sort_them_deterministically(self):
         with self.assertRaisesRegex(ValueError, "severity"):
             CommissioningFinding("COMM.BAD", "critical", "x", "bad")

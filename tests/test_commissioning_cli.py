@@ -71,6 +71,45 @@ class CommissioningCliTests(unittest.TestCase):
             self.assertNotIn("Traceback", result.stderr)
         self.assertIn('"motion_authorized":false', ready_stdout)
 
+    def test_nonempty_but_rejected_bench_package_keeps_commissioning_blocked(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw) / "reference"
+            shutil.copytree(ROOT / "reference" / "mobile-manipulator", root)
+            bench_root = root / "bench-evidence"
+            bench_contract = bench_root / "design-contract.json"
+            shutil.copy2(root / "design-contract.json", bench_contract)
+            invalid_package = root / "bench-evidence" / "invalid-package.json"
+            invalid_package.write_bytes(canonical({
+                "schema_version": 1,
+                "package_id": "bench-invalid",
+                "raw_data": {"sha256": "0" * 64},
+            }))
+            bench_index = root / "bench-evidence" / "intake-index.json"
+            bench_index.write_bytes(canonical({
+                "schema_version": 1,
+                "intake_id": "rejected-bench",
+                "design_contract": {
+                    "path": "design-contract.json",
+                    "sha256": hashlib.sha256(bench_contract.read_bytes()).hexdigest(),
+                },
+                "packages": [{
+                    "path": "invalid-package.json",
+                    "sha256": hashlib.sha256(invalid_package.read_bytes()).hexdigest(),
+                }],
+            }))
+            value = package(root)
+            value.update({
+                "design_contract": {"path": "design-contract.json", "sha256": hashlib.sha256((root / "design-contract.json").read_bytes()).hexdigest()},
+                "freeze_package": {"path": "engineering-freeze/freeze-package.json", "sha256": hashlib.sha256((root / "engineering-freeze" / "freeze-package.json").read_bytes()).hexdigest()},
+                "bench_index": {"path": "bench-evidence/intake-index.json", "sha256": hashlib.sha256(bench_index.read_bytes()).hexdigest()},
+            })
+            index = root / "commissioning-index.json"
+            index.write_bytes(canonical(value))
+            result = self.run_cli(index)
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertIn('"status":"awaiting_authorization"', result.stdout)
+        self.assertIn("COMM.BENCH_EVIDENCE_REQUIRED", result.stdout)
+
     def test_malformed_or_tampered_input_exits_two_without_traceback(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)

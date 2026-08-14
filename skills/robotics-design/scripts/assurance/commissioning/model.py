@@ -60,8 +60,17 @@ class CommissioningReport:
             raise ValueError("authorization flags must be booleans")
         if self.procurement_authorized or self.motion_authorized:
             raise ValueError("authorization flags must always be false")
+        if not isinstance(self.findings, tuple):
+            raise ValueError("findings must be an immutable tuple")
         if any(not isinstance(item, CommissioningFinding) for item in self.findings):
             raise ValueError("findings must contain CommissioningFinding records")
+        derived_status = (
+            "rejected" if any(item.severity == "error" for item in self.findings)
+            else "awaiting_authorization" if any(item.severity == "indeterminate" for item in self.findings)
+            else "ready"
+        )
+        if self.status != derived_status:
+            raise ValueError("status must equal the derived finding status")
 
     def to_dict(self) -> dict[str, Any]:
         return {
