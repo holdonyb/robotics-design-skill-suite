@@ -276,6 +276,24 @@ class PublicHygieneTests(unittest.TestCase):
         self.assertIn("not a hardware-validation claim", audit)
         self.assertNotIn("tag CI passed", audit)
 
+    def test_v100_publication_record_reports_observed_gates_without_hardware_claims(self):
+        record = (ROOT / "docs/releases/v1.0-publication-record.md").read_text(
+            encoding="utf-8"
+        )
+        for phrase in (
+            "v1.0.0",
+            "01c3740687016dd34c830e024ece062b7158c26f",
+            "31770183229",
+            "31770180308",
+            "31770543928",
+            "31770543942",
+            "31770864137",
+            "hardware_claims: false",
+            "not a hardware-validation claim",
+            "releases/tag/v1.0.0",
+        ):
+            self.assertIn(phrase, record)
+
     def test_ci_compiles_local_skill_runtime_before_tests(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         self.assertIn(
