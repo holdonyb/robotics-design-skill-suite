@@ -71,6 +71,18 @@ def dynamics_capture():
     return result
 
 
+def turning_capture():
+    result = dynamics_capture()
+    result["joint_samples"][1]["positions"] = [0.21333333333333335, 1.12, 0.0]
+    result["joint_samples"][2]["positions"] = [0.4266666666666667, 2.24, 0.0]
+    result["odom_samples"] = [
+        {"timestamp_ns": 0, "x_m": 0.0, "y_m": 0.0, "yaw_rad": 3.1},
+        {"timestamp_ns": 1_000_000_000, "x_m": 0.09933466539753061, "y_m": 0.009966711079379185, "yaw_rad": -2.9831853071795864},
+        {"timestamp_ns": 2_000_000_000, "x_m": 0.19470917115432526, "y_m": 0.03946950299855745, "yaw_rad": -2.7831853071795862},
+    ]
+    return result
+
+
 class LiveTraceTests(unittest.TestCase):
     def test_live_wheel_trace_crosschecks_bound_profile_against_odometry(self):
         result = crosscheck_live_dynamics(dynamics_capture(), PROFILE)
@@ -90,6 +102,12 @@ class LiveTraceTests(unittest.TestCase):
         missing["joint_samples"][1]["positions"] = [1.0, 0.0]
         with self.assertRaisesRegex(LiveTraceError, "drive joints"):
             crosscheck_live_dynamics(missing, PROFILE)
+
+    def test_live_turning_trace_uses_path_length_and_unwrapped_yaw(self):
+        result = crosscheck_live_dynamics(turning_capture(), PROFILE)
+        self.assertEqual("passed", result["status"])
+        self.assertAlmostEqual(0.1996668332936563, result["observed"]["base_distance_m"], places=8)
+        self.assertAlmostEqual(0.4, result["observed"]["base_yaw_rad"], places=8)
     def test_normalizer_accepts_only_the_live_gate_ros_topics(self):
         records = [
             {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "timestamp_ns": 0, "message": {"clock": {"sec": 0, "nanosec": 0}}},

@@ -286,8 +286,13 @@ def crosscheck_live_dynamics(capture: object, profile: object) -> dict[str, Any]
     primary_metrics = {metric.name: metric.value for metric in primary.metrics}
     independent_metrics = {metric.name: metric.value for metric in independent.metrics}
     odom = capture["odom_samples"]
-    observed_distance = math.hypot(float(odom[-1]["x_m"]) - float(odom[0]["x_m"]), float(odom[-1]["y_m"]) - float(odom[0]["y_m"]))
-    observed_yaw = float(odom[-1]["yaw_rad"]) - float(odom[0]["yaw_rad"])
+    observed_distance = 0.0
+    observed_yaw = 0.0
+    for index in range(1, len(odom)):
+        previous, current = odom[index - 1], odom[index]
+        observed_distance += math.hypot(float(current["x_m"]) - float(previous["x_m"]), float(current["y_m"]) - float(previous["y_m"]))
+        yaw_delta = float(current["yaw_rad"]) - float(previous["yaw_rad"])
+        observed_yaw += (yaw_delta + math.pi) % (2 * math.pi) - math.pi
     errors = {
         "primary": {
             "base_distance_m": abs(primary_metrics["base_distance_m"] - observed_distance),
