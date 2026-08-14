@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 from tests.test_task_evidence_protocol import protocol
-from tests.test_task_evidence_evaluator import minimal_protocol, nominal
+from tests.test_task_evidence_evaluator import fault, minimal_protocol, nominal
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -88,12 +88,13 @@ class TaskEvidenceCliTests(unittest.TestCase):
             protocol_binding = write_bound(root, Path("task-protocol.json"), minimal_protocol())
             package = nominal(root)
             package_binding = write_bound(root, Path("task-package.json"), package)
+            fault_binding = write_bound(root, Path("task-fault-package.json"), fault(root))
             bench_binding = write_bound(root, Path("bench-index.json"), {"schema_version": 1, "intake_id": "bench-reference", "packages": []})
             index = root / "task-evidence-index.json"
             index.write_bytes(canonical({
                 "schema_version": 1,
                 "task_evidence_id": "task-evidence-reference",
-                "packages": [package_binding],
+                "packages": [package_binding, fault_binding],
                 "design_contract": bound_existing(root, Path("design-contract.json")),
                 "freeze_package": bound_existing(root, Path("engineering-freeze/freeze-package.json")),
                 "bench_index": bench_binding,

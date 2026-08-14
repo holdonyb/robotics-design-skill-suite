@@ -61,7 +61,8 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
         value, findings = validate_task_protocol(minimal_protocol())
         self.assertEqual((), findings)
         with tempfile.TemporaryDirectory() as raw:
-            result = evaluate_task_packages(Path(raw), value, [nominal(Path(raw))])
+            root = Path(raw)
+            result = evaluate_task_packages(root, value, [nominal(root), fault(root)])
         self.assertEqual("evidence_complete", result.status)
         self.assertEqual(("completion-time", 1, 2.0, 2.0, 2.0, True), tuple(result.metric_summaries[0].to_dict().values()))
         self.assertFalse(result.task_validated)
@@ -92,7 +93,7 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
         value, _ = validate_task_protocol(minimal_protocol())
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            result = evaluate_task_packages(root, value, [nominal(root), endurance(root)])
+            result = evaluate_task_packages(root, value, [nominal(root), fault(root), endurance(root)])
             self.assertEqual("evidence_complete", result.status)
             bad = endurance(root)
             bad["endurance_record"] = bind(root, "traces/endurance.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "health": 1.0, "terminal": False}, {"timestamp_ns": 2_000_000_000, "health": 0.99, "terminal": True}]})
@@ -104,7 +105,7 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
         value, _ = validate_task_protocol(minimal_protocol())
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            result = evaluate_task_packages(root, value, [nominal(root), comparison(root)])
+            result = evaluate_task_packages(root, value, [nominal(root), fault(root), comparison(root)])
             self.assertEqual("evidence_complete", result.status)
             bad = comparison(root)
             bad["comparison_record"] = bind(root, "traces/comparison.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "quantity_id": "base-speed", "simulated": 0.1, "observed": 0.5}]})
@@ -160,6 +161,14 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
             result = evaluate_task_packages(root, value, [package])
         self.assertEqual("rejected", result.status)
         self.assertIn("TASK.PHASE_ORDER", {item.code for item in result.findings})
+
+    def test_each_declared_fault_requires_each_envelope_repetition(self):
+        value, _ = validate_task_protocol(minimal_protocol())
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            result = evaluate_task_packages(root, value, [nominal(root)])
+        self.assertEqual("rejected", result.status)
+        self.assertIn("TASK.FAULT_MISSING", {item.code for item in result.findings})
 
 
 if __name__ == "__main__":

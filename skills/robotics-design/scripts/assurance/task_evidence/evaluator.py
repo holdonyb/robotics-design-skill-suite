@@ -65,6 +65,7 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
         findings.append(TaskEvidenceFinding("TASK.AUTHORIZATION_REQUIRED", "indeterminate", "packages", "no task package is supplied")); packages = []
     package_ids: set[str] = set()
     nominal_coverage: set[tuple[tuple[tuple[str, float], ...], int]] = set()
+    fault_coverage: set[tuple[tuple[tuple[str, float], ...], int, str]] = set()
     expected_envelope = {axis.id: set(axis.values) for axis in protocol.envelope}
     metric_rules = {item.id: item for item in protocol.metrics}
     metric_values: dict[str, list[float]] = {item.id: [] for item in protocol.metrics}
@@ -127,8 +128,12 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
         envelope_valid = isinstance(envelope, dict) and set(envelope) == set(expected_envelope) and not any(not _finite(value) or float(value) not in expected_envelope[name] for name, value in envelope.items())
         if not envelope_valid:
             findings.append(_finding("TASK.ENVELOPE_INVALID", f"{path}.envelope", "envelope must match declared protocol values"))
-        elif package["kind"] == "nominal" and package["disposition"] == "passed":
-            nominal_coverage.add((tuple(sorted((name, float(value)) for name, value in envelope.items())), package["repetition"]))
+        elif package["disposition"] == "passed":
+            point = tuple(sorted((name, float(value)) for name, value in envelope.items()))
+            if package["kind"] == "nominal":
+                nominal_coverage.add((point, package["repetition"]))
+            elif package["kind"] == "fault" and isinstance(package.get("fault_id"), str):
+                fault_coverage.add((point, package["repetition"], package["fault_id"]))
         command = _trace(_bound_json(root, package["command_trace"], f"{path}.command_trace", findings), frozenset({"timestamp_ns", "phase", "speed_m_s", "torque_nm", "watchdog_healthy"}), f"{path}.command_trace", findings)
         state = _trace(_bound_json(root, package["state_trace"], f"{path}.state_trace", findings), frozenset({"timestamp_ns", "phase", "speed_m_s", "torque_nm", "watchdog_healthy"}), f"{path}.state_trace", findings)
         task = _trace(_bound_json(root, package["task_trace"], f"{path}.task_trace", findings), frozenset({"timestamp_ns", "phase", "completed"}), f"{path}.task_trace", findings)
@@ -161,6 +166,10 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
             if (point, repetition) not in nominal_coverage:
                 findings.append(_finding("TASK.REPETITION_MISSING", "packages", "every declared envelope point requires every nominal repetition"))
                 break
+            for fault in protocol.faults:
+                if (point, repetition, fault.id) not in fault_coverage:
+                    findings.append(_finding("TASK.FAULT_MISSING", "packages", "every declared fault requires every envelope repetition"))
+                    break
     summaries: list[MetricSummary] = []
     for rule in protocol.metrics:
         values = metric_values[rule.id]
