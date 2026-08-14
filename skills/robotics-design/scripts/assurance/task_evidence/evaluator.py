@@ -9,7 +9,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from ..engineering_freeze.schema import FreezeSchemaError, load_canonical_json
-from ..hypothesis.canonical import validate_identifier, validate_sha256
+from ..hypothesis.canonical import canonical_bytes, validate_identifier, validate_sha256
 from .model import ComparisonResidual, FaultDisposition, MetricSummary, TaskEvidenceFinding, TaskEvidenceReport
 from .protocol import TaskProtocol
 
@@ -59,7 +59,7 @@ def _trace(data: object, fields: frozenset[str], path: str, findings: list[TaskE
     return events
 
 
-def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object) -> TaskEvidenceReport:
+def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object, *, protocol_sha256: str | None = None) -> TaskEvidenceReport:
     findings: list[TaskEvidenceFinding] = []
     if not isinstance(packages, list) or not packages:
         findings.append(TaskEvidenceFinding("TASK.AUTHORIZATION_REQUIRED", "indeterminate", "packages", "no task package is supplied")); packages = []
@@ -192,6 +192,8 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
                 elif package["kind"] == "nominal":
                     metric_values[metric_id].append(float(event["value"]))
     axis_values = [(axis.id, axis.values) for axis in protocol.envelope]
+    expected_nominal_trials = math.prod(len(values) for _, values in axis_values) * protocol.repetitions
+    expected_fault_trials = expected_nominal_trials * len(protocol.faults)
     for values in product(*(values for _, values in axis_values)):
         point = tuple(sorted((axis_values[position][0], float(value)) for position, value in enumerate(values)))
         for repetition in range(1, protocol.repetitions + 1):
@@ -215,4 +217,11 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
             findings.append(_finding("TASK.METRIC_THRESHOLD", f"metrics.{rule.id}", "aggregate metric exceeds its declared threshold"))
     findings.sort(key=lambda item: (item.code, item.path, item.message, item.severity))
     status = "rejected" if any(item.severity == "error" for item in findings) else "awaiting_authorization" if any(item.severity == "indeterminate" for item in findings) else "evidence_complete"
-    return TaskEvidenceReport(protocol.task_id, status, tuple(findings), tuple(summaries), tuple(fault_dispositions), tuple(comparison_residuals))
+    normalized_protocol = {
+        "schema_version": 1, "task_id": protocol.task_id, "phases": list(protocol.phases), "envelope": [{"id": axis.id, "unit": axis.unit, "values": list(axis.values)} for axis in protocol.envelope], "repetitions": protocol.repetitions,
+        "metrics": [{"id": rule.id, "unit": rule.unit, "direction": rule.direction, "threshold": rule.threshold} for rule in protocol.metrics], "faults": [{"id": fault.id, "safe_state": fault.safe_state, "recovery": fault.recovery} for fault in protocol.faults],
+        "endurance": {"sample_interval_ns": protocol.endurance.sample_interval_ns, "max_duration_ns": protocol.endurance.max_duration_ns, "max_samples": protocol.endurance.max_samples},
+        "comparison": [{"id": rule.id, "unit": rule.unit, "max_abs_residual": rule.max_abs_residual, "max_rel_residual": rule.max_rel_residual} for rule in protocol.comparison],
+    }
+    effective_protocol_sha = protocol_sha256 or hashlib.sha256(canonical_bytes(normalized_protocol)).hexdigest()
+    return TaskEvidenceReport(protocol.task_id, status, tuple(findings), tuple(summaries), tuple(fault_dispositions), tuple(comparison_residuals), protocol_sha256=effective_protocol_sha, expected_nominal_trials=expected_nominal_trials, observed_nominal_trials=len(nominal_coverage), expected_fault_trials=expected_fault_trials, observed_fault_trials=len(fault_coverage))

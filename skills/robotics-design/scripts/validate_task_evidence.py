@@ -150,11 +150,11 @@ def main(argv: list[str] | None = None) -> int:
                 package_hashes.add(package_hash)
                 package_paths.append(package_path)
             packages = [load_canonical_json(package_path) for package_path in package_paths]
-            report = evaluate_task_packages(args.index.parent, protocol, packages)
+            report = evaluate_task_packages(args.index.parent, protocol, packages, protocol_sha256=index["task_protocol"]["sha256"])
             upstream = _upstream_findings(args.index.parent, index, design_path=bound["design_contract"], freeze_path=bound["freeze_package"], bench_path=bound["bench_index"], commissioning_path=bound["commissioning_index"])
             findings = report.findings + upstream
             status = "rejected" if any(item.severity == "error" for item in findings) else "awaiting_authorization" if any(item.severity == "indeterminate" for item in findings) else "evidence_complete"
-            report = TaskEvidenceReport(index["task_evidence_id"], status, findings, report.metric_summaries, report.fault_dispositions, report.comparison_residuals)
+            report = TaskEvidenceReport(index["task_evidence_id"], status, findings, report.metric_summaries, report.fault_dispositions, report.comparison_residuals, protocol_sha256=report.protocol_sha256, expected_nominal_trials=report.expected_nominal_trials, observed_nominal_trials=report.observed_nominal_trials, expected_fault_trials=report.expected_fault_trials, observed_fault_trials=report.observed_fault_trials)
             sys.stdout.buffer.write(canonical_bytes(report.to_dict()))
             return 0 if report.status == "evidence_complete" else 1
         if set(index) != _EMPTY:

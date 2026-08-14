@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import math
 from typing import Any
 
-from ..hypothesis.canonical import validate_identifier
+from ..hypothesis.canonical import validate_identifier, validate_sha256
 
 
 _SEVERITIES = frozenset({"info", "warning", "error", "indeterminate"})
@@ -99,6 +99,11 @@ class TaskEvidenceReport:
     procurement_authorized: bool = False
     motion_authorized: bool = False
     task_validated: bool = False
+    protocol_sha256: str | None = None
+    expected_nominal_trials: int = 0
+    observed_nominal_trials: int = 0
+    expected_fault_trials: int = 0
+    observed_fault_trials: int = 0
 
     def __post_init__(self) -> None:
         validate_identifier(self.task_evidence_id, "task_evidence_id")
@@ -118,6 +123,12 @@ class TaskEvidenceReport:
             raise ValueError("authorization and task_validated flags must be booleans")
         if self.procurement_authorized or self.motion_authorized or self.task_validated:
             raise ValueError("authorization and task_validated flags must always be false")
+        if self.protocol_sha256 is not None:
+            validate_sha256(self.protocol_sha256, "protocol_sha256")
+        if any(type(value) is not int or value < 0 for value in (self.expected_nominal_trials, self.observed_nominal_trials, self.expected_fault_trials, self.observed_fault_trials)):
+            raise ValueError("coverage counts must be non-negative integers")
+        if self.observed_nominal_trials > self.expected_nominal_trials or self.observed_fault_trials > self.expected_fault_trials:
+            raise ValueError("observed coverage cannot exceed expected coverage")
         derived = "rejected" if any(item.severity == "error" for item in self.findings) else "awaiting_authorization" if any(item.severity == "indeterminate" for item in self.findings) else "evidence_complete"
         if self.status != derived:
             raise ValueError("status must equal the derived finding status")
@@ -129,6 +140,11 @@ class TaskEvidenceReport:
             "procurement_authorized": False,
             "motion_authorized": False,
             "task_validated": False,
+            "protocol_sha256": self.protocol_sha256,
+            "expected_nominal_trials": self.expected_nominal_trials,
+            "observed_nominal_trials": self.observed_nominal_trials,
+            "expected_fault_trials": self.expected_fault_trials,
+            "observed_fault_trials": self.observed_fault_trials,
             "findings": [item.to_dict() for item in sorted(self.findings, key=lambda item: (item.code, item.path, item.message, item.severity))],
             "metric_summaries": [item.to_dict() for item in sorted(self.metric_summaries, key=lambda item: item.metric_id)],
             "fault_dispositions": [item.to_dict() for item in sorted(self.fault_dispositions, key=lambda item: (item.fault_id, item.package_id))],

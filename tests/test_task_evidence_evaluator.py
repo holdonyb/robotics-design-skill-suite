@@ -64,6 +64,8 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
             root = Path(raw)
             result = evaluate_task_packages(root, value, [nominal(root), fault(root)])
         self.assertEqual("evidence_complete", result.status)
+        self.assertRegex(result.protocol_sha256, r"^[0-9a-f]{64}$")
+        self.assertEqual((1, 1, 1, 1), (result.expected_nominal_trials, result.observed_nominal_trials, result.expected_fault_trials, result.observed_fault_trials))
         self.assertEqual(("completion-time", 1, 2.0, 2.0, 2.0, True), tuple(result.metric_summaries[0].to_dict().values()))
         self.assertEqual(("timeout-fault", "fault-001", "motion_inhibited", "manual-inspection", True), tuple(result.fault_dispositions[0].to_dict().values()))
         self.assertFalse(result.task_validated)
