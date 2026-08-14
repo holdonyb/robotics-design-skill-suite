@@ -13,9 +13,10 @@ ROS 2, and simulation skills to audited commits.
 - Public release: `v0.6.0`; pull request `#7` merged as `037e61a`, annotated
   tag, GitHub Release, main CI, and Linux Jazzy/Harmonic consumer gate are
   complete.
-- Current development baseline: public `main` at `037e61a`; v0.7 component and
-  bench evidence intake is the next active phase.
-- Released version: `0.6.0` in `manifest.json`.
+- Current development baseline: v0.7.0 bench-evidence intake candidate on
+  `feature/v070-bench-evidence-intake`; public release remains `v0.6.0` until
+  candidate CI, merge, tag, and release verification complete.
+- Candidate version: `0.7.0` in `manifest.json`.
 - Third-party source locks are unchanged from v0.3.0.
 
 ## v0.5 Development Checkpoint

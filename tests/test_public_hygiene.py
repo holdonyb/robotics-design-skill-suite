@@ -230,6 +230,14 @@ class PublicHygieneTests(unittest.TestCase):
         self.assertIn("motion_authorized: false", audit)
         self.assertIn("No v0.6 action authorizes purchasing", audit)
 
+    def test_v070_audit_preserves_raw_bench_evidence_boundary(self):
+        audit = (ROOT / "docs/releases/v0.7-completion-audit.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("fixture_only", audit)
+        self.assertIn("awaiting_authorization", audit)
+        self.assertIn("No v0.7 action authorizes purchasing", audit)
+
     def test_ci_compiles_local_skill_runtime_before_tests(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         self.assertIn(
