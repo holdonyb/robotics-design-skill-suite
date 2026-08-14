@@ -81,6 +81,10 @@ class LiveTraceTests(unittest.TestCase):
         mismatch = dynamics_capture()
         mismatch["odom_samples"][-1]["x_m"] = 0.60
         self.assertEqual("failed", crosscheck_live_dynamics(mismatch, PROFILE)["status"])
+
+        accelerating = dynamics_capture()
+        accelerating["joint_samples"][1]["positions"] = [0.5, 0.5, 0.0]
+        self.assertEqual("passed", crosscheck_live_dynamics(accelerating, PROFILE)["status"])
         missing = dynamics_capture()
         missing["joint_samples"][1]["names"] = ["right_wheel_joint", "joint_1"]
         missing["joint_samples"][1]["positions"] = [1.0, 0.0]

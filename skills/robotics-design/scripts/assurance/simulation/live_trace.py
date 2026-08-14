@@ -262,27 +262,59 @@ def crosscheck_live_dynamics(capture: object, profile: object) -> dict[str, Any]
         "mass_kg": mass, "slope_rad": 0.0, "brake_deceleration_m_s2": brake,
         "joint_final_rad": [0.0], "joint_target_rad": [0.0], "joint_error_limit_rad": 0.01,
     }
+    comparison_tolerances = {metric: 1e-9 for metric in (
+        "base_distance_m", "base_yaw_rad", "braking_distance_m", "slope_force_n",
+        "wheel_speed_rad_s", "final_joint_error_rad",
+    )}
+    for index in range(1, len(stamps)):
+        dt = (stamps[index] - stamps[index - 1]) / 1_000_000_000
+        # The primary adapter uses a trapezoid while the independent adapter
+        # uses left-constant samples.  This is the bounded discretization gap
+        # for the exact wheel-rate trace, not an arbitrary relaxed threshold.
+        comparison_tolerances["base_distance_m"] += abs(
+            radius * (rates_left[index] + rates_right[index] - rates_left[index - 1] - rates_right[index - 1]) * dt / 4
+        )
+        comparison_tolerances["base_yaw_rad"] += abs(
+            radius * ((rates_right[index] - rates_left[index]) - (rates_right[index - 1] - rates_left[index - 1])) * dt / (2 * separation)
+        )
     try:
         primary = evaluate_trace_kinematics(backend_input)
         independent = evaluate_independent_dynamics(backend_input)
-        comparison = compare_backends(primary, independent, {metric.name: 1e-9 for metric in primary.metrics})
+        comparison = compare_backends(primary, independent, comparison_tolerances)
     except BackendError as exc:
         raise LiveTraceError(f"live dynamics backend failed: {exc}") from None
     primary_metrics = {metric.name: metric.value for metric in primary.metrics}
+    independent_metrics = {metric.name: metric.value for metric in independent.metrics}
     odom = capture["odom_samples"]
     observed_distance = math.hypot(float(odom[-1]["x_m"]) - float(odom[0]["x_m"]), float(odom[-1]["y_m"]) - float(odom[0]["y_m"]))
     observed_yaw = float(odom[-1]["yaw_rad"]) - float(odom[0]["yaw_rad"])
-    distance_error = abs(primary_metrics["base_distance_m"] - observed_distance)
-    yaw_error = abs(primary_metrics["base_yaw_rad"] - observed_yaw)
+    errors = {
+        "primary": {
+            "base_distance_m": abs(primary_metrics["base_distance_m"] - observed_distance),
+            "base_yaw_rad": abs(primary_metrics["base_yaw_rad"] - observed_yaw),
+        },
+        "independent": {
+            "base_distance_m": abs(independent_metrics["base_distance_m"] - observed_distance),
+            "base_yaw_rad": abs(independent_metrics["base_yaw_rad"] - observed_yaw),
+        },
+    }
     distance_tolerance, yaw_tolerance = 0.05 + 0.10 * abs(observed_distance), 0.10
-    passed = comparison.status == "passed" and distance_error <= distance_tolerance and yaw_error <= yaw_tolerance
+    passed = comparison.status == "passed" and all(
+        values["base_distance_m"] <= distance_tolerance and values["base_yaw_rad"] <= yaw_tolerance
+        for values in errors.values()
+    )
     return {
         "status": "passed" if passed else "failed", "model_sha256": workspace, "trajectory_sha256": trajectory_sha,
         "observed": {"base_distance_m": observed_distance, "base_yaw_rad": observed_yaw},
         "tolerances": {"base_distance_m": distance_tolerance, "base_yaw_rad": yaw_tolerance},
-        "errors": {"base_distance_m": distance_error, "base_yaw_rad": yaw_error},
+        "errors": errors,
         "primary": {"status": primary.status, "metrics": primary_metrics},
-        "independent": {"status": independent.status}, "comparison": {"status": comparison.status},
+        "independent": {"status": independent.status, "metrics": independent_metrics},
+        "comparison": {
+            "status": comparison.status,
+            "tolerances": comparison_tolerances,
+            "metrics": {metric.name: metric.value for metric in comparison.metrics},
+        },
     }
 
 
