@@ -128,6 +128,19 @@ class CommissioningEvaluatorTests(unittest.TestCase):
         self.assertEqual("rejected", result.status)
         self.assertIn("COMM.PACKAGE_INVALID", {item.code for item in result.findings})
 
+    def test_malformed_collection_and_finite_extreme_values_never_traceback(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            value = package(root)
+            value["phases"][0]["roles"] = [{"not": "a role"}, "observer"]
+            result = evaluate_commissioning_package(root, value)
+            self.assertIn("COMM.ROLES_INVALID", {item.code for item in result.findings})
+            value = package(root)
+            value["phases"][0]["limits"]["energy_j"] = 10 ** 1000
+            result = evaluate_commissioning_package(root, value)
+        self.assertEqual("rejected", result.status)
+        self.assertIn("COMM.LIMIT_INVALID", {item.code for item in result.findings})
+
 
 if __name__ == "__main__":
     unittest.main()

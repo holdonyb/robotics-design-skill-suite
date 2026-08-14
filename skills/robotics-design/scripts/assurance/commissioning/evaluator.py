@@ -63,7 +63,10 @@ def _bound_json(root: Path, value: object, path: str, findings: list[Commissioni
 
 
 def _finite(value: object) -> bool:
-    return type(value) in {int, float} and math.isfinite(float(value))
+    try:
+        return type(value) in {int, float} and math.isfinite(float(value))
+    except OverflowError:
+        return False
 
 
 def _events(data: object, path: str, fields: frozenset[str], findings: list[CommissioningFinding]) -> list[dict[str, Any]] | None:
@@ -108,7 +111,7 @@ def _validate_phase(root: Path, item: object, index: int, findings: list[Commiss
         except ValueError as exc:
             findings.append(_finding("COMM.PHASE_ID_INVALID", "error", f"{path}.{name}", str(exc)))
     roles = item.get("roles")
-    if not isinstance(roles, list) or len(roles) < 2 or len(set(roles)) != len(roles) or any(not isinstance(role, str) or not role for role in roles):
+    if not isinstance(roles, list) or len(roles) < 2 or any(not isinstance(role, str) or not role for role in roles) or len(set(roles)) != len(roles):
         findings.append(_finding("COMM.ROLES_INVALID", "error", f"{path}.roles", "phase requires at least two unique non-empty roles"))
     if not isinstance(item.get("abort_criteria"), list) or not item["abort_criteria"] or any(not isinstance(value, str) or not value for value in item["abort_criteria"]):
         findings.append(_finding("COMM.ABORT_CRITERIA_INVALID", "error", f"{path}.abort_criteria", "phase requires non-empty abort criteria"))
