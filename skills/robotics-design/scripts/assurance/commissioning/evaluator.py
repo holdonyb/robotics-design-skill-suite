@@ -9,11 +9,12 @@ from typing import Any
 
 from ..engineering_freeze.schema import FreezeSchemaError, load_canonical_json
 from ..hypothesis.canonical import validate_identifier, validate_sha256
+from .authority import validate_authority_record
 from .model import CommissioningFinding, CommissioningReport
 
 
 _ROOT = frozenset({"schema_version", "commissioning_id", "phases"})
-_PHASE = frozenset({"phase", "status", "test_card_id", "authority_record_id", "roles", "area_id", "estop_id", "limits", "watchdog_timeout_ns", "abort_criteria", "command_trace", "state_trace", "stop_trace", "inspection_record"})
+_PHASE = frozenset({"phase", "status", "test_card_id", "execution_date", "authority_record", "roles", "site_id", "area_id", "estop_id", "limits", "watchdog_timeout_ns", "abort_criteria", "command_trace", "state_trace", "stop_trace", "inspection_record"})
 _BOUND_FILE = frozenset({"path", "sha256"})
 _LIMITS = frozenset({"energy_j", "speed_m_s", "torque_nm"})
 _PHASES = ("unpowered_inspection", "protected_power", "isolated_joint", "separated_base_arm", "integrated_low_energy")
@@ -98,7 +99,13 @@ def _validate_limits(value: object, path: str, findings: list[CommissioningFindi
     return {name: float(value[name]) for name in _LIMITS}
 
 
-def _validate_phase(root: Path, item: object, index: int, findings: list[CommissioningFinding]) -> bool:
+def _validate_phase(
+    root: Path,
+    item: object,
+    index: int,
+    findings: list[CommissioningFinding],
+    expected_design_contract_sha256: str | None,
+) -> bool:
     path = f"phases[{index}]"
     before = len(findings)
     if not isinstance(item, dict) or set(item) != _PHASE:
@@ -110,7 +117,7 @@ def _validate_phase(root: Path, item: object, index: int, findings: list[Commiss
     status = item.get("status")
     if status not in {"planned", "recorded", "aborted"}:
         findings.append(_finding("COMM.PHASE_STATUS_INVALID", "error", f"{path}.status", "status must be planned, recorded, or aborted"))
-    for name in ("test_card_id", "authority_record_id", "area_id", "estop_id"):
+    for name in ("test_card_id", "site_id", "area_id", "estop_id"):
         try:
             validate_identifier(item.get(name), f"{path}.{name}")
         except ValueError as exc:
@@ -126,9 +133,17 @@ def _validate_phase(root: Path, item: object, index: int, findings: list[Commiss
         findings.append(_finding("COMM.WATCHDOG_INVALID", "error", f"{path}.watchdog_timeout_ns", "watchdog timeout must be a positive integer nanosecond value"))
     evidence_names = ("command_trace", "state_trace", "stop_trace", "inspection_record")
     if status == "planned":
+        if item.get("execution_date") is not None or item.get("authority_record") is not None:
+            findings.append(_finding("COMM.PLANNED_AUTHORITY_FORBIDDEN", "error", path, "planned phase must not carry execution date or authority evidence"))
         if any(item.get(name) is not None for name in evidence_names):
             findings.append(_finding("COMM.PLANNED_EVIDENCE_FORBIDDEN", "error", path, "planned phase must not include evidence records"))
         return len(findings) == before
+    if not isinstance(item.get("execution_date"), str) or not item["execution_date"]:
+        findings.append(_finding("COMM.EXECUTION_DATE_INVALID", "error", f"{path}.execution_date", "recorded phase requires a non-empty canonical execution date"))
+    if item.get("authority_record") is None:
+        findings.append(_finding("COMM.AUTHORITY_RECORD_REQUIRED", "error", f"{path}.authority_record", "recorded or aborted phase requires hash-bound external authority evidence"))
+    else:
+        findings.extend(validate_authority_record(root, item["authority_record"], item, expected_design_contract_sha256))
     if status == "aborted":
         findings.append(_finding("COMM.PHASE_ABORTED", "error", f"{path}.status", "aborted phase remains a blocking retained record"))
     data: dict[str, dict[str, Any]] = {}
@@ -185,7 +200,11 @@ def _validate_phase(root: Path, item: object, index: int, findings: list[Commiss
     return len(findings) == before
 
 
-def evaluate_commissioning_package(root: Path, package: object) -> CommissioningReport:
+def evaluate_commissioning_package(
+    root: Path,
+    package: object,
+    expected_design_contract_sha256: str | None = None,
+) -> CommissioningReport:
     """Validate commissioning records without ever authorizing hardware action."""
 
     findings: list[CommissioningFinding] = []
@@ -205,7 +224,7 @@ def evaluate_commissioning_package(root: Path, package: object) -> Commissioning
     highest: str | None = None
     predecessor_ready = True
     for index, item in enumerate(phases[: len(_PHASES)]):
-        phase_ready = _validate_phase(root, item, index, findings)
+        phase_ready = _validate_phase(root, item, index, findings, expected_design_contract_sha256)
         status = item.get("status") if isinstance(item, dict) else None
         if index and not predecessor_ready:
             findings.append(_finding("COMM.PHASE_DEPENDENCY", "error", f"phases[{index}]", "phase cannot proceed before every prior phase has a passing retained record"))

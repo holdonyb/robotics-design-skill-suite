@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
-from assurance.release.evaluator import REQUIRED_PATHS, evaluate_release_delivery
+from assurance.release.evaluator import REQUIRED_PATHS, evaluate_release_delivery, required_paths_for
 
 
 def canonical(value):
@@ -19,17 +19,17 @@ def canonical(value):
 
 
 class ReleaseDeliveryEvaluatorTests(unittest.TestCase):
-    def copy_candidate_tree(self):
+    def copy_candidate_tree(self, release_id="v1.0.0"):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name) / "candidate"
-        for relative in REQUIRED_PATHS:
+        for relative in required_paths_for(release_id):
             source = ROOT / relative
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
         manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
-        manifest["suite"]["version"] = "1.0.0"
+        manifest["suite"]["version"] = release_id.removeprefix("v")
         (root / "manifest.json").write_bytes(canonical(manifest))
         for name in ("README.md", "README.zh-CN.md"):
             path = root / name
@@ -41,14 +41,14 @@ class ReleaseDeliveryEvaluatorTests(unittest.TestCase):
             path.write_text(text, encoding="utf-8")
         return root
 
-    def write_contract(self, root):
+    def write_contract(self, root, release_id="v1.0.0"):
         bindings = [
             {"path": relative, "sha256": hashlib.sha256((root / relative).read_bytes()).hexdigest()}
-            for relative in sorted(REQUIRED_PATHS)
+            for relative in sorted(required_paths_for(release_id))
         ]
-        contract = root / "release" / "v1-release-contract.json"
+        contract = root / "release" / f"{release_id}-release-contract.json"
         contract.parent.mkdir(parents=True, exist_ok=True)
-        contract.write_bytes(canonical({"schema_version": 1, "release_id": "v1.0.0", "artifact_bindings": bindings, "hardware_claims": False}))
+        contract.write_bytes(canonical({"schema_version": 1, "release_id": release_id, "artifact_bindings": bindings, "hardware_claims": False}))
         return contract
 
     def test_pristine_bound_candidate_passes_deterministically(self):
@@ -59,6 +59,20 @@ class ReleaseDeliveryEvaluatorTests(unittest.TestCase):
         self.assertTrue(first.passed)
         self.assertEqual(first.to_dict(), second.to_dict())
         self.assertFalse(first.hardware_claims)
+
+    def test_v110_profile_binds_the_authority_runtime(self):
+        root = self.copy_candidate_tree("v1.1.0")
+        contract = self.write_contract(root, "v1.1.0")
+        self.assertTrue(evaluate_release_delivery(root, contract).passed)
+        authority = root / "skills/robotics-design/scripts/assurance/commissioning/authority.py"
+        authority.write_text("tampered", encoding="utf-8")
+        report = evaluate_release_delivery(root, contract)
+        self.assertFalse(report.passed)
+        self.assertIn("RELEASE.STALE_ARTIFACT", {item.code for item in report.findings})
+
+    def test_unknown_or_unhashable_release_profile_fails_actionably(self):
+        with self.assertRaisesRegex(ValueError, "unsupported release_id"):
+            required_paths_for([])
 
     def test_rehashed_contract_cannot_hide_stale_public_boundary(self):
         root = self.copy_candidate_tree()

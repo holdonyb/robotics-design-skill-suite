@@ -44,12 +44,13 @@ class CommissioningCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw) / "reference"
             shutil.copytree(ROOT / "reference" / "mobile-manipulator", root)
-            value = package(root)
+            design_sha256 = hashlib.sha256((root / "design-contract.json").read_bytes()).hexdigest()
+            value = package(root, design_contract_sha256=design_sha256)
             source = {
                 "schema_version": 1,
                 "commissioning_id": "commissioning-reference",
                 "phases": value["phases"],
-                "design_contract": {"path": "design-contract.json", "sha256": hashlib.sha256((root / "design-contract.json").read_bytes()).hexdigest()},
+                "design_contract": {"path": "design-contract.json", "sha256": design_sha256},
                 "freeze_package": {"path": "engineering-freeze/freeze-package.json", "sha256": hashlib.sha256((root / "engineering-freeze" / "freeze-package.json").read_bytes()).hexdigest()},
                 "bench_index": {"path": "bench-evidence/intake-index.json", "sha256": hashlib.sha256((root / "bench-evidence" / "intake-index.json").read_bytes()).hexdigest()},
             }
@@ -97,9 +98,10 @@ class CommissioningCliTests(unittest.TestCase):
                     "sha256": hashlib.sha256(invalid_package.read_bytes()).hexdigest(),
                 }],
             }))
-            value = package(root)
+            design_sha256 = hashlib.sha256((root / "design-contract.json").read_bytes()).hexdigest()
+            value = package(root, design_contract_sha256=design_sha256)
             value.update({
-                "design_contract": {"path": "design-contract.json", "sha256": hashlib.sha256((root / "design-contract.json").read_bytes()).hexdigest()},
+                "design_contract": {"path": "design-contract.json", "sha256": design_sha256},
                 "freeze_package": {"path": "engineering-freeze/freeze-package.json", "sha256": hashlib.sha256((root / "engineering-freeze" / "freeze-package.json").read_bytes()).hexdigest()},
                 "bench_index": {"path": "bench-evidence/intake-index.json", "sha256": hashlib.sha256(bench_index.read_bytes()).hexdigest()},
             })
@@ -109,6 +111,23 @@ class CommissioningCliTests(unittest.TestCase):
         self.assertEqual(1, result.returncode, result.stderr)
         self.assertIn('"status":"awaiting_authorization"', result.stdout)
         self.assertIn("COMM.BENCH_EVIDENCE_REQUIRED", result.stdout)
+
+    def test_recorded_authority_must_bind_the_index_design_contract(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw) / "reference"
+            shutil.copytree(ROOT / "reference" / "mobile-manipulator", root)
+            value = package(root)
+            value.update({
+                "design_contract": {"path": "design-contract.json", "sha256": hashlib.sha256((root / "design-contract.json").read_bytes()).hexdigest()},
+                "freeze_package": {"path": "engineering-freeze/freeze-package.json", "sha256": hashlib.sha256((root / "engineering-freeze" / "freeze-package.json").read_bytes()).hexdigest()},
+                "bench_index": {"path": "bench-evidence/intake-index.json", "sha256": hashlib.sha256((root / "bench-evidence" / "intake-index.json").read_bytes()).hexdigest()},
+            })
+            index = root / "commissioning-index.json"
+            index.write_bytes(canonical(value))
+            result = self.run_cli(index)
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertIn("COMM.AUTHORITY_DESIGN_MISMATCH", result.stdout)
+        self.assertIn('"motion_authorized":false', result.stdout)
 
     def test_malformed_or_tampered_input_exits_two_without_traceback(self):
         with tempfile.TemporaryDirectory() as raw:

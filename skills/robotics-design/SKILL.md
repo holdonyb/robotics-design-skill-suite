@@ -18,7 +18,7 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 5. For simulation admission, deterministic trace replay, calibration, or bounded training callbacks, read `references/simulation-evidence-contract.md`; run `scripts/validate_simulation_bundle.py` before making any simulated claim.
 6. For a supplier review, engineering freeze, procurement package, controlled drawing, wiring/protection, hazard log, inspection plan, or planned hardware test card, run `scripts/validate_engineering_freeze.py`; its result never authorizes procurement or motion.
 7. For real component bench evidence, validate raw local data, instrument calibration, and an approved recording card with `scripts/validate_bench_evidence.py`; absent raw evidence is never a measurement.
-8. For a future controlled commissioning submission, validate only retained local records with `scripts/validate_commissioning_evidence.py`; it never authorizes procurement, energization, or motion.
+8. For a future controlled commissioning submission, read `references/hardware-authority-contract.md`, then validate retained local records with `scripts/validate_commissioning_evidence.py`; an external authority record is evidence-bound but never authorizes procurement, energization, or motion.
 9. For a future task, fault, endurance, or simulation-to-observation dossier, run `scripts/validate_task_evidence.py`; it revalidates upstream gates but never authorizes task validation or hardware motion.
 10. For any generated product, task, concept, or marketing image of the robot, read `references/visualization-contract.md` before creating references or prompts.
 11. For a task, product, or demonstration animation, read `references/mission-animation-contract.md` before creating trajectories, keyframes, renders, or video.
@@ -37,7 +37,7 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 | Simulation admission, trace replay, calibration, bounded training | `references/simulation-evidence-contract.md`, then `$ros2-sim` when a live consumer is requested | Portable replay remains `simulated`; live ROS/Gazebo consumer evidence and hardware authorization are separate gates. |
 | Supplier review, engineering freeze, controlled drawings, wiring, hazards, inspection, planned hardware cards | `$robotics-design` then `scripts/validate_engineering_freeze.py` | Hash-bound documents can support engineering review only; procurement and motion are always denied. |
 | Component characterization, raw bench data, instrument calibration | `$robotics-design` then `scripts/validate_bench_evidence.py` | Only original hash-bound local measurements may claim `bench-tested`; validation never controls equipment. |
-| Future commissioning records, protected power-up, restricted motion, stop/timeout traces | `$robotics-design` then `scripts/validate_commissioning_evidence.py` | Offline validation accepts only bounded local records; it never authorizes or controls hardware. |
+| Future commissioning records, protected power-up, restricted motion, stop/timeout traces | `references/hardware-authority-contract.md`, then `$robotics-design` and `scripts/validate_commissioning_evidence.py` | Hash-bound external human attestation must cover design, phase, site, E-stop, people, dates, and limits; it never authorizes or controls hardware. |
 | Future task, fault, endurance, or sim-to-observation dossiers | `$robotics-design` then `scripts/validate_task_evidence.py` | Revalidates hash-bound upstream evidence and raw traces; it never establishes task validation or hardware authority. |
 | Parametric parts, assemblies, brackets, enclosures, STEP, collision geometry | `$cad` | CAD owns geometry and controlled datums. |
 | Purchasable motors, servos, reducers, bearings, brakes, drivers, batteries, electronics | `references/physical-plausibility-contract.md`, then `$step-parts` and `$cad` | Bind exact parts to architecture responsibilities and verify ratings; otherwise retain an unpromoted engineering placeholder. |
@@ -86,6 +86,7 @@ If a required sub-skill is unavailable, name the missing capability and continue
 - Never keyframe robot joint poses by hand for mission evidence. Camera and lighting may be authored separately, but robot transforms must come from the accepted trajectory and contact-state trace.
 - Never claim that a cosmetic change, renamed joint, reordered drawing, or single omitted feature avoids a patent. Record claim elements, equivalents risk, status uncertainty, and architecture constraints; reserve FTO conclusions for qualified counsel.
 - Before real robot motion, require explicit authorization, a bounded test area, reachable emergency stop, power/torque/speed limits, observer roles, command timeout, and staged commissioning. Simulation never authorizes hardware motion.
+- A valid `external_human_attestation` record proves only a retained scope match. It never grants procurement or motion authority.
 - Preserve failed reports and traces. An unresolved failed gate is an open risk.
 
 ## Completion Contract

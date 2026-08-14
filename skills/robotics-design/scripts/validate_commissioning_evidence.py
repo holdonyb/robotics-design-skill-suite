@@ -144,7 +144,11 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("freeze package is invalid")
             bench_index_path, bench_index = _bound_json(args.index.parent, index["bench_index"], "bench_index")
             bench_ready = _accepted_bench_intake(bench_index_path.parent, bench_index, index["design_contract"]["sha256"])
-            report = evaluate_commissioning_package(args.index.parent, {key: index[key] for key in _EMPTY})
+            report = evaluate_commissioning_package(
+                args.index.parent,
+                {key: index[key] for key in _EMPTY},
+                index["design_contract"]["sha256"],
+            )
             upstream_findings = []
             if not freeze_report.freeze_ready:
                 upstream_findings.append(CommissioningFinding("COMM.FREEZE_NOT_READY", "indeterminate", "freeze_package", "engineering freeze remains incomplete and blocks commissioning readiness"))

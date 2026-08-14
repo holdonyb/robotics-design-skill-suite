@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
-from assurance.release.evaluator import REQUIRED_PATHS
+from assurance.release.evaluator import REQUIRED_PATHS, required_paths_for
 
 
 GENERATOR = ROOT / "skills/robotics-design/scripts/generate_release_delivery_contract.py"
@@ -67,6 +67,28 @@ class TestReleaseDeliveryCli(unittest.TestCase):
         self.assertEqual(2, result.returncode)
         self.assertIn("failed safely", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
+
+    def test_v110_generator_binds_the_authority_intake_surface(self):
+        root = self.copy_candidate_tree()
+        for relative in sorted(required_paths_for("v1.1.0") - REQUIRED_PATHS):
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / relative, target)
+        manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+        manifest["suite"]["version"] = "1.1.0"
+        (root / "manifest.json").write_text(
+            json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+        contract = root / "release/v1.1-release-contract.json"
+        created = self.run_cli(
+            GENERATOR, "--root", root, "--release-id", "v1.1.0", "--out", contract
+        )
+        self.assertEqual(0, created.returncode, created.stderr)
+        self.assertEqual(0, self.run_cli(CLI, "--root", root, "--contract", contract).returncode)
+        authority = root / "skills/robotics-design/scripts/assurance/commissioning/authority.py"
+        authority.write_text("tampered", encoding="utf-8")
+        self.assertEqual(1, self.run_cli(CLI, "--root", root, "--contract", contract).returncode)
 
 
 if __name__ == "__main__":

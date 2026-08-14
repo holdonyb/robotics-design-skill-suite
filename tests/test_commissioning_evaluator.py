@@ -32,13 +32,34 @@ def write_json(root, path, value):
     return {"path": path.relative_to(root).as_posix(), "sha256": hashlib.sha256(payload).hexdigest()}
 
 
-def phase_record(root, phase, status="recorded"):
+def authority_record(root, phase, design_contract_sha256="a" * 64):
+    return write_json(root, root / "records" / phase / "authority.json", {
+        "schema_version": 1,
+        "authority_record_id": f"authority-{phase}",
+        "authorization_kind": "external_human_attestation",
+        "design_contract_sha256": design_contract_sha256,
+        "phase": phase,
+        "execution_window": {"start_date": "2026-08-14", "end_date": "2026-08-14"},
+        "site_id": "site-lab",
+        "area_id": "area-bounded",
+        "estop_id": "estop-wired",
+        "roles": ["operator", "observer"],
+        "limits": {"energy_j": 10.0, "speed_m_s": 0.2, "torque_nm": 1.0},
+        "watchdog_timeout_ns": 100_000_000,
+        "attested_by_role": "site-safety-authority",
+        "approval_reference": f"approval-{phase}",
+    })
+
+
+def phase_record(root, phase, status="recorded", design_contract_sha256="a" * 64):
     common = {
         "phase": phase,
         "status": status,
         "test_card_id": f"TC-{phase}",
-        "authority_record_id": "authority-record",
+        "execution_date": "2026-08-14",
+        "authority_record": authority_record(root, phase, design_contract_sha256),
         "roles": ["operator", "observer"],
+        "site_id": "site-lab",
         "area_id": "area-bounded",
         "estop_id": "estop-wired",
         "limits": {"energy_j": 10.0, "speed_m_s": 0.2, "torque_nm": 1.0},
@@ -46,7 +67,7 @@ def phase_record(root, phase, status="recorded"):
         "abort_criteria": ["unexpected motion"],
     }
     if status == "planned":
-        return common | {"command_trace": None, "state_trace": None, "stop_trace": None, "inspection_record": None}
+        return common | {"execution_date": None, "authority_record": None, "command_trace": None, "state_trace": None, "stop_trace": None, "inspection_record": None}
     motion_inhibited = phase in {"unpowered_inspection", "protected_power"}
     command = {"schema_version": 1, "events": [{"timestamp_ns": 0, "mode": "inhibited" if motion_inhibited else "bounded_motion", "energy_j": 0.0 if motion_inhibited else 1.0, "speed_m_s": 0.0 if motion_inhibited else 0.1, "torque_nm": 0.0 if motion_inhibited else 0.5}]}
     state = {"schema_version": 1, "events": [{"timestamp_ns": 0, "mode": "inhibited" if motion_inhibited else "bounded_motion", "motion_inhibited": motion_inhibited, "speed_m_s": 0.0 if motion_inhibited else 0.1, "torque_nm": 0.0 if motion_inhibited else 0.5, "watchdog_healthy": True}]}
@@ -60,8 +81,8 @@ def phase_record(root, phase, status="recorded"):
     }
 
 
-def package(root, phases=PHASES):
-    return {"schema_version": 1, "commissioning_id": "commissioning-reference", "phases": [phase_record(root, phase) for phase in phases]}
+def package(root, phases=PHASES, design_contract_sha256="a" * 64):
+    return {"schema_version": 1, "commissioning_id": "commissioning-reference", "phases": [phase_record(root, phase, design_contract_sha256=design_contract_sha256) for phase in phases]}
 
 
 class CommissioningEvaluatorTests(unittest.TestCase):
@@ -90,6 +111,15 @@ class CommissioningEvaluatorTests(unittest.TestCase):
         self.assertEqual("integrated_low_energy", result.highest_validated_phase)
         self.assertFalse(result.procurement_authorized)
         self.assertFalse(result.motion_authorized)
+
+    def test_recorded_phase_requires_matching_hash_bound_authority_record(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            value = package(root)
+            value["phases"][2]["authority_record"]["sha256"] = "0" * 64
+            result = evaluate_commissioning_package(root, value)
+        self.assertEqual("rejected", result.status)
+        self.assertIn("COMM.AUTHORITY_HASH_MISMATCH", {item.code for item in result.findings})
 
     def test_limit_violation_and_abort_are_retained_as_blockers(self):
         with tempfile.TemporaryDirectory() as raw:

@@ -57,6 +57,7 @@ def validate() -> list[str]:
         "physical-plausibility-contract.md",
         "hypothesis-engine-contract.md",
         "simulation-evidence-contract.md",
+        "hardware-authority-contract.md",
     }
     actual_refs = {path.name for path in (router / "references").glob("*.md")}
     missing_refs = required_refs - actual_refs
@@ -100,6 +101,9 @@ def validate() -> list[str]:
         "references/simulation-evidence-contract.md",
         "validate_simulation_bundle.py",
         "Training callbacks have no actuator interface",
+        "references/hardware-authority-contract.md",
+        "external_human_attestation",
+        "never grants procurement or motion authority",
     }
     missing_workflows = sorted(
         clause for clause in required_workflow_clauses if clause not in skill_text
@@ -107,9 +111,9 @@ def validate() -> list[str]:
     if missing_workflows:
         errors.append("robotics-design workflow gates missing: " + ", ".join(missing_workflows))
     release_validator = router / "scripts" / "validate_release_delivery.py"
-    release_contract = ROOT / "release" / "v1-release-contract.json"
+    release_contract = ROOT / "release" / "v1.1-release-contract.json"
     if not release_validator.is_file() or not release_contract.is_file():
-        errors.append("v1 release delivery gate is missing")
+        errors.append("v1.1 release delivery gate is missing")
     else:
         result = subprocess.run(
             [sys.executable, str(release_validator), "--root", str(ROOT), "--contract", str(release_contract)],
@@ -120,7 +124,7 @@ def validate() -> list[str]:
             check=False,
         )
         if result.returncode != 0:
-            errors.append("v1 release delivery gate failed: " + (result.stderr or result.stdout).strip())
+            errors.append("v1.1 release delivery gate failed: " + (result.stderr or result.stdout).strip())
     return errors
 
 

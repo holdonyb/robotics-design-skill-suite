@@ -10,7 +10,7 @@ from .model import ReleaseDeliveryFinding, ReleaseDeliveryReport
 from .schema import ReleaseContract, load_release_contract
 
 
-REQUIRED_PATHS = frozenset(
+V100_REQUIRED_PATHS = frozenset(
     {
         "README.md",
         "README.zh-CN.md",
@@ -36,6 +36,48 @@ REQUIRED_PATHS = frozenset(
         "reference/mobile-manipulator/task-evidence/task-evidence-index.json",
     }
 )
+
+V110_RUNTIME_PATHS = frozenset(
+    {
+        "skills/robotics-design/references/hardware-authority-contract.md",
+        "skills/robotics-design/scripts/generate_release_delivery_contract.py",
+        "skills/robotics-design/scripts/validate_release_delivery.py",
+        "skills/robotics-design/scripts/assurance/commissioning/__init__.py",
+        "skills/robotics-design/scripts/assurance/commissioning/authority.py",
+        "skills/robotics-design/scripts/assurance/commissioning/evaluator.py",
+        "skills/robotics-design/scripts/assurance/commissioning/model.py",
+        "skills/robotics-design/scripts/assurance/engineering_freeze/__init__.py",
+        "skills/robotics-design/scripts/assurance/engineering_freeze/evaluator.py",
+        "skills/robotics-design/scripts/assurance/engineering_freeze/model.py",
+        "skills/robotics-design/scripts/assurance/engineering_freeze/schema.py",
+        "skills/robotics-design/scripts/assurance/engineering_freeze/suppliers.py",
+        "skills/robotics-design/scripts/assurance/hypothesis/canonical.py",
+        "skills/robotics-design/scripts/assurance/release/__init__.py",
+        "skills/robotics-design/scripts/assurance/release/evaluator.py",
+        "skills/robotics-design/scripts/assurance/release/model.py",
+        "skills/robotics-design/scripts/assurance/release/schema.py",
+    }
+)
+V110_REQUIRED_PATHS = V100_REQUIRED_PATHS | V110_RUNTIME_PATHS
+
+# Compatibility alias used by v1.0 regression fixtures and external callers.
+REQUIRED_PATHS = V100_REQUIRED_PATHS
+REQUIRED_PATHS_BY_RELEASE = {
+    "v1.0.0": V100_REQUIRED_PATHS,
+    "v1.1.0": V110_REQUIRED_PATHS,
+}
+MANIFEST_VERSION_BY_RELEASE = {"v1.0.0": "1.0.0", "v1.1.0": "1.1.0"}
+
+
+def required_paths_for(release_id: str) -> frozenset[str]:
+    """Return the immutable binding allow-list for a supported release."""
+
+    if not isinstance(release_id, str):
+        raise ValueError(f"unsupported release_id: {release_id}") from None
+    try:
+        return REQUIRED_PATHS_BY_RELEASE[release_id]
+    except KeyError:
+        raise ValueError(f"unsupported release_id: {release_id}") from None
 
 _README_VALIDATORS = (
     "validate_design_contract.py",
@@ -85,9 +127,10 @@ def _verify_bindings(root: Path, contract: ReleaseContract) -> list[ReleaseDeliv
     findings: list[ReleaseDeliveryFinding] = []
     bindings = dict(contract.artifact_bindings)
     actual_paths = frozenset(bindings)
-    if actual_paths != REQUIRED_PATHS:
-        missing = sorted(REQUIRED_PATHS - actual_paths)
-        extra = sorted(actual_paths - REQUIRED_PATHS)
+    required_paths = required_paths_for(contract.release_id)
+    if actual_paths != required_paths:
+        missing = sorted(required_paths - actual_paths)
+        extra = sorted(actual_paths - required_paths)
         detail = []
         if missing:
             detail.append("missing: " + ", ".join(missing))
@@ -113,7 +156,7 @@ def _read_text(root: Path, relative: str, findings: list[ReleaseDeliveryFinding]
         return None
 
 
-def _verify_semantics(root: Path) -> list[ReleaseDeliveryFinding]:
+def _verify_semantics(root: Path, release_id: str) -> list[ReleaseDeliveryFinding]:
     findings: list[ReleaseDeliveryFinding] = []
     english = _read_text(root, "README.md", findings)
     chinese = _read_text(root, "README.zh-CN.md", findings)
@@ -138,8 +181,9 @@ def _verify_semantics(root: Path) -> list[ReleaseDeliveryFinding]:
             findings.append(_finding("RELEASE.PUBLIC_BOUNDARY", "README.zh-CN.md", "published v0.9 must not be described as upcoming"))
     try:
         manifest = json.loads(_safe_target(root, "manifest.json").read_text(encoding="utf-8"))
-        if not isinstance(manifest, dict) or manifest.get("suite", {}).get("version") != "1.0.0":
-            findings.append(_finding("RELEASE.MANIFEST_VERSION", "manifest.json", "suite version must be 1.0.0"))
+        expected_version = MANIFEST_VERSION_BY_RELEASE[release_id]
+        if not isinstance(manifest, dict) or manifest.get("suite", {}).get("version") != expected_version:
+            findings.append(_finding("RELEASE.MANIFEST_VERSION", "manifest.json", f"suite version must be {expected_version}"))
     except (OSError, UnicodeError, ValueError, AttributeError) as exc:
         findings.append(_finding("RELEASE.INVALID_INPUT", "manifest.json", f"cannot validate suite version: {exc}"))
     for relative, expected in _EMPTY_INTAKES.items():
@@ -159,6 +203,6 @@ def evaluate_release_delivery(root: Path, contract_path: Path) -> ReleaseDeliver
     if not resolved_root.is_dir() or resolved_root.is_symlink():
         raise ValueError("root must be a local non-symlink directory")
     contract = load_release_contract(Path(contract_path))
-    findings = _verify_bindings(resolved_root, contract) + _verify_semantics(resolved_root)
+    findings = _verify_bindings(resolved_root, contract) + _verify_semantics(resolved_root, contract.release_id)
     findings.sort(key=lambda item: (item.code, item.path, item.message, item.severity))
     return ReleaseDeliveryReport(contract.release_id, "failed" if findings else "passed", tuple(findings))

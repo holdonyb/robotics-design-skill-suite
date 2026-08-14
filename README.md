@@ -163,10 +163,12 @@ purchasing, energization, or motion.
 
 ## Commissioning-evidence intake
 
-v0.8 prepares future controlled low-energy commissioning submissions. A
+v1.1 strengthens future controlled low-energy commissioning submissions. A
 populated package must bind the design contract, engineering-freeze package,
 bench intake, ordered commissioning stages, bounded command/state/stop traces,
-and post-test inspection records.
+post-test inspection records, and an `external_human_attestation` record
+covering the exact design, phase, date, site, area, reachable emergency stop,
+roles, limits, and watchdog timeout.
 
 ```bash
 python skills/robotics-design/scripts/validate_commissioning_evidence.py \
@@ -177,6 +179,12 @@ The shipped reference index has no records and exits `1` with
 `awaiting_authorization`. The validator never connects to or controls a device;
 even a complete local submission leaves procurement and motion authorization
 false and is not an integrated-hardware-tested claim.
+
+The attestation is retained evidence, not a local permission source: it never
+authorizes procurement, energization, or robot motion. Actual action still
+requires the responsible people, controlled site, and emergency-stop decision
+at execution time. See
+[`hardware-authority-contract.md`](skills/robotics-design/references/hardware-authority-contract.md).
 
 ## Task and robustness evidence intake
 
@@ -194,14 +202,15 @@ The shipped reference index is intentionally empty and exits `1` with
 `awaiting_authorization`. Local evidence validation never authorizes
 procurement, energization, motion, or an empirical task-performance claim.
 
-## v1.0 reproducible public delivery
+## v1.1 reproducible public delivery
 
-Version 1.0 binds the published software and evidence surface to a canonical
-release contract. Verify that delivery and the intentionally empty reference
-hardware intakes with:
+Version 1.1 binds the expanded public software and evidence surface to a
+canonical release contract while retaining the published v1.0 contract for
+historical verification. Verify the current delivery and intentionally empty
+reference hardware intakes with:
 
 ```bash
-python skills/robotics-design/scripts/validate_release_delivery.py --root . --contract release/v1-release-contract.json
+python skills/robotics-design/scripts/validate_release_delivery.py --root . --contract release/v1.1-release-contract.json
 ```
 
 This command verifies public software and evidence delivery; it does not

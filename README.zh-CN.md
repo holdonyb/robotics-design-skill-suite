@@ -128,7 +128,7 @@ python skills/robotics-design/scripts/validate_bench_evidence.py \
 
 ## 调试证据接收
 
-v0.8 为未来受控、低能量的调试提交建立离线证据门禁。非空包必须绑定设计契约、工程冻结包、台架索引、按序阶段、受限的命令/状态/停止 trace，以及检后检查记录。
+v1.1 强化了未来受控、低能量的调试提交。非空包必须绑定设计契约、工程冻结包、台架索引、按序阶段、受限的命令/状态/停止 trace、检后检查记录，以及覆盖精确设计、阶段、日期、场地、区域、可触达急停、角色、限值和看门狗超时的 `external_human_attestation` 记录。
 
 ```bash
 python skills/robotics-design/scripts/validate_commissioning_evidence.py \
@@ -136,6 +136,8 @@ python skills/robotics-design/scripts/validate_commissioning_evidence.py \
 ```
 
 随附参考索引没有任何记录，会以 `awaiting_authorization` 返回退出码 `1`。验证器绝不连接或控制设备；即使本地提交完整，采购和运动授权仍为 false，也不能宣称已完成集成实机测试。
+
+该 attestation 是保留的证据，不是本地授权来源：它绝不授权采购、通电或机器人运动。实际行动仍需由负责人员在受控场地和可触达急停条件下于执行时单独决定。完整约束见 [`hardware-authority-contract.md`](skills/robotics-design/references/hardware-authority-contract.md)。
 
 ## 任务与鲁棒性证据接收
 
@@ -148,12 +150,12 @@ python skills/robotics-design/scripts/validate_task_evidence.py \
 
 随附参考索引刻意为空，会以 `awaiting_authorization` 返回退出码 `1`。本地证据验证不授权采购、通电、运动或任何经验性任务性能结论。
 
-## v1.0 可复现公开交付
+## v1.1 可复现公开交付
 
-1.0 版把公开的软件与证据表面绑定到规范的发布合同。可用以下命令验证该交付以及刻意为空的参考硬件 evidence intake：
+1.1 版把扩展后的公开软件与证据表面绑定到规范的发布合同，同时保留已发布 v1.0 合同用于历史复验。可用以下命令验证当前交付以及刻意为空的参考硬件 evidence intake：
 
 ```bash
-python skills/robotics-design/scripts/validate_release_delivery.py --root . --contract release/v1-release-contract.json
+python skills/robotics-design/scripts/validate_release_delivery.py --root . --contract release/v1.1-release-contract.json
 ```
 
 此命令验证公开的软件与证据交付，不验证实体机器人性能，也不授权硬件操作。

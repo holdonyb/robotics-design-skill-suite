@@ -20,11 +20,11 @@ already-bound design hash. Reports remain authorization-negative.
 - Create: `skills/robotics-design/scripts/assurance/commissioning/authority.py`
 - Create: `tests/test_commissioning_authority.py`
 
-- [ ] Write tests for canonical closed records and each scope mismatch.
-- [ ] Run the focused test and observe missing-module failure.
-- [ ] Implement canonical bound-file loading, field/date/finite validation,
+- [x] Write tests for canonical closed records and each scope mismatch.
+- [x] Run the focused test and observe missing-module failure.
+- [x] Implement canonical bound-file loading, field/date/finite validation,
   and phase/design/scope cross-binding.
-- [ ] Run the focused test green.
+- [x] Run the focused test green.
 
 ### Task 2: Commissioning integration
 
@@ -33,12 +33,12 @@ already-bound design hash. Reports remain authorization-negative.
 - Modify: `tests/test_commissioning_evaluator.py`
 - Modify: `tests/test_commissioning_cli.py`
 
-- [ ] Require `execution_date` and `authority_record` for recorded phases.
-- [ ] Pass the known design hash from the populated CLI intake into the
+- [x] Require `execution_date` and `authority_record` for recorded phases.
+- [x] Pass the known design hash from the populated CLI intake into the
   evaluator and reject a record bound to another design.
-- [ ] Preserve empty-reference behavior and immutable false authorization
+- [x] Preserve empty-reference behavior and immutable false authorization
   fields.
-- [ ] Run focused commissioning suites green.
+- [x] Run focused commissioning suites green.
 
 ### Task 3: Public route and full verification
 
@@ -46,9 +46,9 @@ already-bound design hash. Reports remain authorization-negative.
 - Modify: `skills/robotics-design/SKILL.md`
 - Modify: `tests/test_robotics_design_behavior.py`
 
-- [ ] Document the externally attested, non-authorizing intake before real
+- [x] Document the externally attested, non-authorizing intake before real
   motion in the router.
-- [ ] Add a behavior regression for the route and non-authority boundary.
-- [ ] Run full suite, distribution validation, installer dry-run, compile, and
+- [x] Add a behavior regression for the route and non-authority boundary.
+- [x] Run full suite, distribution validation, installer dry-run, compile, and
   diff check.
-- [ ] Commit with `feat: bind commissioning records to external authority`.
+- [x] Commit with `feat: add v1.1 hardware authority intake`.
