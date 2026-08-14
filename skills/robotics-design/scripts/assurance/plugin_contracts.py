@@ -71,7 +71,23 @@ ARM_LOAD_DIMENSIONS = {
     "horizontal_lever_m": "length",
 }
 
-KNOWN_PLUGINS = frozenset((*FLAT_PLUGIN_DIMENSIONS, "arm_gravity_v1"))
+ARM_LOAD_ENVELOPE_FIELDS = frozenset(
+    {
+        "joint_order",
+        "joints",
+        "links",
+        "payload",
+        "load_cases",
+        "continuous_safety_factor",
+        "brake_safety_factor",
+        "rated_continuous_torque_nm",
+        "brake_holding_torque_nm",
+    }
+)
+
+KNOWN_PLUGINS = frozenset(
+    (*FLAT_PLUGIN_DIMENSIONS, "arm_gravity_v1", "arm_load_envelope_v1")
+)
 
 
 def _quantity_reference(
@@ -113,6 +129,164 @@ def _closed_object(
     return not missing and not unknown
 
 
+def _identifier(value: Any, path: str, errors: list[str]) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        errors.append(f"{path} must be a non-empty string")
+        return None
+    return value
+
+
+def _quantity_vector(
+    value: Any,
+    dimension: str,
+    count: int,
+    path: str,
+    quantities: dict[str, dict[str, Any]],
+    errors: list[str],
+) -> None:
+    if not isinstance(value, list) or len(value) != count:
+        errors.append(f"{path} must be a list of exactly {count} quantity references")
+        return
+    for index, item in enumerate(value):
+        _quantity_reference(item, dimension, f"{path}[{index}]", quantities, errors)
+
+
+def _load_envelope_rating_records(
+    value: Any,
+    field: str,
+    joint_ids: set[str],
+    path: str,
+    quantities: dict[str, dict[str, Any]],
+    errors: list[str],
+) -> None:
+    if not isinstance(value, list):
+        errors.append(f"{path}.{field} must be a list")
+        return
+    seen: set[str] = set()
+    for index, record in enumerate(value):
+        record_path = f"{path}.{field}[{index}]"
+        if not _closed_object(record, {"id", "value"}, record_path, errors):
+            continue
+        identifier = _identifier(record["id"], f"{record_path}.id", errors)
+        if identifier is None:
+            continue
+        if identifier in seen:
+            errors.append(f"{record_path}.id duplicates {identifier}")
+        seen.add(identifier)
+        _quantity_reference(record["value"], "torque", f"{record_path}.value", quantities, errors)
+    if seen != joint_ids:
+        errors.append(f"{path}.{field} must contain exactly one record for each joint_order id")
+
+
+def _validate_arm_load_envelope_inputs(
+    inputs: Any,
+    quantities: dict[str, dict[str, Any]],
+    path: str,
+) -> list[str]:
+    errors: list[str] = []
+    if not _closed_object(inputs, set(ARM_LOAD_ENVELOPE_FIELDS), path, errors):
+        return errors
+
+    joint_order = inputs["joint_order"]
+    if not isinstance(joint_order, list) or not joint_order:
+        return [*errors, f"{path}.joint_order must be a non-empty list"]
+    ordered_ids: list[str] = []
+    for index, item in enumerate(joint_order):
+        identifier = _identifier(item, f"{path}.joint_order[{index}]", errors)
+        if identifier is not None:
+            ordered_ids.append(identifier)
+    if len(set(ordered_ids)) != len(ordered_ids):
+        errors.append(f"{path}.joint_order must not contain duplicate joint ids")
+    joint_ids = set(ordered_ids)
+
+    joints = inputs["joints"]
+    if not isinstance(joints, list) or len(joints) != len(joint_order):
+        errors.append(f"{path}.joints must contain exactly one record for each joint_order id")
+    else:
+        seen_joint_ids: list[str] = []
+        expected_parent = "base_link"
+        children: list[str] = []
+        for index, joint in enumerate(joints):
+            joint_path = f"{path}.joints[{index}]"
+            expected_fields = {
+                "id", "parent", "child", "origin_xyz_m", "origin_rpy_rad", "axis_xyz"
+            }
+            if not _closed_object(joint, expected_fields, joint_path, errors):
+                continue
+            identifier = _identifier(joint["id"], f"{joint_path}.id", errors)
+            parent = _identifier(joint["parent"], f"{joint_path}.parent", errors)
+            child = _identifier(joint["child"], f"{joint_path}.child", errors)
+            if identifier is not None:
+                seen_joint_ids.append(identifier)
+                if index < len(ordered_ids) and identifier != ordered_ids[index]:
+                    errors.append(f"{joint_path}.id must equal joint_order[{index}]")
+            if parent is not None and parent != expected_parent:
+                errors.append(f"{joint_path}.parent must equal preceding chain link {expected_parent}")
+            if child is not None:
+                children.append(child)
+                expected_parent = child
+            _quantity_vector(joint["origin_xyz_m"], "length", 3, f"{joint_path}.origin_xyz_m", quantities, errors)
+            _quantity_vector(joint["origin_rpy_rad"], "angle", 3, f"{joint_path}.origin_rpy_rad", quantities, errors)
+            _quantity_vector(joint["axis_xyz"], "dimensionless", 3, f"{joint_path}.axis_xyz", quantities, errors)
+        if set(seen_joint_ids) != joint_ids or len(set(seen_joint_ids)) != len(seen_joint_ids):
+            errors.append(f"{path}.joints must map one-to-one and in order to joint_order")
+        if len(set(children)) != len(children):
+            errors.append(f"{path}.joints children must be unique")
+    expected_links = {
+        joint.get("child") for joint in joints if isinstance(joint, dict) and isinstance(joint.get("child"), str)
+    } if isinstance(joints, list) else set()
+
+    links = inputs["links"]
+    if not isinstance(links, list):
+        errors.append(f"{path}.links must be a list")
+    else:
+        seen_links: set[str] = set()
+        for index, link in enumerate(links):
+            link_path = f"{path}.links[{index}]"
+            if not _closed_object(link, {"id", "mass_kg", "com_xyz_m"}, link_path, errors):
+                continue
+            identifier = _identifier(link["id"], f"{link_path}.id", errors)
+            if identifier is not None:
+                if identifier in seen_links:
+                    errors.append(f"{link_path}.id duplicates {identifier}")
+                seen_links.add(identifier)
+            _quantity_reference(link["mass_kg"], "mass", f"{link_path}.mass_kg", quantities, errors)
+            _quantity_vector(link["com_xyz_m"], "length", 3, f"{link_path}.com_xyz_m", quantities, errors)
+        if seen_links != expected_links:
+            errors.append(f"{path}.links must contain exactly the joint child links")
+
+    payload = inputs["payload"]
+    if _closed_object(payload, {"mass_kg", "parent", "origin_xyz_m"}, f"{path}.payload", errors):
+        _quantity_reference(payload["mass_kg"], "mass", f"{path}.payload.mass_kg", quantities, errors)
+        parent = _identifier(payload["parent"], f"{path}.payload.parent", errors)
+        if parent is not None and parent not in expected_links:
+            errors.append(f"{path}.payload.parent must name a joint child link")
+        _quantity_vector(payload["origin_xyz_m"], "length", 3, f"{path}.payload.origin_xyz_m", quantities, errors)
+
+    load_cases = inputs["load_cases"]
+    if not isinstance(load_cases, list) or not load_cases:
+        errors.append(f"{path}.load_cases must be a non-empty list")
+    else:
+        case_ids: set[str] = set()
+        for index, case in enumerate(load_cases):
+            case_path = f"{path}.load_cases[{index}]"
+            if not _closed_object(case, {"id", "joint_positions_rad", "gravity_xyz_m_s2"}, case_path, errors):
+                continue
+            identifier = _identifier(case["id"], f"{case_path}.id", errors)
+            if identifier is not None:
+                if identifier in case_ids:
+                    errors.append(f"{case_path}.id duplicates {identifier}")
+                case_ids.add(identifier)
+            _quantity_vector(case["joint_positions_rad"], "angle", len(joint_order), f"{case_path}.joint_positions_rad", quantities, errors)
+            _quantity_vector(case["gravity_xyz_m_s2"], "acceleration", 3, f"{case_path}.gravity_xyz_m_s2", quantities, errors)
+
+    _quantity_reference(inputs["continuous_safety_factor"], "dimensionless", f"{path}.continuous_safety_factor", quantities, errors)
+    _quantity_reference(inputs["brake_safety_factor"], "dimensionless", f"{path}.brake_safety_factor", quantities, errors)
+    _load_envelope_rating_records(inputs["rated_continuous_torque_nm"], "rated_continuous_torque_nm", joint_ids, path, quantities, errors)
+    _load_envelope_rating_records(inputs["brake_holding_torque_nm"], "brake_holding_torque_nm", joint_ids, path, quantities, errors)
+    return errors
+
+
 def validate_plugin_inputs(
     plugin: Any,
     inputs: Any,
@@ -133,6 +307,9 @@ def validate_plugin_inputs(
                 inputs[field], dimension, f"{path}.{field}", quantities, errors
             )
         return errors
+
+    if plugin == "arm_load_envelope_v1":
+        return _validate_arm_load_envelope_inputs(inputs, quantities, path)
 
     if not _closed_object(inputs, {"joints"}, path, errors):
         return errors
