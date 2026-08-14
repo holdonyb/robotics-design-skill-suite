@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -104,6 +105,28 @@ class IndependentDynamicsTests(unittest.TestCase):
         self.assertNotEqual(primary_distance, independent_distance)
         tolerances = {item.name: 1.0 for item in primary.metrics}
         self.assertEqual("passed", compare_backends(primary, independent, tolerances).status)
+
+    def test_trace_primary_does_not_call_independent_backend(self):
+        with patch(
+            "assurance.simulation.backend.evaluate_independent_dynamics",
+            side_effect=AssertionError("primary must not delegate to independent backend"),
+        ):
+            primary = evaluate_trace_kinematics(case())
+        self.assertEqual("passed", primary.status)
+        self.assertEqual(
+            {"base_distance_m", "base_yaw_rad", "braking_distance_m", "slope_force_n", "wheel_speed_rad_s", "final_joint_error_rad"},
+            {metric.name for metric in primary.metrics},
+        )
+
+    def test_slope_and_mass_have_conservative_braking_and_gravity_metrics(self):
+        level = evaluate_independent_dynamics(case())
+        sloped = evaluate_independent_dynamics(case(mass_kg=200.0, slope_rad=0.05))
+        level_metrics = {item.name: item.value for item in level.metrics}
+        slope_metrics = {item.name: item.value for item in sloped.metrics}
+        self.assertGreater(slope_metrics["braking_distance_m"], level_metrics["braking_distance_m"])
+        self.assertGreater(slope_metrics["slope_force_n"], 0.0)
+        with self.assertRaisesRegex(BackendError, "brake"):
+            evaluate_independent_dynamics(case(slope_rad=0.2, brake_deceleration_m_s2=1.0))
 
 
 if __name__ == "__main__":

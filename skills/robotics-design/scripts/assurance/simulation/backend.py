@@ -62,8 +62,8 @@ class BackendResult:
         object.__setattr__(self, "validity_domain", tuple(sorted(set(self.validity_domain))))
 
 
-def evaluate_independent_dynamics(data: object) -> BackendResult:
-    """Evaluate a planar differential drive / endpoint fixture without Gazebo."""
+def _validated_input(data: object) -> dict[str, object]:
+    """Close and normalize the shared input domain without producing metrics."""
     if not isinstance(data, dict) or set(data) != {
         "model_sha256", "trajectory_sha256", "units", "timestamps_ns", "left_wheel_rad_s", "right_wheel_rad_s",
         "wheel_radius_m", "wheel_separation_m", "wheel_speed_limit_rad_s", "mass_kg", "slope_rad",
@@ -92,18 +92,56 @@ def evaluate_independent_dynamics(data: object) -> BackendResult:
         raise BackendError("joint final and target arrays must have equal nonzero length")
     error_limit = _finite(data["joint_error_limit_rad"], "joint_error_limit_rad", positive=True)
     final, target = [_finite(item, "joint_final_rad") for item in final], [_finite(item, "joint_target_rad") for item in target]
+    return {
+        "model_sha256": data["model_sha256"],
+        "trajectory_sha256": data["trajectory_sha256"],
+        "timestamps_ns": stamps,
+        "left_wheel_rad_s": left,
+        "right_wheel_rad_s": right,
+        "wheel_radius_m": radius,
+        "wheel_separation_m": separation,
+        "wheel_speed_limit_rad_s": speed_limit,
+        "mass_kg": mass,
+        "slope_rad": slope,
+        "brake_deceleration_m_s2": brake,
+        "joint_final_rad": final,
+        "joint_target_rad": target,
+        "joint_error_limit_rad": error_limit,
+    }
+
+
+def evaluate_independent_dynamics(data: object) -> BackendResult:
+    """Evaluate a planar differential drive / endpoint fixture without Gazebo."""
+    checked = _validated_input(data)
+    stamps = checked["timestamps_ns"]
+    left = checked["left_wheel_rad_s"]
+    right = checked["right_wheel_rad_s"]
+    radius = checked["wheel_radius_m"]
+    separation = checked["wheel_separation_m"]
+    speed_limit = checked["wheel_speed_limit_rad_s"]
+    mass = checked["mass_kg"]
+    slope = checked["slope_rad"]
+    brake = checked["brake_deceleration_m_s2"]
+    final = checked["joint_final_rad"]
+    target = checked["joint_target_rad"]
+    error_limit = checked["joint_error_limit_rad"]
     distance = yaw = 0.0
     for index in range(1, len(stamps)):
         dt = (stamps[index] - stamps[index - 1]) / 1_000_000_000
         linear = radius * (left[index - 1] + right[index - 1]) / 2
         angular = radius * (right[index - 1] - left[index - 1]) / separation
         distance += linear * dt; yaw += angular * dt
+    gravity_along_slope = 9.80665 * math.sin(slope)
+    effective_brake = brake - gravity_along_slope
+    if effective_brake <= 0:
+        raise BackendError("brake deceleration cannot overcome worst-direction slope gravity")
     peak_speed = max(abs(value) for value in left + right)
-    braking = (radius * (left[-1] + right[-1]) / 2) ** 2 / (2 * brake)
+    braking = (radius * (left[-1] + right[-1]) / 2) ** 2 / (2 * effective_brake)
+    slope_force = mass * gravity_along_slope
     joint_error = max(abs(value - target[index]) for index, value in enumerate(final))
-    values = (("base_distance_m", "m", distance, True), ("base_yaw_rad", "rad", yaw, True), ("braking_distance_m", "m", braking, True), ("wheel_speed_rad_s", "rad_s", peak_speed, peak_speed <= speed_limit), ("final_joint_error_rad", "rad", joint_error, joint_error <= error_limit))
+    values = (("base_distance_m", "m", distance, True), ("base_yaw_rad", "rad", yaw, True), ("braking_distance_m", "m", braking, True), ("slope_force_n", "N", slope_force, True), ("wheel_speed_rad_s", "rad_s", peak_speed, peak_speed <= speed_limit), ("final_joint_error_rad", "rad", joint_error, joint_error <= error_limit))
     metrics = tuple(BackendMetric(name, unit, value, value, value, "passed" if passed else "failed") for name, unit, value, passed in values)
-    return BackendResult(data["model_sha256"], data["trajectory_sha256"], "passed" if all(item.status == "passed" for item in metrics) else "failed", metrics, ("level_ground",) if slope == 0 else ("uphill_planar",))
+    return BackendResult(checked["model_sha256"], checked["trajectory_sha256"], "passed" if all(item.status == "passed" for item in metrics) else "failed", metrics, ("level_ground",) if slope == 0 else ("uphill_planar",))
 
 
 def evaluate_trace_kinematics(data: object) -> BackendResult:
@@ -115,14 +153,22 @@ def evaluate_trace_kinematics(data: object) -> BackendResult:
     """
     if not isinstance(data, dict):
         raise BackendError("trace dynamics input must be an object")
-    # Reuse the strict input-domain validator, then perform a distinct numerical
-    # reduction over already validated canonical scalar/list values.
-    checked = evaluate_independent_dynamics(data)
-    stamps = data["timestamps_ns"]
-    left = data["left_wheel_rad_s"]
-    right = data["right_wheel_rad_s"]
-    radius = float(data["wheel_radius_m"])
-    separation = float(data["wheel_separation_m"])
+    # The two adapters share only input validation.  Every metric below is
+    # recomputed here so a defect in the independent adapter cannot become a
+    # self-confirming cross-check.
+    checked = _validated_input(data)
+    stamps = checked["timestamps_ns"]
+    left = checked["left_wheel_rad_s"]
+    right = checked["right_wheel_rad_s"]
+    radius = checked["wheel_radius_m"]
+    separation = checked["wheel_separation_m"]
+    speed_limit = checked["wheel_speed_limit_rad_s"]
+    mass = checked["mass_kg"]
+    slope = checked["slope_rad"]
+    brake = checked["brake_deceleration_m_s2"]
+    final = checked["joint_final_rad"]
+    target = checked["joint_target_rad"]
+    error_limit = checked["joint_error_limit_rad"]
     distance = yaw = 0.0
     for index in range(1, len(stamps)):
         dt = (stamps[index] - stamps[index - 1]) / 1_000_000_000
@@ -132,20 +178,23 @@ def evaluate_trace_kinematics(data: object) -> BackendResult:
         angular_current = radius * (right[index] - left[index]) / separation
         distance += (linear_previous + linear_current) * dt / 2
         yaw += (angular_previous + angular_current) * dt / 2
-    replaced = []
-    for metric in checked.metrics:
-        if metric.name == "base_distance_m":
-            replaced.append(BackendMetric(metric.name, metric.unit, distance, distance, distance, metric.status))
-        elif metric.name == "base_yaw_rad":
-            replaced.append(BackendMetric(metric.name, metric.unit, yaw, yaw, yaw, metric.status))
-        else:
-            replaced.append(metric)
+    gravity_along_slope = 9.80665 * math.sin(slope)
+    effective_brake = brake - gravity_along_slope
+    if effective_brake <= 0:
+        raise BackendError("brake deceleration cannot overcome worst-direction slope gravity")
+    terminal_linear = radius * (left[-1] + right[-1]) / 2
+    braking = terminal_linear ** 2 / (2 * effective_brake)
+    slope_force = mass * gravity_along_slope
+    peak_speed = max(abs(value) for value in left + right)
+    joint_error = max(abs(value - target[index]) for index, value in enumerate(final))
+    values = (("base_distance_m", "m", distance, True), ("base_yaw_rad", "rad", yaw, True), ("braking_distance_m", "m", braking, True), ("slope_force_n", "N", slope_force, True), ("wheel_speed_rad_s", "rad_s", peak_speed, peak_speed <= speed_limit), ("final_joint_error_rad", "rad", joint_error, joint_error <= error_limit))
+    metrics = tuple(BackendMetric(name, unit, value, value, value, "passed" if passed else "failed") for name, unit, value, passed in values)
     return BackendResult(
-        checked.model_sha256,
-        checked.trajectory_sha256,
-        checked.status,
-        tuple(replaced),
-        checked.validity_domain,
+        checked["model_sha256"],
+        checked["trajectory_sha256"],
+        "passed" if all(item.status == "passed" for item in metrics) else "failed",
+        metrics,
+        ("level_ground",) if slope == 0 else ("uphill_planar",),
     )
 
 
