@@ -30,7 +30,7 @@ def _message_mapping(topic: str, message: object) -> dict:
         return {"clock": {"sec": int(message.clock.sec), "nanosec": int(message.clock.nanosec)}}
     if topic == "/joint_states":
         return {"header": {"stamp": stamp(message.header)}, "name": list(message.name), "position": list(message.position)}
-    if topic == "/odom":
+    if topic == "/diff_drive_controller/odom":
         pose = message.pose.pose
         return {
             "header": {"stamp": stamp(message.header)},

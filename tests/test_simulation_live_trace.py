@@ -79,6 +79,8 @@ class LiveTraceTests(unittest.TestCase):
         source = (ROOT / "scripts" / "validate_live_simulation_trace.py").read_text(encoding="utf-8")
         for token in ("rosbag2_py.SequentialReader", "deserialize_message", "get_message", 'storage_id="mcap"', "publish_live_trace_bundle", "validate_retained_live_trace_bundle"):
             self.assertIn(token, source)
+        self.assertIn('topic == "/diff_drive_controller/odom"', source)
+        self.assertNotIn('topic == "/odom"', source)
 
     def test_valid_capture_is_simulated_and_hardware_firewalled(self):
         result = validate_live_capture(capture(), PROFILE)
