@@ -10,13 +10,12 @@ ROS 2, and simulation skills to audited commits.
 
 ## Live State
 
-- Public release: `v0.5.0`; pull request `#6` merged as `135266f`, annotated
+- Public release: `v0.6.0`; pull request `#7` merged as `037e61a`, annotated
   tag, GitHub Release, main CI, and Linux Jazzy/Harmonic consumer gate are
   complete.
-- Current development baseline: v0.6.0 engineering-freeze candidate on
-  `feature/v060-engineering-freeze`; public release remains `v0.5.0` until
-  candidate CI, merge, tag, and release verification complete.
-- Candidate version: `0.6.0` in `manifest.json`.
+- Current development baseline: public `main` at `037e61a`; v0.7 component and
+  bench evidence intake is the next active phase.
+- Released version: `0.6.0` in `manifest.json`.
 - Third-party source locks are unchanged from v0.3.0.
 
 ## v0.5 Development Checkpoint
