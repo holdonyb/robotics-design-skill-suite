@@ -137,6 +137,17 @@ python skills/robotics-design/scripts/validate_commissioning_evidence.py \
 
 随附参考索引没有任何记录，会以 `awaiting_authorization` 返回退出码 `1`。验证器绝不连接或控制设备；即使本地提交完整，采购和运动授权仍为 false，也不能宣称已完成集成实机测试。
 
+## 任务与鲁棒性证据接收
+
+即将到来的 v0.9 门禁只接收未来的、哈希绑定的任务、故障、耐久和仿真对观测 dossier，并会重跑设计契约、工程冻结、台架和 commissioning 门禁。它只在本地汇总 metric、故障处置和残差，绝不会把任务标记为已验证。
+
+```bash
+python skills/robotics-design/scripts/validate_task_evidence.py \
+  --index reference/mobile-manipulator/task-evidence/task-evidence-index.json
+```
+
+随附参考索引刻意为空，会以 `awaiting_authorization` 返回退出码 `1`。本地证据验证不授权采购、通电、运动或任何经验性任务性能结论。
+
 ## 结构保真的机器人效果图
 
 0.2.0 版禁止图像生成模型悄悄改写机器人的机构。拓扑与姿态必须由 CAD、URDF、SDF 或等价的确定性模型负责；生成图只允许改变材质、表面处理、颜色、光照、背景和不接触机器人的环境内容。

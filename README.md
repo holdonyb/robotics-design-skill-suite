@@ -178,6 +178,22 @@ The shipped reference index has no records and exits `1` with
 even a complete local submission leaves procurement and motion authorization
 false and is not an integrated-hardware-tested claim.
 
+## Task and robustness evidence intake
+
+The upcoming v0.9 gate accepts future hash-bound task, fault, endurance, and
+simulation-to-observation dossiers only after re-running the contract, freeze,
+bench, and commissioning gates. It derives metric summaries, fault
+dispositions, and residual summaries locally; it never marks a task validated.
+
+```bash
+python skills/robotics-design/scripts/validate_task_evidence.py \
+  --index reference/mobile-manipulator/task-evidence/task-evidence-index.json
+```
+
+The shipped reference index is intentionally empty and exits `1` with
+`awaiting_authorization`. Local evidence validation never authorizes
+procurement, energization, motion, or an empirical task-performance claim.
+
 ## Structure-preserving robot renders
 
 Version 0.2.0 prevents image generation from silently changing a robot's mechanism. CAD, URDF, SDF, or an equivalent deterministic model must own topology and pose. A generated image may change materials, surface finish, color, lighting, background, and non-contact environment context only.
