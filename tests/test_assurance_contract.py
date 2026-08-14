@@ -217,19 +217,19 @@ class AssuranceContractTests(unittest.TestCase):
         invalid = {"joints": [{**valid["joints"][0], "moment_nm": "quantity:Q-R"}]}
         self.assertTrue(validate_plugin_inputs("bearing_static_v1", invalid, quantities, "inputs"))
 
-    def test_arm_load_envelope_ratings_bind_to_the_named_actuator_components(self):
+    def test_arm_load_envelope_output_ratings_bind_to_the_named_reducers(self):
         data = {
             "architecture": {"actuators": ["joint_1", "joint_2"], "drive_units": []},
             "quantities": [
-                {"id": "Q-M1", "owner": "component:CMP-M1"},
+                {"id": "Q-M1", "owner": "component:CMP-R1"},
                 {"id": "Q-B1", "owner": "component:CMP-B1"},
-                {"id": "Q-M2", "owner": "component:CMP-M2"},
+                {"id": "Q-M2", "owner": "component:CMP-R2"},
                 {"id": "Q-B2", "owner": "component:CMP-B2"},
             ],
             "components": [
-                {"id": "CMP-M1", "role": "motor", "state": "engineering_placeholder", "bindings": ["actuator:joint_1"]},
+                {"id": "CMP-R1", "role": "reducer", "state": "engineering_placeholder", "bindings": ["actuator:joint_1"]},
                 {"id": "CMP-B1", "role": "brake", "state": "engineering_placeholder", "bindings": ["actuator:joint_1"]},
-                {"id": "CMP-M2", "role": "motor", "state": "engineering_placeholder", "bindings": ["actuator:joint_2"]},
+                {"id": "CMP-R2", "role": "reducer", "state": "engineering_placeholder", "bindings": ["actuator:joint_2"]},
                 {"id": "CMP-B2", "role": "brake", "state": "engineering_placeholder", "bindings": ["actuator:joint_2"]},
             ],
             "analyses": [
@@ -407,6 +407,44 @@ class AssuranceContractTests(unittest.TestCase):
         component["limits"] = {"magic_rating": "quantity:Q-RATING"}
         self.assertTrue(
             any("limits has unsupported fields for role traction_motor: magic_rating" in error for error in validate_contract(data))
+        )
+
+    def test_verified_reducer_accepts_only_a_dimensioned_output_torque_limit(self):
+        data = valid_contract()
+        component = data["components"][0]
+        component.update(
+            {
+                "role": "reducer",
+                "state": "verified_part",
+                "manufacturer": "Example Motion",
+                "part_number": "R-100",
+                "source_url": "https://example.com/R-100",
+                "source_date": "2026-08-14",
+                "source_evidence": "evidence:EV-URDF",
+                "limits": {"continuous_output_torque": "quantity:Q-RATING"},
+                "supports_claims": ["REQ-PAYLOAD"],
+            }
+        )
+        rating = data["quantities"][2]
+        rating["owner"] = f"component:{component['id']}"
+        rating["evidence_level"] = "parsed"
+        data["evidence"][0]["kind"] = "component_catalog_v1"
+        data["evidence"][0]["locator"] = component["source_url"]
+        data["evidence"][0]["observed_date"] = component["source_date"]
+        data["evidence"][0]["supports"] = list(
+            dict.fromkeys(
+                [
+                    *data["evidence"][0]["supports"],
+                    f"quantity:{rating['id']}",
+                    f"component:{component['id']}",
+                ]
+            )
+        )
+        self.assertEqual([], validate_contract(data))
+
+        component["limits"] = {"continuous_output_torque": "quantity:Q-PAYLOAD"}
+        self.assertTrue(
+            any("expects dimension torque" in error for error in validate_contract(data))
         )
 
     def test_verified_component_source_url_and_date_are_closed(self):

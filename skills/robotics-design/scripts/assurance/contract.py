@@ -41,7 +41,11 @@ ROLE_LIMIT_DIMENSIONS: dict[str, dict[str, str]] = {
         "thermal_resistance": "thermal_resistance",
         "max_winding_temperature": "temperature",
     },
-    "reducer": {"gear_ratio": "dimensionless", "efficiency": "dimensionless"},
+    "reducer": {
+        "gear_ratio": "dimensionless",
+        "efficiency": "dimensionless",
+        "continuous_output_torque": "torque",
+    },
     "wheel": {"radius": "length", "rated_load": "force"},
     "bearing": {
         "static_load": "force",
