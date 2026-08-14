@@ -62,7 +62,7 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
         self.assertEqual((), findings)
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            result = evaluate_task_packages(root, value, [nominal(root), fault(root)])
+            result = evaluate_task_packages(root, value, [nominal(root), fault(root), endurance(root), comparison(root)])
         self.assertEqual("evidence_complete", result.status)
         self.assertRegex(result.protocol_sha256, r"^[0-9a-f]{64}$")
         self.assertEqual((1, 1, 1, 1), (result.expected_nominal_trials, result.observed_nominal_trials, result.expected_fault_trials, result.observed_fault_trials))
@@ -84,7 +84,7 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
         value, _ = validate_task_protocol(minimal_protocol())
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            result = evaluate_task_packages(root, value, [nominal(root), fault(root)])
+            result = evaluate_task_packages(root, value, [nominal(root), fault(root), endurance(root), comparison(root)])
             self.assertEqual("evidence_complete", result.status)
             bad = fault(root)
             bad["fault_record"] = bind(root, "traces/fault.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "fault_id": "timeout-fault", "detected": True, "safe_state": "moving", "recovery": "manual-inspection"}]})
@@ -96,7 +96,7 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
         value, _ = validate_task_protocol(minimal_protocol())
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            result = evaluate_task_packages(root, value, [nominal(root), fault(root), endurance(root)])
+            result = evaluate_task_packages(root, value, [nominal(root), fault(root), endurance(root), comparison(root)])
             self.assertEqual("evidence_complete", result.status)
             bad = endurance(root)
             bad["endurance_record"] = bind(root, "traces/endurance.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "health": 1.0, "terminal": False}, {"timestamp_ns": 2_000_000_000, "health": 0.99, "terminal": True}]})
@@ -108,7 +108,7 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
         value, _ = validate_task_protocol(minimal_protocol())
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            result = evaluate_task_packages(root, value, [nominal(root), fault(root), comparison(root)])
+            result = evaluate_task_packages(root, value, [nominal(root), fault(root), endurance(root), comparison(root)])
             self.assertEqual("evidence_complete", result.status)
             residual = result.comparison_residuals[0]
             self.assertEqual(("base-speed", "comparison-001", 2, True), (residual.quantity_id, residual.package_id, residual.count, residual.passed))
@@ -186,6 +186,16 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
             result = evaluate_task_packages(root, value, [nominal(root)])
         self.assertEqual("rejected", result.status)
         self.assertIn("TASK.FAULT_MISSING", {item.code for item in result.findings})
+
+    def test_declared_endurance_and_comparison_require_retained_coverage(self):
+        value, _ = validate_task_protocol(minimal_protocol())
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            result = evaluate_task_packages(root, value, [nominal(root), fault(root)])
+        self.assertEqual("rejected", result.status)
+        codes = {item.code for item in result.findings}
+        self.assertIn("TASK.ENDURANCE_MISSING", codes)
+        self.assertIn("TASK.COMPARISON_MISSING", codes)
 
     def test_duplicate_raw_hash_and_trial_identity_are_rejected(self):
         value, _ = validate_task_protocol(minimal_protocol())

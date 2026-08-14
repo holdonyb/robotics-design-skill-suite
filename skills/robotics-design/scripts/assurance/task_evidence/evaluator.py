@@ -73,6 +73,8 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object,
     metric_values: dict[str, list[float]] = {item.id: [] for item in protocol.metrics}
     fault_dispositions: list[FaultDisposition] = []
     comparison_residuals: list[ComparisonResidual] = []
+    endurance_retained = False
+    comparison_quantities: set[str] = set()
     for index, package in enumerate(packages):
         path = f"packages[{index}]"
         if not isinstance(package, dict) or set(package) != _PACKAGE or type(package.get("schema_version")) is not int or package["schema_version"] != 1:
@@ -125,6 +127,8 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object,
         if package["kind"] == "endurance":
             record = _trace(_bound_json(root, package.get("endurance_record"), f"{path}.endurance_record", findings), frozenset({"timestamp_ns", "health", "terminal"}), f"{path}.endurance_record", findings)
             if record is not None:
+                if package["disposition"] == "passed":
+                    endurance_retained = True
                 stamps = [event["timestamp_ns"] for event in record]
                 if len(record) > protocol.endurance.max_samples or stamps[-1] > protocol.endurance.max_duration_ns or any(stamps[position] - stamps[position - 1] != protocol.endurance.sample_interval_ns for position in range(1, len(stamps))):
                     findings.append(_finding("TASK.ENDURANCE_TIMESTAMPS", f"{path}.endurance_record", "samples must be bounded and evenly spaced"))
@@ -145,6 +149,8 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object,
                         findings.append(_finding("TASK.COMPARISON_INVALID", path, "comparison quantity and finite values are required")); continue
                     absolute = abs(float(observation_event["value"]) - float(simulation_event["value"]))
                     relative = absolute / max(abs(float(simulation_event["value"])), 1e-12)
+                    if package["disposition"] == "passed":
+                        comparison_quantities.add(rule.id)
                     residuals.setdefault(rule.id, []).append((absolute, relative))
                     if absolute > rule.max_abs_residual or relative > rule.max_rel_residual:
                         findings.append(_finding("TASK.COMPARISON_RESIDUAL", path, "comparison residual exceeds declared limit"))
@@ -218,6 +224,11 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object,
         summaries.append(MetricSummary(rule.id, len(values), minimum, maximum, sum(values) / len(values), passed))
         if not passed:
             findings.append(_finding("TASK.METRIC_THRESHOLD", f"metrics.{rule.id}", "aggregate metric exceeds its declared threshold"))
+    if not endurance_retained:
+        findings.append(_finding("TASK.ENDURANCE_MISSING", "packages", "a passed bounded endurance package is required"))
+    for rule in protocol.comparison:
+        if rule.id not in comparison_quantities:
+            findings.append(_finding("TASK.COMPARISON_MISSING", "packages", f"a passed aligned comparison is required for {rule.id}"))
     findings.sort(key=lambda item: (item.code, item.path, item.message, item.severity))
     status = "rejected" if any(item.severity == "error" for item in findings) else "awaiting_authorization" if any(item.severity == "indeterminate" for item in findings) else "evidence_complete"
     normalized_protocol = {
