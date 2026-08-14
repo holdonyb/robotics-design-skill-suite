@@ -12,13 +12,14 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from assurance.engine import evaluate_contract
-from assurance.hypothesis.canonical import canonical_bytes, canonical_value
+from assurance.hypothesis.canonical import canonical_bytes, canonical_value, validate_sha256
 from assurance.simulation.admission import evaluate_simulation_admission
 from assurance.simulation.backend import (
     compare_backends,
@@ -117,6 +118,22 @@ def _samples_for(scenario, *, failed: bool) -> tuple[TraceSample, TraceSample]:
 
 def _backend_input(replay: dict[str, Any]) -> dict[str, object]:
     """Use receipt-validated replay samples as the backend-consumer input."""
+    try:
+        identity = {
+            "scenario_id": replay["scenario_id"],
+            "trace_sha256": replay["trace_sha256"],
+            "model_sha256": replay["model_sha256"],
+            "trajectory_sha256": replay["trajectory_sha256"],
+        }
+    except (KeyError, TypeError) as exc:
+        raise BenchmarkError(f"replayed trace lacks required provenance: {exc}") from None
+    if not isinstance(identity["scenario_id"], str) or not identity["scenario_id"]:
+        raise BenchmarkError("replayed trace scenario provenance is invalid")
+    try:
+        for field in ("trace_sha256", "model_sha256", "trajectory_sha256"):
+            validate_sha256(identity[field], f"replay.{field}")
+    except ValueError as exc:
+        raise BenchmarkError(f"replayed trace provenance is invalid: {exc}") from None
     samples = replay["samples"]
     try:
         timestamps = [item["timestamp_ns"] for item in samples]
@@ -124,9 +141,12 @@ def _backend_input(replay: dict[str, Any]) -> dict[str, object]:
         right = [item["state"]["right_wheel_rad_s"] for item in samples]
     except (KeyError, TypeError) as exc:
         raise BenchmarkError(f"replayed trace lacks required wheel state: {exc}") from None
+    for name, values in (("left_wheel_rad_s", left), ("right_wheel_rad_s", right)):
+        if any(type(value) not in (int, float) or not math.isfinite(float(value)) for value in values):
+            raise BenchmarkError(f"replayed trace wheel state {name} must contain finite numbers")
     return {
-        "model_sha256": replay["model_sha256"],
-        "trajectory_sha256": replay["trajectory_sha256"],
+        "model_sha256": identity["model_sha256"],
+        "trajectory_sha256": identity["trajectory_sha256"],
         "units": "si",
         "timestamps_ns": timestamps,
         "left_wheel_rad_s": left,
@@ -140,6 +160,41 @@ def _backend_input(replay: dict[str, Any]) -> dict[str, object]:
         "joint_final_rad": replay["samples"][-1]["positions"],
         "joint_target_rad": [0.0] * len(replay["joint_order"]),
         "joint_error_limit_rad": 0.01,
+    }
+
+
+def _backend_result(result: Any) -> dict[str, Any]:
+    return {
+        "status": result.status,
+        "metrics": [
+            {
+                "name": metric.name,
+                "unit": metric.unit,
+                "value": metric.value,
+                "lower": metric.lower,
+                "upper": metric.upper,
+                "status": metric.status,
+            }
+            for metric in result.metrics
+        ],
+    }
+
+
+def _crosscheck_record(replay: dict[str, Any]) -> dict[str, Any]:
+    backend_trace = _backend_input(replay)
+    primary = evaluate_trace_kinematics(backend_trace)
+    independent = evaluate_independent_dynamics(backend_trace)
+    tolerances = {metric.name: 1e-9 for metric in primary.metrics}
+    comparison = compare_backends(primary, independent, tolerances)
+    return {
+        "scenario_id": replay["scenario_id"],
+        "trace_sha256": replay["trace_sha256"],
+        "model_sha256": replay["model_sha256"],
+        "trajectory_sha256": replay["trajectory_sha256"],
+        "primary": _backend_result(primary),
+        "independent": _backend_result(independent),
+        "comparison": _backend_result(comparison),
+        "status": comparison.status,
     }
 
 
@@ -196,11 +251,9 @@ def run_reference_benchmark(
     passed = sum(item["status"] == "passed" for item in replayed)
     failed = len(replayed) - passed
 
-    backend_trace = _backend_input(replayed[0])
-    primary = evaluate_trace_kinematics(backend_trace)
-    independent = evaluate_independent_dynamics(backend_trace)
-    tolerances = {metric.name: 1e-9 for metric in primary.metrics}
-    comparison = compare_backends(primary, independent, tolerances).status
+    crosschecks = [_crosscheck_record(replay) for replay in replayed]
+    crosschecks.sort(key=lambda item: item["scenario_id"])
+    comparison = "passed" if all(item["status"] == "passed" for item in crosschecks) else "failed"
     calibration = fit_calibration(
         load_calibration_dataset(root / "simulation" / "calibration-synthetic.json")
     )
@@ -213,7 +266,12 @@ def run_reference_benchmark(
         "passed_scenarios": passed,
         "failed_scenarios": failed,
         "replays": replayed,
-        "independent_backend": {"status": comparison, "evidence_level": "calculated"},
+        "backend_crosschecks": crosschecks,
+        "independent_backend": {
+            "status": comparison,
+            "evidence_level": "calculated",
+            "crosscheck_count": len(crosschecks),
+        },
         "calibration": {
             "evidence_level": calibration.evidence_level,
             "pipeline_test_only": calibration.pipeline_test_only,
