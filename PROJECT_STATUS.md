@@ -10,14 +10,14 @@ ROS 2, and simulation skills to audited commits.
 
 ## Live State
 
-- v0.9.0 candidate is local-only on `feature/v090-task-evidence`; it adds a
-  hash-bound offline task/fault/endurance/comparison dossier, keeps the shipped
-  reference intake empty, and never authorizes procurement, motion, or task
-  validation. Candidate evidence: 445 tests, distribution validation,
-  installer dry-run, compile check, and diff check passed locally.
-- Public release: `v0.8.0`; pull request `#10` merged as `e6521fd`, annotated
-  tag and GitHub Release are published. Main CI `31763218034`, main
-  Jazzy/Harmonic consumer gate `31763218001`, and tag CI `31763519145` passed.
+- Public release: `v0.9.0`; pull request `#12` merged as `ffb22ab`, annotated
+  tag `v0.9.0` and [GitHub Release](https://github.com/holdonyb/robotics-design-skill-suite/releases/tag/v0.9.0)
+  are published. Reviewed-head CI `31767007295`, reviewed-head live gate
+  `31767007307`, main CI `31767307504`, main live gate `31767307319`, and tag
+  CI `31767319218` passed.
+- v0.9 adds a hash-bound offline task/fault/endurance/comparison dossier,
+  keeps the shipped reference intake empty, and never authorizes procurement,
+  motion, or task validation.
 - v0.8 accepts future offline commissioning-evidence submissions only through
   hash-bound staged records and accepted non-fixture bench evidence. The
   shipped reference index is intentionally empty and remains
@@ -171,11 +171,17 @@ report 0 accepted because placeholders remain.
 
 ## Roadmap and Next Action
 
-1. Continue v0.9 with supplier/BOM, curves, traction/braking, structure,
-   transient thermal/electrical, safety faults, bench evidence, controlled
-   integration, field trials, and reliability evidence.
-2. Complete v1.0 only after the end-to-end evidence chain and every required
-   real-hardware dependency/authorization are genuinely satisfied.
+1. Start v1.0 with a closed physical-plausibility chain: supplier/BOM and
+   curves, actuator/transmission ownership, traction/braking, structure, and
+   transient thermal/electrical analyses must be explicitly bound to the
+   design contract.
+2. Extend that chain through adversarial simulation and training: faulted
+   scenarios, independent dynamics cross-checks, policy evaluation, and
+   trace-bound task evidence must fail closed rather than infer performance.
+3. Treat bench evidence, controlled integration, field trials, and reliability
+   as future evidence tracks. Complete v1.0 only when the end-to-end chain and
+   every real-hardware dependency, site condition, and explicit authorization
+   are genuinely satisfied; no purchase or robot motion is authorized now.
 
 ## Durable Sources
 
