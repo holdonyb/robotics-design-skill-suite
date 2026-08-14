@@ -56,8 +56,11 @@ class CommissioningCliTests(unittest.TestCase):
             index = root / "commissioning-index.json"
             index.write_bytes(canonical(source))
             result = self.run_cli(index)
-            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(1, result.returncode, result.stderr)
             ready_stdout = result.stdout
+            self.assertIn('"status":"awaiting_authorization"', ready_stdout)
+            self.assertIn("COMM.FREEZE_NOT_READY", ready_stdout)
+            self.assertIn("COMM.BENCH_EVIDENCE_REQUIRED", ready_stdout)
             freeze_path = root / "engineering-freeze" / "freeze-package.json"
             freeze_path.write_bytes(canonical({"schema_version": 1, "freeze_id": "freeze-invalid"}))
             source["freeze_package"]["sha256"] = hashlib.sha256(freeze_path.read_bytes()).hexdigest()
@@ -66,7 +69,6 @@ class CommissioningCliTests(unittest.TestCase):
             self.assertEqual(2, result.returncode)
             self.assertIn("freeze package", result.stderr)
             self.assertNotIn("Traceback", result.stderr)
-        self.assertIn('"status":"ready"', ready_stdout)
         self.assertIn('"motion_authorized":false', ready_stdout)
 
     def test_malformed_or_tampered_input_exits_two_without_traceback(self):

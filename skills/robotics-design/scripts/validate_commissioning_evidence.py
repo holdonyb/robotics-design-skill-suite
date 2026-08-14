@@ -13,6 +13,7 @@ from assurance.contract import load_contract
 from assurance.engineering_freeze.evaluator import evaluate_engineering_freeze
 from assurance.engineering_freeze.schema import load_canonical_json
 from assurance.hypothesis.canonical import canonical_bytes, validate_sha256
+from assurance.commissioning.model import CommissioningFinding, CommissioningReport
 
 
 _EMPTY = frozenset({"schema_version", "commissioning_id", "phases"})
@@ -76,7 +77,9 @@ def main(argv: list[str] | None = None) -> int:
                 item.get("id") for item in components
                 if isinstance(item, dict) and item.get("state") == "engineering_placeholder" and isinstance(item.get("id"), str)
             }
-            freeze_path, _ = _bound_json(args.index.parent, index["freeze_package"], "freeze_package")
+            freeze_path, freeze_data = _bound_json(args.index.parent, index["freeze_package"], "freeze_package")
+            if freeze_data.get("design_contract", {}).get("sha256") != index["design_contract"]["sha256"]:
+                raise ValueError("freeze package does not bind the commissioning design contract")
             freeze_report = evaluate_engineering_freeze(args.index.parent, freeze_path, placeholder_components=placeholders)
             if freeze_report.freeze_id == "freeze-invalid":
                 raise ValueError("freeze package is invalid")
@@ -84,6 +87,13 @@ def main(argv: list[str] | None = None) -> int:
             if set(bench_index) not in ({"schema_version", "intake_id", "packages"}, {"schema_version", "intake_id", "packages", "design_contract"}) or bench_index.get("schema_version") != 1 or not isinstance(bench_index.get("packages"), list):
                 raise ValueError("bench_index must be a closed schema-v1 intake")
             report = evaluate_commissioning_package(args.index.parent, {key: index[key] for key in _EMPTY})
+            upstream_findings = []
+            if not freeze_report.freeze_ready:
+                upstream_findings.append(CommissioningFinding("COMM.FREEZE_NOT_READY", "indeterminate", "freeze_package", "engineering freeze remains incomplete and blocks commissioning readiness"))
+            if not bench_index["packages"]:
+                upstream_findings.append(CommissioningFinding("COMM.BENCH_EVIDENCE_REQUIRED", "indeterminate", "bench_index.packages", "commissioning readiness requires retained component bench evidence"))
+            if upstream_findings and report.status != "rejected":
+                report = CommissioningReport(report.commissioning_id, "awaiting_authorization", report.findings + tuple(upstream_findings), report.highest_validated_phase)
         sys.stdout.buffer.write(canonical_bytes(report.to_dict()))
         return 0 if report.status == "ready" else 1
     except (OSError, ValueError) as exc:

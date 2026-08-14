@@ -18,13 +18,14 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 5. For simulation admission, deterministic trace replay, calibration, or bounded training callbacks, read `references/simulation-evidence-contract.md`; run `scripts/validate_simulation_bundle.py` before making any simulated claim.
 6. For a supplier review, engineering freeze, procurement package, controlled drawing, wiring/protection, hazard log, inspection plan, or planned hardware test card, run `scripts/validate_engineering_freeze.py`; its result never authorizes procurement or motion.
 7. For real component bench evidence, validate raw local data, instrument calibration, and an approved recording card with `scripts/validate_bench_evidence.py`; absent raw evidence is never a measurement.
-8. For any generated product, task, concept, or marketing image of the robot, read `references/visualization-contract.md` before creating references or prompts.
-8. For a task, product, or demonstration animation, read `references/mission-animation-contract.md` before creating trajectories, keyframes, renders, or video.
-9. For patent study, design-around, freedom-to-operate screening, or competitor-inspired mechanisms, read `references/patent-design-around.md` before freezing topology or interfaces.
-10. Load each required sub-skill from the router before editing its artifact.
-11. Run the relevant gates in `references/validation-gates.md`.
-12. Use `references/authority-map.md` for method selection, `references/runtime.md` for environment setup, and `references/source-lock.md` for supply-chain review.
-13. If `references/host-runtime.md` exists, read it for this installation's runtime executable and destination; never copy those host values into project artifacts.
+8. For a future controlled commissioning submission, validate only retained local records with `scripts/validate_commissioning_evidence.py`; it never authorizes procurement, energization, or motion.
+9. For any generated product, task, concept, or marketing image of the robot, read `references/visualization-contract.md` before creating references or prompts.
+10. For a task, product, or demonstration animation, read `references/mission-animation-contract.md` before creating trajectories, keyframes, renders, or video.
+11. For patent study, design-around, freedom-to-operate screening, or competitor-inspired mechanisms, read `references/patent-design-around.md` before freezing topology or interfaces.
+12. Load each required sub-skill from the router before editing its artifact.
+13. Run the relevant gates in `references/validation-gates.md`.
+14. Use `references/authority-map.md` for method selection, `references/runtime.md` for environment setup, and `references/source-lock.md` for supply-chain review.
+15. If `references/host-runtime.md` exists, read it for this installation's runtime executable and destination; never copy those host values into project artifacts.
 
 ## Capability Router
 
@@ -35,6 +36,7 @@ Route robot work through an evidence-gated system workflow. Produce a traceable 
 | Simulation admission, trace replay, calibration, bounded training | `references/simulation-evidence-contract.md`, then `$ros2-sim` when a live consumer is requested | Portable replay remains `simulated`; live ROS/Gazebo consumer evidence and hardware authorization are separate gates. |
 | Supplier review, engineering freeze, controlled drawings, wiring, hazards, inspection, planned hardware cards | `$robotics-design` then `scripts/validate_engineering_freeze.py` | Hash-bound documents can support engineering review only; procurement and motion are always denied. |
 | Component characterization, raw bench data, instrument calibration | `$robotics-design` then `scripts/validate_bench_evidence.py` | Only original hash-bound local measurements may claim `bench-tested`; validation never controls equipment. |
+| Future commissioning records, protected power-up, restricted motion, stop/timeout traces | `$robotics-design` then `scripts/validate_commissioning_evidence.py` | Offline validation accepts only bounded local records; it never authorizes or controls hardware. |
 | Parametric parts, assemblies, brackets, enclosures, STEP, collision geometry | `$cad` | CAD owns geometry and controlled datums. |
 | Purchasable motors, servos, reducers, bearings, brakes, drivers, batteries, electronics | `references/physical-plausibility-contract.md`, then `$step-parts` and `$cad` | Bind exact parts to architecture responsibilities and verify ratings; otherwise retain an unpromoted engineering placeholder. |
 | DXF profiles, panels, drawings, cut layouts | `$dxf`; also `$cad` when derived from 3D | Keep 2D output linked to owning geometry. |
