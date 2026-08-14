@@ -3,6 +3,9 @@
   ros_type_name: rosgraph_msgs/msg/Clock
   gz_type_name: gz.msgs.Clock
   direction: GZ_TO_ROS
+  qos_profile: CLOCK
+  subscriber_queue: 1
+  publisher_queue: 1
 - ros_topic_name: /imu/data
   gz_topic_name: /imu/data
   ros_type_name: sensor_msgs/msg/Imu

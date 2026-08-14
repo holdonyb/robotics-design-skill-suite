@@ -132,14 +132,15 @@ class LiveTraceTests(unittest.TestCase):
         self.assertEqual(capture(), normalized)
         delayed_joint_state = list(records)
         delayed_joint_state[3] = dict(delayed_joint_state[3], timestamp_ns=123_456_789)
-        self.assertEqual(123_456_789, normalize_records(delayed_joint_state)["joint_samples"][0]["timestamp_ns"])
+        self.assertEqual(0, normalize_records(delayed_joint_state)["joint_samples"][0]["timestamp_ns"])
         stale_header = list(records)
         stale_header[4] = dict(
             stale_header[4],
             message={"header": {"stamp": {"sec": 0, "nanosec": 0}}, "name": ["left_wheel_joint", "right_wheel_joint", "joint_1"], "position": [1.0, 1.0, 0.0]},
         )
-        self.assertEqual(2_000_000_000, normalize_records(stale_header)["joint_samples"][1]["timestamp_ns"])
-        self.assertEqual("passed", validate_live_capture(normalize_records(stale_header), PROFILE)["status"])
+        self.assertEqual(0, normalize_records(stale_header)["joint_samples"][1]["timestamp_ns"])
+        with self.assertRaisesRegex(LiveTraceError, "strictly increasing"):
+            validate_live_capture(normalize_records(stale_header), PROFILE)
         invalid = list(records)
         invalid[0] = dict(invalid[0], topic="/rogue")
         with self.assertRaisesRegex(LiveTraceError, "unknown topic"):
