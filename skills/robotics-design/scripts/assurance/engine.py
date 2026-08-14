@@ -102,11 +102,11 @@ def _analysis_coverage_diagnostics(data: dict[str, Any]) -> list[Diagnostic]:
             undeclared_message = (
                 "battery_v1 requires battery_powered architecture and no drive or actuator scope"
             )
-        elif plugin == "arm_gravity_v1" and (
+        elif plugin in {"arm_gravity_v1", "arm_load_envelope_v1"} and (
             not declared_actuators or not scoped_actuators or bool(scoped_drives)
         ):
             undeclared_message = (
-                "arm_gravity_v1 requires declared actuators, explicit actuator coverage, and no drive scope"
+                f"{plugin} requires declared actuators, explicit actuator coverage, and no drive scope"
             )
         elif plugin == "thermal_duty_v1" and (
             len(scoped_drives) + len(scoped_actuators) != 1
@@ -143,13 +143,19 @@ def _analysis_coverage_diagnostics(data: dict[str, Any]) -> list[Diagnostic]:
                 )
             )
 
-        if plugin != "arm_gravity_v1":
+        if plugin not in {"arm_gravity_v1", "arm_load_envelope_v1"}:
             continue
-        joint_ids = {
-            joint.get("id")
-            for joint in analysis.get("inputs", {}).get("joints", [])
-            if isinstance(joint, dict) and isinstance(joint.get("id"), str)
-        }
+        if plugin == "arm_gravity_v1":
+            joint_ids = {
+                joint.get("id")
+                for joint in analysis.get("inputs", {}).get("joints", [])
+                if isinstance(joint, dict) and isinstance(joint.get("id"), str)
+            }
+        else:
+            joint_order = analysis.get("inputs", {}).get("joint_order", [])
+            joint_ids = {
+                joint_id for joint_id in joint_order if isinstance(joint_id, str)
+            } if isinstance(joint_order, list) else set()
         covered_actuators = scoped_actuators
         for actuator in sorted(covered_actuators - joint_ids):
             diagnostics.append(
@@ -157,7 +163,7 @@ def _analysis_coverage_diagnostics(data: dict[str, Any]) -> list[Diagnostic]:
                     "PHY.ANALYSIS.COVERAGE_MISMATCH",
                     "indeterminate",
                     f"analyses[{index}].covers",
-                    f"arm analysis claims actuator coverage without a joint load: {actuator}",
+                    f"arm analysis claims actuator coverage without a declared joint: {actuator}",
                 )
             )
         for joint_id in sorted(joint_ids - declared_actuators):
@@ -343,6 +349,27 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
                     "holding_torque",
                     nested,
                 )
+        elif plugin == "arm_load_envelope_v1":
+            for field, role, limit_name in (
+                ("rated_continuous_torque_nm", "motor", "continuous_torque"),
+                ("brake_holding_torque_nm", "brake", "holding_torque"),
+            ):
+                records = inputs.get(field, [])
+                if not isinstance(records, list):
+                    continue
+                for record_index, record in enumerate(records):
+                    if not isinstance(record, dict) or not isinstance(record.get("id"), str):
+                        continue
+                    responsibility = f"actuator:{record['id']}"
+                    check_owner(
+                        index,
+                        record,
+                        "value",
+                        responsibility,
+                        role,
+                        limit_name,
+                        f".{field}[{record_index}]",
+                    )
         elif plugin == "thermal_duty_v1" and len(scoped) == 1:
             responsibility = scoped[0]
             role = "traction_motor" if responsibility.startswith("drive:") else "motor"
