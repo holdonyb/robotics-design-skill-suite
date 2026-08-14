@@ -75,13 +75,15 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
         if package["package_id"] in package_ids:
             findings.append(_finding("TASK.PACKAGE_INVALID", f"{path}.package_id", "package ids must be unique")); continue
         package_ids.add(package["package_id"])
-        if package.get("kind") not in {"nominal", "fault", "endurance"} or package.get("disposition") not in {"passed", "aborted", "failed"} or type(package.get("repetition")) is not int or not 1 <= package["repetition"] <= protocol.repetitions:
+        if package.get("kind") not in {"nominal", "fault", "endurance", "comparison"} or package.get("disposition") not in {"passed", "aborted", "failed"} or type(package.get("repetition")) is not int or not 1 <= package["repetition"] <= protocol.repetitions:
             findings.append(_finding("TASK.PACKAGE_INVALID", path, "kind, disposition, and repetition are invalid")); continue
         fault_profiles = {item.id: item for item in protocol.faults}
         if package["kind"] == "nominal" and (package.get("fault_id") is not None or package.get("fault_record") is not None):
             findings.append(_finding("TASK.PACKAGE_INVALID", path, "nominal trials must not carry fault evidence"))
         if package["kind"] != "endurance" and package.get("endurance_record") is not None:
             findings.append(_finding("TASK.PACKAGE_INVALID", path, "only endurance trials may carry endurance record"))
+        if package["kind"] != "comparison" and package.get("comparison_record") is not None:
+            findings.append(_finding("TASK.PACKAGE_INVALID", path, "only comparison trials may carry comparison record"))
         if package["kind"] == "fault":
             fault_id = package.get("fault_id")
             profile = fault_profiles.get(fault_id) if isinstance(fault_id, str) else None
@@ -102,6 +104,19 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
                     findings.append(_finding("TASK.ENDURANCE_TIMESTAMPS", f"{path}.endurance_record", "samples must be bounded and evenly spaced"))
                 if any(not _finite(event.get("health")) or type(event.get("terminal")) is not bool for event in record) or [event["terminal"] for event in record].count(True) != 1 or not record[-1]["terminal"]:
                     findings.append(_finding("TASK.ENDURANCE_INVALID", f"{path}.endurance_record", "finite health and one terminal final sample are required"))
+        if package["kind"] == "comparison":
+            record = _trace(_bound_json(root, package.get("comparison_record"), f"{path}.comparison_record", findings), frozenset({"timestamp_ns", "quantity_id", "simulated", "observed"}), f"{path}.comparison_record", findings)
+            rules = {item.id: item for item in protocol.comparison}
+            if record is not None:
+                for event in record:
+                    quantity_id = event.get("quantity_id")
+                    rule = rules.get(quantity_id) if isinstance(quantity_id, str) else None
+                    if rule is None or not _finite(event.get("simulated")) or not _finite(event.get("observed")):
+                        findings.append(_finding("TASK.COMPARISON_INVALID", f"{path}.comparison_record", "comparison quantity and finite values are required")); continue
+                    absolute = abs(float(event["observed"]) - float(event["simulated"]))
+                    relative = absolute / max(abs(float(event["simulated"])), 1e-12)
+                    if absolute > rule.max_abs_residual or relative > rule.max_rel_residual:
+                        findings.append(_finding("TASK.COMPARISON_RESIDUAL", f"{path}.comparison_record", "comparison residual exceeds declared limit"))
         envelope = package.get("envelope")
         if not isinstance(envelope, dict) or set(envelope) != set(expected_envelope) or any(not _finite(value) or float(value) not in expected_envelope[name] for name, value in envelope.items()):
             findings.append(_finding("TASK.ENVELOPE_INVALID", f"{path}.envelope", "envelope must match declared protocol values"))

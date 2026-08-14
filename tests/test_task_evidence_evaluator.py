@@ -42,6 +42,12 @@ def endurance(root):
     return value
 
 
+def comparison(root):
+    value = nominal(root)
+    value.update({"package_id": "comparison-001", "kind": "comparison", "comparison_record": bind(root, "traces/comparison.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "quantity_id": "base-speed", "simulated": 0.10, "observed": 0.12}, {"timestamp_ns": 1, "quantity_id": "base-speed", "simulated": 0.20, "observed": 0.18}]})})
+    return value
+
+
 class TaskEvidenceEvaluatorTests(unittest.TestCase):
     def test_nominal_trial_is_valid_but_never_task_validated(self):
         value, findings = validate_task_protocol(protocol())
@@ -84,6 +90,18 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
             result = evaluate_task_packages(root, value, [bad])
         self.assertEqual("rejected", result.status)
         self.assertIn("TASK.ENDURANCE_TIMESTAMPS", {item.code for item in result.findings})
+
+    def test_comparison_requires_declared_bounded_residuals(self):
+        value, _ = validate_task_protocol(protocol())
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            result = evaluate_task_packages(root, value, [comparison(root)])
+            self.assertEqual("evidence_complete", result.status)
+            bad = comparison(root)
+            bad["comparison_record"] = bind(root, "traces/comparison.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "quantity_id": "base-speed", "simulated": 0.1, "observed": 0.5}]})
+            result = evaluate_task_packages(root, value, [bad])
+        self.assertEqual("rejected", result.status)
+        self.assertIn("TASK.COMPARISON_RESIDUAL", {item.code for item in result.findings})
 
 
 if __name__ == "__main__":
