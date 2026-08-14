@@ -331,6 +331,24 @@ def require_live_dynamics_crosscheck(capture: object, profile: object) -> dict[s
     return crosscheck
 
 
+def require_turning_evidence(capture: object, crosscheck: object) -> None:
+    """Require a bounded positive turn in an already validated live capture."""
+    if not isinstance(capture, dict) or not isinstance(capture.get("command_samples"), list):
+        raise LiveTraceError("turning capture command samples are invalid")
+    angular = []
+    for index, sample in enumerate(capture["command_samples"]):
+        if not isinstance(sample, dict):
+            raise LiveTraceError(f"turning command_samples[{index}] is invalid")
+        angular.append(_finite(sample.get("angular_z_rad_s"), f"turning command_samples[{index}].angular_z_rad_s"))
+    if not angular or max(angular) <= 0.05:
+        raise LiveTraceError("turning evidence requires a positive angular command")
+    if not isinstance(crosscheck, dict) or not isinstance(crosscheck.get("observed"), dict):
+        raise LiveTraceError("turning crosscheck observation is invalid")
+    observed_yaw = _finite(crosscheck["observed"].get("base_yaw_rad"), "turning observed base_yaw_rad")
+    if observed_yaw <= 0.05:
+        raise LiveTraceError("turning evidence requires a positive observed yaw")
+
+
 def _raw_inventory(raw_bag: str | Path) -> list[dict[str, Any]]:
     root = Path(raw_bag)
     if root.is_symlink() or not root.is_dir():

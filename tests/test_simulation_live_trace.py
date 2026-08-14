@@ -14,6 +14,7 @@ from assurance.simulation.live_trace import (  # noqa: E402
     crosscheck_live_dynamics,
     normalize_records,
     publish_live_trace_bundle,
+    require_turning_evidence,
     validate_live_capture,
     validate_retained_live_trace_bundle,
 )
@@ -73,6 +74,10 @@ def dynamics_capture():
 
 def turning_capture():
     result = dynamics_capture()
+    result["command_samples"] = [
+        {"timestamp_ns": 500_000_000, "linear_x_m_s": 0.1, "angular_z_rad_s": 0.2},
+        {"timestamp_ns": 1_500_000_000, "linear_x_m_s": 0.1, "angular_z_rad_s": 0.2},
+    ]
     result["joint_samples"][1]["positions"] = [0.21333333333333335, 1.12, 0.0]
     result["joint_samples"][2]["positions"] = [0.4266666666666667, 2.24, 0.0]
     result["odom_samples"] = [
@@ -108,6 +113,9 @@ class LiveTraceTests(unittest.TestCase):
         self.assertEqual("passed", result["status"])
         self.assertAlmostEqual(0.1996668332936563, result["observed"]["base_distance_m"], places=8)
         self.assertAlmostEqual(0.4, result["observed"]["base_yaw_rad"], places=8)
+        require_turning_evidence(turning_capture(), result)
+        with self.assertRaisesRegex(LiveTraceError, "positive angular command"):
+            require_turning_evidence(dynamics_capture(), crosscheck_live_dynamics(dynamics_capture(), PROFILE))
     def test_normalizer_accepts_only_the_live_gate_ros_topics(self):
         records = [
             {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "timestamp_ns": 0, "message": {"clock": {"sec": 0, "nanosec": 0}}},
@@ -141,6 +149,7 @@ class LiveTraceTests(unittest.TestCase):
         self.assertIn('topic == "/diff_drive_controller/odom"', source)
         self.assertNotIn('topic == "/odom"', source)
         self.assertIn("require_live_dynamics_crosscheck", source)
+        self.assertIn("--require-turning", source)
         self.assertIn("_raw_inventory(args.bag)", source)
         self.assertLess(source.index("_raw_inventory(args.bag)"), source.index("_decode_mcap(args.bag)"))
 
