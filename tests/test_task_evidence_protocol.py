@@ -25,10 +25,15 @@ def protocol():
 
 class TaskEvidenceProtocolTests(unittest.TestCase):
     def test_valid_protocol_normalizes_to_immutable_record(self):
-        value, findings = validate_task_protocol(protocol())
+        source = protocol()
+        value, findings = validate_task_protocol(source)
         self.assertIsNotNone(value)
         self.assertEqual((), findings)
         self.assertEqual("reference-pick-place", value.task_id)
+        source["envelope"][0]["values"].append(3.0)
+        self.assertEqual((1.0, 2.0), value.envelope[0].values)
+        with self.assertRaisesRegex(AttributeError, "assign"):
+            value.envelope[0].unit = "s"
 
     def test_nonfinite_duplicate_and_unknown_protocol_values_are_actionable(self):
         value = protocol()

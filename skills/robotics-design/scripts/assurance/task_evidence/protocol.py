@@ -15,15 +15,52 @@ _UNITS = frozenset({"kg", "m/s", "s", "rad", "N", "Nm", "J"})
 
 
 @dataclass(frozen=True)
+class EnvelopeAxis:
+    id: str
+    unit: str
+    values: tuple[float, ...]
+
+
+@dataclass(frozen=True)
+class MetricRule:
+    id: str
+    unit: str
+    direction: str
+    threshold: float
+
+
+@dataclass(frozen=True)
+class FaultProfile:
+    id: str
+    safe_state: str
+    recovery: str
+
+
+@dataclass(frozen=True)
+class EnduranceProfile:
+    sample_interval_ns: int
+    max_duration_ns: int
+    max_samples: int
+
+
+@dataclass(frozen=True)
+class ComparisonRule:
+    id: str
+    unit: str
+    max_abs_residual: float
+    max_rel_residual: float
+
+
+@dataclass(frozen=True)
 class TaskProtocol:
     task_id: str
     phases: tuple[str, ...]
-    envelope: tuple[dict[str, Any], ...]
+    envelope: tuple[EnvelopeAxis, ...]
     repetitions: int
-    metrics: tuple[dict[str, Any], ...]
-    faults: tuple[dict[str, str], ...]
-    endurance: dict[str, int]
-    comparison: tuple[dict[str, Any], ...]
+    metrics: tuple[MetricRule, ...]
+    faults: tuple[FaultProfile, ...]
+    endurance: EnduranceProfile
+    comparison: tuple[ComparisonRule, ...]
 
 
 def _finding(code: str, path: str, message: str) -> TaskEvidenceFinding:
@@ -92,4 +129,12 @@ def validate_task_protocol(data: object) -> tuple[TaskProtocol | None, tuple[Tas
     findings.sort(key=lambda item: (item.code, item.path, item.message))
     if findings:
         return None, tuple(findings)
-    return TaskProtocol(data["task_id"], tuple(phases), envelope, data["repetitions"], metrics, faults, endurance, comparison), ()
+    return TaskProtocol(
+        data["task_id"], tuple(phases),
+        tuple(EnvelopeAxis(item["id"], item["unit"], tuple(float(value) for value in item["values"])) for item in envelope),
+        data["repetitions"],
+        tuple(MetricRule(item["id"], item["unit"], item["direction"], float(item["threshold"])) for item in metrics),
+        tuple(FaultProfile(item["id"], item["safe_state"], item["recovery"]) for item in faults),
+        EnduranceProfile(endurance["sample_interval_ns"], endurance["max_duration_ns"], endurance["max_samples"]),
+        tuple(ComparisonRule(item["id"], item["unit"], float(item["max_abs_residual"]), float(item["max_rel_residual"])) for item in comparison),
+    ), ()
