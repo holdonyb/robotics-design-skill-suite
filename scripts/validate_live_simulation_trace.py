@@ -18,6 +18,7 @@ from assurance.simulation.live_trace import (
     normalize_records,
     publish_live_trace_bundle,
     require_live_dynamics_crosscheck,
+    require_turning_evidence,
     validate_live_capture,
     validate_retained_live_trace_bundle,
 )
@@ -68,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reference-root", type=Path, required=True)
     parser.add_argument("--bag", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--require-turning", action="store_true")
     args = parser.parse_args(argv)
     try:
         _raw_inventory(args.bag)
@@ -75,6 +77,8 @@ def main(argv: list[str] | None = None) -> int:
         profile = _load_backend_profile(args.reference_root)
         validation = validate_live_capture(capture, profile)
         dynamics_crosscheck = require_live_dynamics_crosscheck(capture, profile)
+        if args.require_turning:
+            require_turning_evidence(capture, dynamics_crosscheck)
         validation["dynamics_crosscheck"] = dynamics_crosscheck
         receipt = publish_live_trace_bundle(args.out, capture, profile, args.bag)
         errors = validate_retained_live_trace_bundle(args.out, receipt.manifest_sha256, args.bag)

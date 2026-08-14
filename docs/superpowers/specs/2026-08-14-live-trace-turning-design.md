@@ -1,0 +1,15 @@
+# Live Trace Turning Design
+
+## Decision
+
+Extend the retained Jazzy/Harmonic controller trace from straight-only motion to one bounded forward-left arc: `linear.x = 0.10 m/s`, `angular.z = 0.20 rad/s`, published for the existing two-second recording window in the isolated container. This remains a simulated controller/odometry consistency check, never a task, calibration, safety, or hardware claim.
+
+## Evidence model
+
+All normalized samples use the receipt-bound MCAP writer timestamp as their canonical timeline. Each ROS header is still parsed and structurally validated, but it is not a safe sole time source: in the isolated Harmonic run a controller can publish changing joint state while its `use_sim_time` callback temporarily retains the same header stamp. The MCAP timeline is strictly ordered for every retained record and avoids silently accepting such a duplicate state timestamp. The dynamics crosscheck derives wheel rates from that timeline and computes observed travel as the sum of consecutive odometry XY chord lengths. It accumulates normalized consecutive yaw deltas, so an accepted turn may cross the `-pi`/`pi` representation boundary without becoming a false large rotation.
+
+Both portable integrations must independently agree with the odometry path length and unwrapped yaw under the existing simulation-only tolerances. The CLI gets an explicit `--require-turning` mode for the CI gate: a positive angular command and a matching nontrivial observed yaw are both mandatory. Generic retained-trace validation remains capable of checking a straight trace, but the shipped live gate must invoke the stricter mode.
+
+## Rejection and verification
+
+Malformed timestamps, zero/contradictory turning command, zero/opposite measured yaw, nonfinite samples, backend disagreement, or either backend's odometry error reject the capture. Portable tests cover curved path length rather than endpoint chord, wrapped yaw, and required-turn failures. The isolated CI artifact must contain a passed `dynamics_crosscheck` with nonzero observed yaw while retaining the raw MCAP hash and `hardware_promotable:false` firewall.

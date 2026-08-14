@@ -118,16 +118,21 @@ def normalize_records(records: object) -> dict[str, Any]:
                 raise LiveTraceError("clock message is invalid")
             output["clock_ns"].append(stamp)
         elif topic == "/joint_states":
-            state_stamp = _header(message, "joint state")
-            output["joint_samples"].append({"timestamp_ns": state_stamp, "names": message.get("name"), "positions": message.get("position")})
+            # The receipt-bound MCAP record time is the canonical timeline.  A
+            # controller's ROS header can temporarily lag `/clock` even while
+            # the simulator continues to publish state; it is parsed for
+            # structural validity but must not make the retained sequence
+            # non-monotonic.
+            _header(message, "joint state")
+            output["joint_samples"].append({"timestamp_ns": stamp, "names": message.get("name"), "positions": message.get("position")})
         elif topic == "/diff_drive_controller/odom":
-            state_stamp = _header(message, "odometry")
+            _header(message, "odometry")
             try:
                 pose = message["pose"]["pose"]
                 position, orientation = pose["position"], pose["orientation"]
                 z, w = _finite(orientation["z"], "odometry orientation.z"), _finite(orientation["w"], "odometry orientation.w")
                 yaw = math.atan2(2.0 * z * w, 1.0 - 2.0 * z * z)
-                output["odom_samples"].append({"timestamp_ns": state_stamp, "x_m": position["x"], "y_m": position["y"], "yaw_rad": yaw})
+                output["odom_samples"].append({"timestamp_ns": stamp, "x_m": position["x"], "y_m": position["y"], "yaw_rad": yaw})
             except (KeyError, TypeError, LiveTraceError) as exc:
                 raise LiveTraceError(f"odometry message is invalid: {exc}") from None
         else:
@@ -286,8 +291,13 @@ def crosscheck_live_dynamics(capture: object, profile: object) -> dict[str, Any]
     primary_metrics = {metric.name: metric.value for metric in primary.metrics}
     independent_metrics = {metric.name: metric.value for metric in independent.metrics}
     odom = capture["odom_samples"]
-    observed_distance = math.hypot(float(odom[-1]["x_m"]) - float(odom[0]["x_m"]), float(odom[-1]["y_m"]) - float(odom[0]["y_m"]))
-    observed_yaw = float(odom[-1]["yaw_rad"]) - float(odom[0]["yaw_rad"])
+    observed_distance = 0.0
+    observed_yaw = 0.0
+    for index in range(1, len(odom)):
+        previous, current = odom[index - 1], odom[index]
+        observed_distance += math.hypot(float(current["x_m"]) - float(previous["x_m"]), float(current["y_m"]) - float(previous["y_m"]))
+        yaw_delta = float(current["yaw_rad"]) - float(previous["yaw_rad"])
+        observed_yaw += (yaw_delta + math.pi) % (2 * math.pi) - math.pi
     errors = {
         "primary": {
             "base_distance_m": abs(primary_metrics["base_distance_m"] - observed_distance),
@@ -324,6 +334,24 @@ def require_live_dynamics_crosscheck(capture: object, profile: object) -> dict[s
     if crosscheck["status"] != "passed":
         raise LiveTraceError("live dynamics crosscheck did not pass: " + canonical_bytes(crosscheck).decode("utf-8"))
     return crosscheck
+
+
+def require_turning_evidence(capture: object, crosscheck: object) -> None:
+    """Require a bounded positive turn in an already validated live capture."""
+    if not isinstance(capture, dict) or not isinstance(capture.get("command_samples"), list):
+        raise LiveTraceError("turning capture command samples are invalid")
+    angular = []
+    for index, sample in enumerate(capture["command_samples"]):
+        if not isinstance(sample, dict):
+            raise LiveTraceError(f"turning command_samples[{index}] is invalid")
+        angular.append(_finite(sample.get("angular_z_rad_s"), f"turning command_samples[{index}].angular_z_rad_s"))
+    if not angular or max(angular) <= 0.05:
+        raise LiveTraceError("turning evidence requires a positive angular command")
+    if not isinstance(crosscheck, dict) or not isinstance(crosscheck.get("observed"), dict):
+        raise LiveTraceError("turning crosscheck observation is invalid")
+    observed_yaw = _finite(crosscheck["observed"].get("base_yaw_rad"), "turning observed base_yaw_rad")
+    if observed_yaw <= 0.05:
+        raise LiveTraceError("turning evidence requires a positive observed yaw")
 
 
 def _raw_inventory(raw_bag: str | Path) -> list[dict[str, Any]]:

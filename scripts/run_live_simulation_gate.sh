@@ -131,7 +131,7 @@ grep -Eq 'bt_navigator|behavior_server' "$EVIDENCE/consumer-nodes.txt"
 # targets only the Dockerized simulation namespace; its profile limit is 0.4 m/s.
 timeout 30s ros2 bag record --storage mcap --output "$EVIDENCE/live-drive" /clock /joint_states /diff_drive_controller/odom /diff_drive_controller/cmd_vel > "$EVIDENCE/live-record.log" 2>&1 & pids+=("$!")
 RECORDER_PID="${pids[${#pids[@]}-1]}"
-timeout 5s ros2 topic pub -r 10 /diff_drive_controller/cmd_vel geometry_msgs/msg/TwistStamped "{twist: {linear: {x: 0.10}, angular: {z: 0.0}}}" > "$EVIDENCE/live-command.log" 2>&1 & pids+=("$!")
+timeout 5s ros2 topic pub -r 10 /diff_drive_controller/cmd_vel geometry_msgs/msg/TwistStamped "{twist: {linear: {x: 0.10}, angular: {z: 0.20}}}" > "$EVIDENCE/live-command.log" 2>&1 & pids+=("$!")
 COMMAND_PID="${pids[${#pids[@]}-1]}"
 wait_for_recorded_topics "$RECORDER_PID" "$EVIDENCE/live-record.log"
 sleep 2
@@ -140,7 +140,7 @@ kill "$COMMAND_PID" 2>/dev/null || true
 wait "$COMMAND_PID" || true
 kill "$RECORDER_PID"
 wait "$RECORDER_PID" || true
-run python3 "$ROOT/scripts/validate_live_simulation_trace.py" --reference-root "$REFERENCE" --bag "$EVIDENCE/live-drive" --out "$EVIDENCE/live-trace-bundle" > "$EVIDENCE/live-trace-receipt.json"
+run python3 "$ROOT/scripts/validate_live_simulation_trace.py" --reference-root "$REFERENCE" --bag "$EVIDENCE/live-drive" --out "$EVIDENCE/live-trace-bundle" --require-turning > "$EVIDENCE/live-trace-receipt.json"
 
 run python3 "$ROOT/skills/robotics-design/scripts/validate_simulation_bundle.py" --reference-root "$REFERENCE" > "$EVIDENCE/portable-benchmark.json"
 cp "$REFERENCE/simulation/environment-lock.json" "$EVIDENCE/environment-lock.json"

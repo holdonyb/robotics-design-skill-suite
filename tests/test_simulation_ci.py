@@ -69,7 +69,7 @@ class SimulationCiTests(unittest.TestCase):
             'ros2 bag record --storage mcap --output "$EVIDENCE/live-drive"',
             "/clock", "/joint_states", "/diff_drive_controller/odom", "/diff_drive_controller/cmd_vel",
             'timeout 5s ros2 topic pub -r 10 /diff_drive_controller/cmd_vel geometry_msgs/msg/TwistStamped',
-            "x: 0.10", "z: 0.0", "validate_live_simulation_trace.py",
+            "x: 0.10", "z: 0.20", "--require-turning", "validate_live_simulation_trace.py",
             '"$EVIDENCE/live-trace-bundle"',
         ):
             self.assertIn(token, gate)

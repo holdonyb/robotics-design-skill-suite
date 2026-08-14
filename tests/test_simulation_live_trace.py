@@ -14,6 +14,7 @@ from assurance.simulation.live_trace import (  # noqa: E402
     crosscheck_live_dynamics,
     normalize_records,
     publish_live_trace_bundle,
+    require_turning_evidence,
     validate_live_capture,
     validate_retained_live_trace_bundle,
 )
@@ -71,6 +72,22 @@ def dynamics_capture():
     return result
 
 
+def turning_capture():
+    result = dynamics_capture()
+    result["command_samples"] = [
+        {"timestamp_ns": 500_000_000, "linear_x_m_s": 0.1, "angular_z_rad_s": 0.2},
+        {"timestamp_ns": 1_500_000_000, "linear_x_m_s": 0.1, "angular_z_rad_s": 0.2},
+    ]
+    result["joint_samples"][1]["positions"] = [0.21333333333333335, 1.12, 0.0]
+    result["joint_samples"][2]["positions"] = [0.4266666666666667, 2.24, 0.0]
+    result["odom_samples"] = [
+        {"timestamp_ns": 0, "x_m": 0.0, "y_m": 0.0, "yaw_rad": 3.1},
+        {"timestamp_ns": 1_000_000_000, "x_m": 0.09933466539753061, "y_m": 0.009966711079379185, "yaw_rad": -2.9831853071795864},
+        {"timestamp_ns": 2_000_000_000, "x_m": 0.19470917115432526, "y_m": 0.03946950299855745, "yaw_rad": -2.7831853071795862},
+    ]
+    return result
+
+
 class LiveTraceTests(unittest.TestCase):
     def test_live_wheel_trace_crosschecks_bound_profile_against_odometry(self):
         result = crosscheck_live_dynamics(dynamics_capture(), PROFILE)
@@ -90,6 +107,15 @@ class LiveTraceTests(unittest.TestCase):
         missing["joint_samples"][1]["positions"] = [1.0, 0.0]
         with self.assertRaisesRegex(LiveTraceError, "drive joints"):
             crosscheck_live_dynamics(missing, PROFILE)
+
+    def test_live_turning_trace_uses_path_length_and_unwrapped_yaw(self):
+        result = crosscheck_live_dynamics(turning_capture(), PROFILE)
+        self.assertEqual("passed", result["status"])
+        self.assertAlmostEqual(0.1996668332936563, result["observed"]["base_distance_m"], places=8)
+        self.assertAlmostEqual(0.4, result["observed"]["base_yaw_rad"], places=8)
+        require_turning_evidence(turning_capture(), result)
+        with self.assertRaisesRegex(LiveTraceError, "positive angular command"):
+            require_turning_evidence(dynamics_capture(), crosscheck_live_dynamics(dynamics_capture(), PROFILE))
     def test_normalizer_accepts_only_the_live_gate_ros_topics(self):
         records = [
             {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "timestamp_ns": 0, "message": {"clock": {"sec": 0, "nanosec": 0}}},
@@ -106,7 +132,14 @@ class LiveTraceTests(unittest.TestCase):
         self.assertEqual(capture(), normalized)
         delayed_joint_state = list(records)
         delayed_joint_state[3] = dict(delayed_joint_state[3], timestamp_ns=123_456_789)
-        self.assertEqual(0, normalize_records(delayed_joint_state)["joint_samples"][0]["timestamp_ns"])
+        self.assertEqual(123_456_789, normalize_records(delayed_joint_state)["joint_samples"][0]["timestamp_ns"])
+        stale_header = list(records)
+        stale_header[4] = dict(
+            stale_header[4],
+            message={"header": {"stamp": {"sec": 0, "nanosec": 0}}, "name": ["left_wheel_joint", "right_wheel_joint", "joint_1"], "position": [1.0, 1.0, 0.0]},
+        )
+        self.assertEqual(2_000_000_000, normalize_records(stale_header)["joint_samples"][1]["timestamp_ns"])
+        self.assertEqual("passed", validate_live_capture(normalize_records(stale_header), PROFILE)["status"])
         invalid = list(records)
         invalid[0] = dict(invalid[0], topic="/rogue")
         with self.assertRaisesRegex(LiveTraceError, "unknown topic"):
@@ -123,6 +156,7 @@ class LiveTraceTests(unittest.TestCase):
         self.assertIn('topic == "/diff_drive_controller/odom"', source)
         self.assertNotIn('topic == "/odom"', source)
         self.assertIn("require_live_dynamics_crosscheck", source)
+        self.assertIn("--require-turning", source)
         self.assertIn("_raw_inventory(args.bag)", source)
         self.assertLess(source.index("_raw_inventory(args.bag)"), source.index("_decode_mcap(args.bag)"))
 
