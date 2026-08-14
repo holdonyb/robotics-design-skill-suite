@@ -83,6 +83,16 @@ def evaluate_engineering_freeze(root: Path, package_path: Path, *, placeholder_c
     card_ids = _ids(package.get("test_cards"), "test_cards", findings)
     _ids(package.get("hazards"), "hazards", findings)
     _ids(package.get("inspection_items"), "inspection_items", findings)
+    for collection, code in (
+        ("artifacts", "FREEZE.REQUIRED_ARTIFACT_MISSING"),
+        ("hazards", "FREEZE.HAZARD_REGISTER_MISSING"),
+        ("safety_functions", "FREEZE.SAFETY_FUNCTION_MISSING"),
+        ("verifications", "FREEZE.VERIFICATION_MISSING"),
+        ("inspection_items", "FREEZE.INSPECTION_MISSING"),
+        ("test_cards", "FREEZE.TEST_CARD_MISSING"),
+    ):
+        if isinstance(package.get(collection), list) and not package[collection]:
+            findings.append(_finding(code, "indeterminate", collection, f"engineering freeze requires at least one {collection} record"))
     for index, item in enumerate(package.get("artifacts", []) if isinstance(package.get("artifacts"), list) else []):
         path = f"artifacts[{index}]"
         if not isinstance(item, dict) or set(item) != _ARTIFACT:

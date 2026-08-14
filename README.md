@@ -126,6 +126,25 @@ failure. The v0.5 candidate passed two retained consumer-gate runs at
 `ced7dc3`; this is integration evidence only, not hardware promotion. See the
 [`simulation benchmark`](reference/mobile-manipulator/simulation-benchmark.md).
 
+## Engineering-freeze boundary
+
+The v0.6 engineering-freeze gate records hash-bound supplier snapshots,
+controlled-artifact references, hazards, safety-function links, verification
+items, inspection items, and planned hardware test cards. It is an input to a
+future engineering review, never a purchase, fabrication, energization, or
+motion authorization.
+
+```bash
+python skills/robotics-design/scripts/validate_engineering_freeze.py \
+  --package reference/mobile-manipulator/engineering-freeze/freeze-package.json
+```
+
+Exit `0` means a complete review package; `1` means valid input with open
+engineering gaps; `2` means malformed or tampered input. Both
+`procurement_authorized` and `motion_authorized` are always `false`. The
+reference package intentionally exits `1` because it has no selected supplier
+parts, controlled drawings, or authorized hardware test conditions.
+
 ## Structure-preserving robot renders
 
 Version 0.2.0 prevents image generation from silently changing a robot's mechanism. CAD, URDF, SDF, or an equivalent deterministic model must own topology and pose. A generated image may change materials, surface finish, color, lighting, background, and non-contact environment context only.
