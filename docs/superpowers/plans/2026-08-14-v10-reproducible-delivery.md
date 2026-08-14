@@ -99,6 +99,7 @@ from assurance.release.evaluator import evaluate_release_delivery
 
 def test_rehashed_contract_cannot_hide_stale_public_boundary(self):
     root = self.copy_candidate_tree()
+    self.write_canonical_contract(root, self.required_bindings(root))
     readme = root / "README.md"
     readme.write_text(readme.read_text(encoding="utf-8").replace("awaiting_authorization", "task validated"), encoding="utf-8")
     self.rehash_contract_binding(root, "README.md")
@@ -109,6 +110,7 @@ def test_rehashed_contract_cannot_hide_stale_public_boundary(self):
 def test_tamper_symlink_extra_and_empty_intake_attacks_fail_closed(self):
     for attack in ("digest", "symlink", "extra", "nonempty_task_intake"):
         root = self.copy_candidate_tree()
+        self.write_canonical_contract(root, self.required_bindings(root))
         self.apply_attack(root, attack)
         self.assertFalse(evaluate_release_delivery(root, root / "release/v1-release-contract.json").passed)
 ~~~
@@ -146,7 +148,7 @@ def evaluate_release_delivery(root: Path, contract_path: Path) -> ReleaseDeliver
     return ReleaseDeliveryReport(contract.release_id, _derived_status(findings), tuple(sorted(findings, key=_finding_key)))
 ~~~
 
-Require bound paths to equal REQUIRED_PATHS, reject symlinks and digest changes, and check manifest version is 1.0.0. Both READMEs must have no upcoming v0.9, list all six evidence validators plus the release validator, and state software-only/non-hardware verification. Bench must equal schema_version/intake_id/packages-empty; commissioning must equal schema_version/commissioning_id/phases-empty; task evidence must equal schema_version/task_evidence_id/packages-empty. Normalize errors as RELEASE.INVALID_INPUT findings.
+The evaluator tests build their canonical contract in each temporary copied root; they do not depend on the tracked contract, which is generated only in Task 3. Require bound paths to equal REQUIRED_PATHS, reject symlinks and digest changes, and check manifest version is 1.0.0. Both READMEs must have no upcoming v0.9, list all six evidence validators plus the release validator, and state software-only/non-hardware verification. Bench must equal schema_version/intake_id/packages-empty; commissioning must equal schema_version/commissioning_id/phases-empty; task evidence must equal schema_version/task_evidence_id/packages-empty. Normalize errors as RELEASE.INVALID_INPUT findings.
 
 - [ ] Step 4: Run GREEN and commit
 
