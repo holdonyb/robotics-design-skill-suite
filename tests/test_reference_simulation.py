@@ -3,11 +3,13 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
+import validate_simulation_bundle as simulation_bundle  # noqa: E402
 from validate_simulation_bundle import (  # noqa: E402
     BenchmarkError,
     _backend_input,
@@ -24,6 +26,14 @@ class ReferenceSimulationTests(unittest.TestCase):
         self.assertEqual(140.2, profile["mass_kg"])
         self.assertEqual(0.8, profile["brake_deceleration_m_s2"])
         self.assertAlmostEqual(0.4 / 0.15, profile["wheel_speed_limit_rad_s"])
+        self.assertIn(
+            "ros2_ws/src/jx_mobile_manipulator_description/urdf/reference_mobile_manipulator.urdf.xacro",
+            [item["path"] for item in profile["sources"]],
+        )
+        self.assertNotIn(
+            "ros2_ws/src/jx_mobile_manipulator_moveit_config/config/reference_mobile_manipulator.urdf",
+            [item["path"] for item in profile["sources"]],
+        )
 
     def test_reference_benchmark_is_admitted_replayable_and_never_hardware_promotable(self):
         report = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")
@@ -93,6 +103,58 @@ class ReferenceSimulationTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(BenchmarkError, "receipt-valid"):
                 _load_backend_profile(copied)
+
+    def test_backend_profile_rejects_source_replaced_after_manifest_validation(self):
+        from assurance.simulation.artifacts import validate_ros_workspace_manifest
+
+        with tempfile.TemporaryDirectory() as raw:
+            copied = Path(raw) / "reference"
+            shutil.copytree(ROOT / "reference" / "mobile-manipulator", copied)
+            nav2 = copied / "ros2_ws" / "src" / "jx_mobile_manipulator_nav" / "config" / "nav2_params.yaml"
+
+            def validate_then_replace(*args):
+                errors = validate_ros_workspace_manifest(*args)
+                nav2.write_text(
+                    nav2.read_text(encoding="utf-8").replace(
+                        "max_velocity: [0.4, 0.0, 0.8]", "max_velocity: [0.3, 0.0, 0.8]"
+                    ),
+                    encoding="utf-8",
+                )
+                return errors
+
+            with patch(
+                "validate_simulation_bundle.validate_ros_workspace_manifest",
+                side_effect=validate_then_replace,
+            ):
+                with self.assertRaisesRegex(BenchmarkError, "profile source SHA"):
+                    _load_backend_profile(copied)
+
+    def test_backend_profile_ignores_unexpanded_xacro_macro_body(self):
+        xacro = b'''<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="fake">
+  <link name="base_link"><xacro:inertial mass="100" ixx="1" iyy="1" izz="1"/></link>
+  <xacro:macro name="unused">
+    <xacro:cylinder_link name="left_wheel_link" radius="0.15" mass="5"/>
+    <xacro:cylinder_link name="right_wheel_link" radius="0.15" mass="5"/>
+    <joint name="left_wheel_joint"><origin xyz="0 0.34 0"/></joint>
+    <joint name="right_wheel_joint"><origin xyz="0 -0.34 0"/></joint>
+  </xacro:macro>
+</robot>'''
+        root = ROOT / "reference" / "mobile-manipulator"
+        snapshot = {
+            simulation_bundle._PROFILE_SOURCES[0]: xacro,
+            simulation_bundle._PROFILE_SOURCES[1]: (
+                root / simulation_bundle._PROFILE_SOURCES[1]
+            ).read_bytes(),
+            simulation_bundle._PROFILE_SOURCES[2]: (
+                root / simulation_bundle._PROFILE_SOURCES[2]
+            ).read_bytes(),
+        }
+        with patch(
+            "validate_simulation_bundle._profile_source_snapshot",
+            return_value=snapshot,
+        ):
+            with self.assertRaisesRegex(BenchmarkError, "top-level drive wheels"):
+                _load_backend_profile(root)
 
     def test_backend_rejects_missing_or_nonfinite_replayed_wheel_state(self):
         profile = _load_backend_profile(ROOT / "reference" / "mobile-manipulator")

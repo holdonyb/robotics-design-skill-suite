@@ -42,7 +42,6 @@ class BenchmarkError(ValueError):
 
 _EXPECTED_BLOCKER = "BOM.PLACEHOLDER_BLOCKS_CLAIM"
 _ROS_WORKSPACE_RECEIPT = "09a754c3253be4f799a8a7ea0bdea526db04c6741f81abdf5b765803b3bb3fb7"
-_XACRO_NAMESPACE = "http://www.ros.org/wiki/xacro"
 _PROFILE_SOURCES = (
     "ros2_ws/src/jx_mobile_manipulator_description/urdf/reference_mobile_manipulator.urdf.xacro",
     "ros2_ws/src/jx_mobile_manipulator_sim/config/controllers.yaml",
@@ -164,69 +163,122 @@ def _yaml_vector(source: str, field: str) -> tuple[float, float, float]:
     return tuple(converted)  # type: ignore[return-value]
 
 
-def _load_backend_profile(root: Path) -> dict[str, Any]:
-    """Extract a closed portable dynamics profile from receipt-bound ROS inputs."""
-    manifest = root / "simulation" / "ros-workspace-manifest.json"
-    errors = validate_ros_workspace_manifest(root, manifest, _ROS_WORKSPACE_RECEIPT)
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _profile_source_snapshot(root: Path) -> dict[str, bytes]:
+    manifest_path = root / "simulation" / "ros-workspace-manifest.json"
+    errors = validate_ros_workspace_manifest(root, manifest_path, _ROS_WORKSPACE_RECEIPT)
     if errors:
         raise BenchmarkError("ROS workspace is not receipt-valid: " + "; ".join(errors))
-    paths = {relative: root / relative for relative in _PROFILE_SOURCES}
-    if any(path.is_symlink() or not path.is_file() for path in paths.values()):
-        raise BenchmarkError("ROS workspace profile source is missing or a symlink")
     try:
-        xacro_bytes = paths[_PROFILE_SOURCES[0]].read_bytes()
-        if b"<!" in xacro_bytes:
-            raise BenchmarkError("xacro profile source must not contain declarations")
-        xacro = ET.fromstring(xacro_bytes)
-        controllers = paths[_PROFILE_SOURCES[1]].read_text(encoding="utf-8")
-        nav2 = paths[_PROFILE_SOURCES[2]].read_text(encoding="utf-8")
-    except (OSError, UnicodeError, ET.ParseError) as exc:
-        raise BenchmarkError(f"cannot load ROS workspace profile source: {exc}") from None
+        manifest_bytes = manifest_path.read_bytes()
+        if hashlib.sha256(manifest_bytes).hexdigest() != _ROS_WORKSPACE_RECEIPT:
+            raise BenchmarkError("ROS workspace manifest changed after validation")
+        manifest = json.loads(manifest_bytes.decode("utf-8"), object_pairs_hook=_unique_json_object)
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise BenchmarkError(f"cannot snapshot ROS workspace manifest: {exc}") from None
+    outputs = manifest.get("outputs") if isinstance(manifest, dict) else None
+    if not isinstance(outputs, list):
+        raise BenchmarkError("ROS workspace manifest outputs are invalid")
+    hashes: dict[str, str] = {}
+    for item in outputs:
+        if not isinstance(item, dict) or set(item) != {"path", "sha256"}:
+            raise BenchmarkError("ROS workspace manifest output entry is invalid")
+        path, sha256 = item.get("path"), item.get("sha256")
+        if not isinstance(path, str) or path in hashes:
+            raise BenchmarkError("ROS workspace manifest output path is invalid")
+        try:
+            validate_sha256(sha256, f"ROS workspace output {path}")
+        except ValueError as exc:
+            raise BenchmarkError(str(exc)) from None
+        hashes[path] = sha256
+    snapshot: dict[str, bytes] = {}
+    for relative in _PROFILE_SOURCES:
+        path = root / relative
+        if path.is_symlink() or not path.is_file():
+            raise BenchmarkError("ROS workspace profile source is missing or a symlink")
+        try:
+            payload = path.read_bytes()
+        except OSError as exc:
+            raise BenchmarkError(f"cannot read ROS workspace profile source: {exc}") from None
+        if hashes.get(relative) != hashlib.sha256(payload).hexdigest():
+            raise BenchmarkError(f"profile source SHA-256 mismatch: {relative}")
+        snapshot[relative] = payload
+    return snapshot
 
+
+def _load_backend_profile(root: Path) -> dict[str, Any]:
+    """Extract a closed portable dynamics profile from receipt-bound ROS inputs."""
+    sources = _profile_source_snapshot(root)
+    xacro_bytes = sources[_PROFILE_SOURCES[0]]
+    if b"<!" in xacro_bytes:
+        raise BenchmarkError("xacro profile source must not contain declarations")
+    try:
+        xacro = ET.fromstring(xacro_bytes)
+        controllers = sources[_PROFILE_SOURCES[1]].decode("utf-8")
+        nav2 = sources[_PROFILE_SOURCES[2]].decode("utf-8")
+    except (UnicodeError, ET.ParseError) as exc:
+        raise BenchmarkError(f"cannot load ROS workspace profile source: {exc}") from None
+    if xacro.tag != "robot":
+        raise BenchmarkError("xacro profile source must have robot root")
+
+    xacro_inertial = "{" + "http://www.ros.org/wiki/xacro" + "}inertial"
+    xacro_cylinder_link = "{" + "http://www.ros.org/wiki/xacro" + "}cylinder_link"
+    links: set[str] = set()
+    cylinders: set[str] = set()
+    total_mass = 0.0
     wheel_radii: dict[str, float] = {}
     wheel_y: dict[str, float] = {}
-    total_mass = 0.0
-    for node in xacro.iter():
-        tag = node.tag.rsplit("}", 1)[-1]
-        if tag == "cylinder_link" and node.get("name") in {"left_wheel_link", "right_wheel_link"}:
+    for node in xacro:
+        if node.tag == "link":
             name = node.get("name")
-            assert name is not None
-            if name in wheel_radii:
-                raise BenchmarkError(f"xacro profile has duplicate {name}")
-            wheel_radii[name] = _profile_number(node.get("radius"), f"xacro {name} radius")
-        if tag in {"inertial", "cylinder_link"} and node.tag.startswith("{" + _XACRO_NAMESPACE + "}"):
-            raw_mass = node.get("mass")
-            if raw_mass is not None and "${" not in raw_mass:
-                total_mass += _profile_number(raw_mass, f"xacro {tag} mass")
-        if (
-            tag == "joint"
-            and node.get("name") in {"left_wheel_joint", "right_wheel_joint"}
-            and node.find("parent") is not None
-            and node.find("child") is not None
-        ):
-            origin = node.find("origin")
-            if origin is None or origin.get("xyz") is None:
-                raise BenchmarkError(f"xacro {node.get('name')} must declare origin xyz")
-            parts = origin.get("xyz").split()
-            if len(parts) != 3:
-                raise BenchmarkError(f"xacro {node.get('name')} origin must have three values")
-            try:
-                y = float(parts[1])
-            except ValueError:
-                raise BenchmarkError(f"xacro {node.get('name')} origin y must be numeric") from None
-            if not math.isfinite(y):
-                raise BenchmarkError(f"xacro {node.get('name')} origin y must be finite")
+            if not isinstance(name, str) or not name or name in links:
+                raise BenchmarkError("xacro top-level link inventory is invalid")
+            links.add(name)
+            inertial = node.find(xacro_inertial)
+            if inertial is not None:
+                total_mass += _profile_number(inertial.get("mass"), f"xacro {name} mass")
+        elif node.tag == xacro_cylinder_link:
+            name = node.get("name")
+            if not isinstance(name, str) or not name or name in cylinders:
+                raise BenchmarkError("xacro top-level cylinder-link inventory is invalid")
+            cylinders.add(name)
+            total_mass += _profile_number(node.get("mass"), f"xacro {name} mass")
+            if name in {"left_wheel_link", "right_wheel_link"}:
+                wheel_radii[name] = _profile_number(node.get("radius"), f"xacro {name} radius")
+        elif node.tag == "joint" and node.get("name") in {"left_wheel_joint", "right_wheel_joint"}:
             name = node.get("name")
             assert name is not None
             if name in wheel_y:
                 raise BenchmarkError(f"xacro profile has duplicate {name}")
+            origin = node.find("origin")
+            if origin is None or origin.get("xyz") is None:
+                raise BenchmarkError(f"xacro {name} must declare origin xyz")
+            parts = origin.get("xyz").split()
+            if len(parts) != 3:
+                raise BenchmarkError(f"xacro {name} origin must have three values")
+            try:
+                y = float(parts[1])
+            except ValueError:
+                raise BenchmarkError(f"xacro {name} origin y must be numeric") from None
+            if not math.isfinite(y):
+                raise BenchmarkError(f"xacro {name} origin y must be finite")
             wheel_y[name] = y
-    if set(wheel_radii) != {"left_wheel_link", "right_wheel_link"} or set(wheel_y) != {"left_wheel_joint", "right_wheel_joint"}:
-        raise BenchmarkError("xacro profile must declare exactly two drive wheels and joints")
+    if set(wheel_radii) != {"left_wheel_link", "right_wheel_link"}:
+        raise BenchmarkError("xacro profile must declare exactly two top-level drive wheels")
     if wheel_radii["left_wheel_link"] != wheel_radii["right_wheel_link"]:
         raise BenchmarkError("xacro wheel radii must agree")
     if not math.isfinite(total_mass) or total_mass <= 0:
         raise BenchmarkError("xacro total simulator mass must be positive and finite")
+    if set(wheel_y) != {"left_wheel_joint", "right_wheel_joint"}:
+        raise BenchmarkError("xacro profile must declare exactly two top-level drive wheel joints")
     wheel_separation = abs(wheel_y["left_wheel_joint"] - wheel_y["right_wheel_joint"])
     if wheel_separation <= 0:
         raise BenchmarkError("xacro wheel separation must be positive")
@@ -244,7 +296,7 @@ def _load_backend_profile(root: Path) -> dict[str, Any]:
         "evidence_level": "parsed",
         "workspace_manifest_sha256": _ROS_WORKSPACE_RECEIPT,
         "sources": [
-            {"path": relative, "sha256": hashlib.sha256(paths[relative].read_bytes()).hexdigest()}
+            {"path": relative, "sha256": hashlib.sha256(sources[relative]).hexdigest()}
             for relative in _PROFILE_SOURCES
         ],
         "wheel_radius_m": radius,
