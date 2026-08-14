@@ -1,0 +1,1 @@
+{"components":[{"id":"CMP-ARM-REDUCER-J2","limits":{"continuous_output_torque":{"unit":"N*m","value":345},"gear_ratio":{"unit":"1","value":100}},"manufacturer":"Harmonic Drive","part_number":"CSG-40-100-2UH"}],"locator":"https://www.harmonicdrive.net/products/gear-units/gear-units/csg-2uh/csg-40-100-2uh","observed_date":"2026-08-14","schema_version":1}

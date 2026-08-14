@@ -433,12 +433,23 @@
       "id": "Q-ARM-CONTINUOUS-TORQUE-J2",
       "dimension": "torque",
       "value": {
-        "value": 300,
+        "value": 345,
         "unit": "N*m"
       },
       "owner": "component:CMP-ARM-REDUCER-J2",
-      "source": "evidence:EV-ASSUMPTIONS",
-      "evidence_level": "assumed"
+      "source": "evidence:EV-HARMONIC-CSG-40-100",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-ARM-GEAR-RATIO-J2",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 100,
+        "unit": "1"
+      },
+      "owner": "component:CMP-ARM-REDUCER-J2",
+      "source": "evidence:EV-HARMONIC-CSG-40-100",
+      "evidence_level": "parsed"
     },
     {
       "id": "Q-ARM-CONTINUOUS-TORQUE-J3",
@@ -2425,10 +2436,19 @@
     {
       "id": "CMP-ARM-REDUCER-J2",
       "role": "reducer",
-      "state": "engineering_placeholder",
+      "state": "verified_part",
       "interfaces": [
         "IF-ARM-REDUCER-J2"
       ],
+      "manufacturer": "Harmonic Drive",
+      "part_number": "CSG-40-100-2UH",
+      "source_url": "https://www.harmonicdrive.net/products/gear-units/gear-units/csg-2uh/csg-40-100-2uh",
+      "source_date": "2026-08-14",
+      "source_evidence": "evidence:EV-HARMONIC-CSG-40-100",
+      "limits": {
+        "continuous_output_torque": "quantity:Q-ARM-CONTINUOUS-TORQUE-J2",
+        "gear_ratio": "quantity:Q-ARM-GEAR-RATIO-J2"
+      },
       "bindings": [
         "actuator:joint_2"
       ],
@@ -3518,7 +3538,6 @@
         "quantity:Q-SLOPE-Y",
         "quantity:Q-ARM-LEVER",
         "quantity:Q-ARM-CONTINUOUS-TORQUE-J1",
-        "quantity:Q-ARM-CONTINUOUS-TORQUE-J2",
         "quantity:Q-ARM-CONTINUOUS-TORQUE-J3",
         "quantity:Q-ARM-CONTINUOUS-TORQUE-J4",
         "quantity:Q-ARM-CONTINUOUS-TORQUE-J5",
@@ -3645,6 +3664,22 @@
         "quantity:Q-LE-PAYLOAD-MASS",
         "quantity:Q-LE-CONTINUOUS-SF",
         "quantity:Q-LE-BRAKE-SF"
+      ]
+    },
+    {
+      "id": "EV-HARMONIC-CSG-40-100",
+      "kind": "component_catalog_v1",
+      "level": "parsed",
+      "source": {
+        "path": "supplier-catalogs/harmonic-drive-csg-40-100-2uh-2026-08-14.json",
+        "sha256": "454209eef068805b94d524c37bd6785f810471799ba6c00deed66bf4e8248a42"
+      },
+      "locator": "https://www.harmonicdrive.net/products/gear-units/gear-units/csg-2uh/csg-40-100-2uh",
+      "observed_date": "2026-08-14",
+      "supports": [
+        "component:CMP-ARM-REDUCER-J2",
+        "quantity:Q-ARM-CONTINUOUS-TORQUE-J2",
+        "quantity:Q-ARM-GEAR-RATIO-J2"
       ]
     }
   ]

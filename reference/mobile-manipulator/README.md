@@ -1,8 +1,10 @@
 # Reference Mobile Manipulator
 
 This differential-drive base plus six-axis arm is a deterministic regression
-fixture for the physical-plausibility kernel. Its dimensions, masses, component
-ratings, duty, payload and environment values are engineering assumptions. They
+fixture for the physical-plausibility kernel. Its dimensions, masses, most
+component ratings, duty, payload and environment values are engineering
+assumptions. The J2 bearing and reducer are hash-bound parsed catalog
+candidates, not validated assemblies. These records
 are not measurements, a finished design, a purchasing recommendation, or proof
 of payload, stability, endurance, braking, thermal, safety or task performance.
 

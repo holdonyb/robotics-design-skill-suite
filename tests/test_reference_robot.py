@@ -135,6 +135,53 @@ class ReferenceRobotTests(unittest.TestCase):
         self.assertEqual([], errors)
         self.assertFalse(report.promotable)
 
+    def test_joint_two_reducer_candidate_binds_output_torque_to_vendor_catalog(self):
+        data = json.loads(
+            (REFERENCE / "design-contract.json").read_text(encoding="utf-8")
+        )
+        reducer = next(item for item in data["components"] if item["id"] == "CMP-ARM-REDUCER-J2")
+        self.assertEqual("verified_part", reducer["state"])
+        self.assertEqual("Harmonic Drive", reducer["manufacturer"])
+        self.assertEqual("CSG-40-100-2UH", reducer["part_number"])
+        self.assertEqual(
+            "https://www.harmonicdrive.net/products/gear-units/gear-units/csg-2uh/csg-40-100-2uh",
+            reducer["source_url"],
+        )
+        self.assertEqual(
+            {
+                "continuous_output_torque": "quantity:Q-ARM-CONTINUOUS-TORQUE-J2",
+                "gear_ratio": "quantity:Q-ARM-GEAR-RATIO-J2",
+            },
+            reducer["limits"],
+        )
+        quantity = next(item for item in data["quantities"] if item["id"] == "Q-ARM-CONTINUOUS-TORQUE-J2")
+        self.assertEqual({"unit": "N*m", "value": 345}, quantity["value"])
+        self.assertEqual("parsed", quantity["evidence_level"])
+
+        catalog_evidence = next(item for item in data["evidence"] if item["id"] == "EV-HARMONIC-CSG-40-100")
+        self.assertEqual("component_catalog_v1", catalog_evidence["kind"])
+        catalog_path = REFERENCE / catalog_evidence["source"]["path"]
+        self.assertEqual(
+            catalog_evidence["source"]["sha256"],
+            __import__("hashlib").sha256(catalog_path.read_bytes()).hexdigest(),
+        )
+        snapshot = json.loads(catalog_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            {"unit": "N*m", "value": 345},
+            snapshot["components"][0]["limits"]["continuous_output_torque"],
+        )
+        self.assertEqual(
+            {"unit": "1", "value": 100},
+            snapshot["components"][0]["limits"]["gear_ratio"],
+        )
+
+        report, errors = evaluate_contract(REFERENCE / "design-contract.json")
+        self.assertEqual([], errors)
+        arm = next(item for item in report.analyses if item["analysis_id"] == "AN-ARM-LOAD-ENVELOPE")
+        joint = next(item for item in arm["outputs"]["joints"] if item["id"] == "joint_2")
+        self.assertGreater(joint["continuous_margin_nm"], 0.0)
+        self.assertFalse(report.promotable)
+
     def test_joint_two_static_bearing_screen_binds_catalog_and_load_model(self):
         data = json.loads(
             (REFERENCE / "design-contract.json").read_text(encoding="utf-8")
@@ -258,12 +305,12 @@ class ReferenceRobotTests(unittest.TestCase):
             "com-outside-support", "arm-torque-overload",
             "brake-holding-overload", "stale-artifact-hash", "base-mass-drift",
             "joint-limit-drift", "thermal-over-temperature", "slope-tip-over",
-            "bearing-static-overload",
+            "bearing-static-overload", "reducer-output-torque-overload",
         }
         actual_ids = {
             json.loads(path.read_text(encoding="utf-8"))["id"] for path in fault_paths
         }
-        self.assertEqual(len(fault_paths), 33)
+        self.assertEqual(len(fault_paths), 34)
         self.assertEqual(actual_ids, expected_ids)
         seen = set()
         for fault_path in fault_paths:
