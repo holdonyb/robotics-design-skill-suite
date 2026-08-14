@@ -306,11 +306,12 @@ class ReferenceRobotTests(unittest.TestCase):
             "brake-holding-overload", "stale-artifact-hash", "base-mass-drift",
             "joint-limit-drift", "thermal-over-temperature", "slope-tip-over",
             "bearing-static-overload", "reducer-output-torque-overload",
+            "motor-continuous-torque-overload",
         }
         actual_ids = {
             json.loads(path.read_text(encoding="utf-8"))["id"] for path in fault_paths
         }
-        self.assertEqual(len(fault_paths), 34)
+        self.assertEqual(len(fault_paths), 35)
         self.assertEqual(actual_ids, expected_ids)
         seen = set()
         for fault_path in fault_paths:

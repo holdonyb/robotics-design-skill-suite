@@ -65,7 +65,7 @@ Expected: PASS.
 ### Task 3: Bind every reference arm joint to its exact motor and reducer roles
 
 **Files:**
-- Modify: `skills/robotics-design/scripts/assurance/contract.py`
+- Modify: `skills/robotics-design/scripts/assurance/engine.py`
 - Modify: `tests/test_assurance_contract.py`
 - Modify: `reference/mobile-manipulator/design-contract.json`
 - Modify: `tests/test_reference_robot.py`
@@ -82,7 +82,7 @@ Expected: FAIL because owner validation does not yet cover motor, ratio, or effi
 
 - [ ] **Step 3: Implement owner mapping and reference quantities**
 
-Extend `_analysis_rating_owner_diagnostics()` so `motor_continuous_torque_nm` must be owned by the exact bound role `motor`, and `reducer_gear_ratio`/`reducer_efficiency` by the exact bound `reducer`. Add one source-backed-or-assumed typed quantity per joint for each new collection. Keep J2’s `Q-ARM-GEAR-RATIO-J2` as the parsed Harmonic Drive value; any unsourced motor or efficiency values remain explicitly assumed and cannot elevate promotion. Reference all three collections from `AN-ARM-LOAD-ENVELOPE` in joint order.
+Extend `_analysis_rating_owner_diagnostics()` so `motor_continuous_torque_nm` must be owned by the exact bound role `motor`, and `reducer_gear_ratio`/`reducer_efficiency` by the exact bound `reducer`. Keep catalog-bound motor capacity and ratio checks tied to verified component limits; allow a reducer efficiency to remain an explicitly assumed analysis input until the supplier documents it. Add one source-backed-or-assumed typed quantity per joint for each new collection. Keep J2’s `Q-ARM-GEAR-RATIO-J2` as the parsed Harmonic Drive value; any unsourced motor or efficiency values remain explicitly assumed and cannot elevate promotion. Reference all three collections from `AN-ARM-LOAD-ENVELOPE` in joint order.
 
 - [ ] **Step 4: Run contract and reference tests**
 

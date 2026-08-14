@@ -77,10 +77,12 @@ missing motor, reducer, bearing, driver, brake, power-protection element, or
 unsupported continuous/thermal rating.
 
 [`reference/mobile-manipulator`](reference/mobile-manipulator) is a
-differential-drive plus six-axis-arm regression fixture with 34 critical fault
+differential-drive plus six-axis-arm regression fixture with 35 critical fault
 mutations. Most component ratings are engineering assumptions, not a build or
 purchasing recommendation; its J2 bearing and reducer are hash-bound parsed
-catalog candidates, not validated assemblies. It intentionally remains
+catalog candidates, not validated assemblies. Static arm load demand is also
+screened back through declared motor/reducer transmissions, while motor curves,
+life, and transient dynamics remain separate evidence gates. It intentionally remains
 unpromoted until exact parts and stronger evidence replace every claim-driving
 placeholder. See the
 full [`physical-plausibility-contract.md`](skills/robotics-design/references/physical-plausibility-contract.md).
@@ -266,7 +268,7 @@ python scripts/validate.py
 python scripts/install.py --dry-run
 ```
 
-Tests cover manifest integrity, pinned commits, transactional installation, host overlays, bytecode exclusion, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, public-data hygiene, physical contract/schema/units/evidence/component bindings, deterministic analysis reports, bounded hypotheses, uncertainty/counterexamples, Pareto fronts, repair ownership, manifest-bound bundles, the reference benchmark, URDF drift, 34 critical physical faults, visual source hashes and landmark promotion, mission trajectory/contact traceability, and patent-aware routing boundaries.
+Tests cover manifest integrity, pinned commits, transactional installation, host overlays, bytecode exclusion, license preservation, Codex frontmatter normalization, collision refusal, ZIP traversal protection, public-data hygiene, physical contract/schema/units/evidence/component bindings, deterministic analysis reports, bounded hypotheses, uncertainty/counterexamples, Pareto fronts, repair ownership, manifest-bound bundles, the reference benchmark, URDF drift, 35 critical physical faults, visual source hashes and landmark promotion, mission trajectory/contact traceability, and patent-aware routing boundaries.
 
 ## Claim boundary
 

@@ -1,0 +1,13 @@
+{
+  "id": "motor-continuous-torque-overload",
+  "critical": true,
+  "mutation": {
+    "op": "set_quantity_value",
+    "id": "Q-ARM-MOTOR-CONTINUOUS-TORQUE-J2",
+    "value": {
+      "value": 1,
+      "unit": "N*m"
+    }
+  },
+  "expected_diagnostic": "PHY.ARM.MOTOR_CONTINUOUS_TORQUE"
+}

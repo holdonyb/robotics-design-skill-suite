@@ -585,13 +585,15 @@ def _arm_load_envelope(inputs: dict[str, Any]) -> AnalysisResult:
     assumptions = (
         "static gravity moments are evaluated only at the declared load-case poses",
         "link, tool, cable, payload, centre-of-mass, and posture values are declared engineering inputs",
-        "dynamic torque, transmission life, bearings, thermal transients, collision loads, human safety, and hardware performance require separate evidence",
+        "motor-side continuous demand is output-side static demand divided by declared reducer ratio and efficiency",
+        "dynamic torque, motor speed curves, transmission life, bearings, thermal transients, collision loads, human safety, and hardware performance require separate evidence",
     )
     diagnostics: list[Diagnostic] = []
     expected = {
         "joint_order", "joints", "links", "payload", "load_cases",
         "continuous_safety_factor", "brake_safety_factor",
         "rated_continuous_torque_nm", "brake_holding_torque_nm",
+        "motor_continuous_torque_nm", "reducer_gear_ratio", "reducer_efficiency",
     }
     if set(inputs) != expected:
         diagnostics.append(_diagnostic("PHY.INPUT.TYPE", "error", f"analyses.{name}.inputs", "load-envelope inputs must use the closed schema"))
@@ -672,7 +674,13 @@ def _arm_load_envelope(inputs: dict[str, Any]) -> AnalysisResult:
     if diagnostics or payload_origin is None or len(factors) != 2:
         return AnalysisResult(name, "1", dict(inputs), {}, tuple(diagnostics), assumptions)
 
-    ratings: dict[str, dict[str, float]] = {"rated_continuous_torque_nm": {}, "brake_holding_torque_nm": {}}
+    ratings: dict[str, dict[str, float]] = {
+        "rated_continuous_torque_nm": {},
+        "brake_holding_torque_nm": {},
+        "motor_continuous_torque_nm": {},
+        "reducer_gear_ratio": {},
+        "reducer_efficiency": {},
+    }
     for field in ratings:
         records = inputs[field]
         if not isinstance(records, list):
@@ -684,13 +692,20 @@ def _arm_load_envelope(inputs: dict[str, Any]) -> AnalysisResult:
                 diagnostics.append(_diagnostic("PHY.INPUT.TYPE", "error", path, "rating must name one declared joint"))
                 continue
             value = record.get("value")
-            if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)) or float(value) <= 0.0:
+            if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)):
+                diagnostics.append(_diagnostic("PHY.INPUT.DOMAIN", "error", f"{path}.value", "rating must be finite and positive"))
+                continue
+            numeric_value = float(value)
+            if field == "reducer_efficiency" and not 0.0 < numeric_value <= 1.0:
+                diagnostics.append(_diagnostic("PHY.ARM.TRANSMISSION_DOMAIN", "error", f"{path}.value", "reducer efficiency must be in (0, 1]"))
+                continue
+            if field != "reducer_efficiency" and numeric_value <= 0.0:
                 diagnostics.append(_diagnostic("PHY.INPUT.DOMAIN", "error", f"{path}.value", "rating must be finite and positive"))
                 continue
             if record["id"] in ratings[field]:
                 diagnostics.append(_diagnostic("PHY.INPUT.DOMAIN", "error", f"{path}.id", "rating IDs must be unique"))
                 continue
-            ratings[field][record["id"]] = float(value)
+            ratings[field][record["id"]] = numeric_value
         if set(ratings[field]) != set(joint_order):
             diagnostics.append(_diagnostic("PHY.INPUT.DOMAIN", "error", f"analyses.{name}.inputs.{field}", "ratings must exactly cover joint_order"))
     if diagnostics:
@@ -771,7 +786,9 @@ def _arm_load_envelope(inputs: dict[str, Any]) -> AnalysisResult:
         brake_required = maximum * factors["brake_safety_factor"]
         continuous_margin = ratings["rated_continuous_torque_nm"][joint_id] - continuous_required
         brake_margin = ratings["brake_holding_torque_nm"][joint_id] - brake_required
-        if not all(math.isfinite(value) for value in (continuous_required, brake_required, continuous_margin, brake_margin)):
+        motor_required = continuous_required / ratings["reducer_gear_ratio"][joint_id] / ratings["reducer_efficiency"][joint_id]
+        motor_margin = ratings["motor_continuous_torque_nm"][joint_id] - motor_required
+        if not all(math.isfinite(value) for value in (continuous_required, brake_required, continuous_margin, brake_margin, motor_required, motor_margin)):
             raise OverflowError("load-envelope derived value overflow")
         outputs["joints"].append({
             "id": joint_id,
@@ -782,11 +799,15 @@ def _arm_load_envelope(inputs: dict[str, Any]) -> AnalysisResult:
             "brake_required_torque_nm": brake_required,
             "continuous_margin_nm": continuous_margin,
             "brake_margin_nm": brake_margin,
+            "motor_continuous_required_torque_nm": motor_required,
+            "motor_continuous_margin_nm": motor_margin,
         })
         if continuous_margin < 0.0:
             diagnostics.append(_diagnostic("PHY.ARM.CONTINUOUS_TORQUE", "error", f"analyses.{name}.inputs.rated_continuous_torque_nm", f"joint {joint_id} declared continuous rating is below load-envelope requirement"))
         if brake_margin < 0.0:
             diagnostics.append(_diagnostic("PHY.ARM.BRAKE_HOLDING", "error", f"analyses.{name}.inputs.brake_holding_torque_nm", f"joint {joint_id} declared brake holding rating is below load-envelope requirement"))
+        if motor_margin < 0.0:
+            diagnostics.append(_diagnostic("PHY.ARM.MOTOR_CONTINUOUS_TORQUE", "error", f"analyses.{name}.inputs.motor_continuous_torque_nm", f"joint {joint_id} motor continuous rating is below reducer-input load-envelope requirement"))
     return AnalysisResult(name, "1", dict(inputs), outputs, tuple(diagnostics), assumptions)
 
 

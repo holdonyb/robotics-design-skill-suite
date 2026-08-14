@@ -82,6 +82,9 @@ ARM_LOAD_ENVELOPE_FIELDS = frozenset(
         "brake_safety_factor",
         "rated_continuous_torque_nm",
         "brake_holding_torque_nm",
+        "motor_continuous_torque_nm",
+        "reducer_gear_ratio",
+        "reducer_efficiency",
     }
 )
 
@@ -154,6 +157,7 @@ def _quantity_vector(
 def _load_envelope_rating_records(
     value: Any,
     field: str,
+    dimension: str,
     joint_ids: set[str],
     path: str,
     quantities: dict[str, dict[str, Any]],
@@ -173,7 +177,7 @@ def _load_envelope_rating_records(
         if identifier in seen:
             errors.append(f"{record_path}.id duplicates {identifier}")
         seen.add(identifier)
-        _quantity_reference(record["value"], "torque", f"{record_path}.value", quantities, errors)
+        _quantity_reference(record["value"], dimension, f"{record_path}.value", quantities, errors)
     if seen != joint_ids:
         errors.append(f"{path}.{field} must contain exactly one record for each joint_order id")
 
@@ -282,8 +286,11 @@ def _validate_arm_load_envelope_inputs(
 
     _quantity_reference(inputs["continuous_safety_factor"], "dimensionless", f"{path}.continuous_safety_factor", quantities, errors)
     _quantity_reference(inputs["brake_safety_factor"], "dimensionless", f"{path}.brake_safety_factor", quantities, errors)
-    _load_envelope_rating_records(inputs["rated_continuous_torque_nm"], "rated_continuous_torque_nm", joint_ids, path, quantities, errors)
-    _load_envelope_rating_records(inputs["brake_holding_torque_nm"], "brake_holding_torque_nm", joint_ids, path, quantities, errors)
+    _load_envelope_rating_records(inputs["rated_continuous_torque_nm"], "rated_continuous_torque_nm", "torque", joint_ids, path, quantities, errors)
+    _load_envelope_rating_records(inputs["brake_holding_torque_nm"], "brake_holding_torque_nm", "torque", joint_ids, path, quantities, errors)
+    _load_envelope_rating_records(inputs["motor_continuous_torque_nm"], "motor_continuous_torque_nm", "torque", joint_ids, path, quantities, errors)
+    _load_envelope_rating_records(inputs["reducer_gear_ratio"], "reducer_gear_ratio", "dimensionless", joint_ids, path, quantities, errors)
+    _load_envelope_rating_records(inputs["reducer_efficiency"], "reducer_efficiency", "dimensionless", joint_ids, path, quantities, errors)
     return errors
 
 

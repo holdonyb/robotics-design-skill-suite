@@ -68,6 +68,9 @@ def load_envelope_inputs():
         "brake_safety_factor": 2.0,
         "rated_continuous_torque_nm": [{"id": "joint_1", "value": 40.0}],
         "brake_holding_torque_nm": [{"id": "joint_1", "value": 40.0}],
+        "motor_continuous_torque_nm": [{"id": "joint_1", "value": 4.0}],
+        "reducer_gear_ratio": [{"id": "joint_1", "value": 10.0}],
+        "reducer_efficiency": [{"id": "joint_1", "value": 0.8}],
     }
 
 
@@ -253,6 +256,29 @@ class AssuranceAnalysisTests(unittest.TestCase):
         self.assertAlmostEqual(per_case["LC-HORIZONTAL"], 19.6133)
         self.assertAlmostEqual(per_case["LC-VERTICAL"], 0.0, places=10)
         self.assertTrue(result.passed)
+
+    def test_arm_load_envelope_screens_motor_reducer_transmission(self):
+        inputs = load_envelope_inputs()
+        inputs.update(
+            {
+                "motor_continuous_torque_nm": [{"id": "joint_1", "value": 4.0}],
+                "reducer_gear_ratio": [{"id": "joint_1", "value": 10.0}],
+                "reducer_efficiency": [{"id": "joint_1", "value": 0.8}],
+            }
+        )
+        result = run_plugin("arm_load_envelope_v1", inputs)
+        joint = result.outputs["joints"][0]
+        self.assertAlmostEqual(joint["motor_continuous_required_torque_nm"], 29.41995 / 10.0 / 0.8)
+        self.assertAlmostEqual(joint["motor_continuous_margin_nm"], 4.0 - 29.41995 / 10.0 / 0.8)
+        self.assertTrue(result.passed)
+
+        inputs["motor_continuous_torque_nm"][0]["value"] = 3.0
+        overloaded = run_plugin("arm_load_envelope_v1", inputs)
+        self.assertIn("PHY.ARM.MOTOR_CONTINUOUS_TORQUE", {item.code for item in overloaded.diagnostics})
+
+        inputs["reducer_efficiency"][0]["value"] = 0.0
+        invalid = run_plugin("arm_load_envelope_v1", inputs)
+        self.assertIn("PHY.ARM.TRANSMISSION_DOMAIN", {item.code for item in invalid.diagnostics})
 
     def test_arm_load_envelope_increasing_downstream_mass_cannot_reduce_demand(self):
         baseline = run_plugin("arm_load_envelope_v1", load_envelope_inputs())

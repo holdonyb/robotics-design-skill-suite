@@ -495,6 +495,23 @@
       "source": "evidence:EV-ASSUMPTIONS",
       "evidence_level": "assumed"
     },
+    {"id":"Q-ARM-MOTOR-CONTINUOUS-TORQUE-J1","dimension":"torque","value":{"value":1,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J1","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-REDUCER-GEAR-RATIO-J1","dimension":"dimensionless","value":{"value":100,"unit":"1"},"owner":"component:CMP-ARM-REDUCER-J1","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-REDUCER-EFFICIENCY-J1","dimension":"dimensionless","value":{"value":0.7,"unit":"1"},"owner":"component:CMP-ARM-REDUCER-J1","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-MOTOR-CONTINUOUS-TORQUE-J2","dimension":"torque","value":{"value":5,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J2","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-REDUCER-EFFICIENCY-J2","dimension":"dimensionless","value":{"value":0.7,"unit":"1"},"owner":"component:CMP-ARM-REDUCER-J2","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-MOTOR-CONTINUOUS-TORQUE-J3","dimension":"torque","value":{"value":3,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J3","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-REDUCER-GEAR-RATIO-J3","dimension":"dimensionless","value":{"value":100,"unit":"1"},"owner":"component:CMP-ARM-REDUCER-J3","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-REDUCER-EFFICIENCY-J3","dimension":"dimensionless","value":{"value":0.7,"unit":"1"},"owner":"component:CMP-ARM-REDUCER-J3","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-MOTOR-CONTINUOUS-TORQUE-J4","dimension":"torque","value":{"value":1,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J4","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-REDUCER-GEAR-RATIO-J4","dimension":"dimensionless","value":{"value":100,"unit":"1"},"owner":"component:CMP-ARM-REDUCER-J4","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-REDUCER-EFFICIENCY-J4","dimension":"dimensionless","value":{"value":0.7,"unit":"1"},"owner":"component:CMP-ARM-REDUCER-J4","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-MOTOR-CONTINUOUS-TORQUE-J5","dimension":"torque","value":{"value":1,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J5","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-REDUCER-GEAR-RATIO-J5","dimension":"dimensionless","value":{"value":100,"unit":"1"},"owner":"component:CMP-ARM-REDUCER-J5","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-REDUCER-EFFICIENCY-J5","dimension":"dimensionless","value":{"value":0.7,"unit":"1"},"owner":"component:CMP-ARM-REDUCER-J5","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-MOTOR-CONTINUOUS-TORQUE-J6","dimension":"torque","value":{"value":1,"unit":"N*m"},"owner":"component:CMP-ARM-MOTOR-J6","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-REDUCER-GEAR-RATIO-J6","dimension":"dimensionless","value":{"value":100,"unit":"1"},"owner":"component:CMP-ARM-REDUCER-J6","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
+    {"id":"Q-ARM-REDUCER-EFFICIENCY-J6","dimension":"dimensionless","value":{"value":0.7,"unit":"1"},"owner":"component:CMP-ARM-REDUCER-J6","source":"evidence:EV-ASSUMPTIONS","evidence_level":"assumed"},
     {
       "id": "Q-BRAKE-HOLDING-TORQUE-J1",
       "dimension": "torque",
@@ -2867,7 +2884,7 @@
       "id": "assumption-registry",
       "kind": "assumptions",
       "path": "assumptions.json",
-      "sha256": "434a5ebe0f9e250a016213da989abb17902773150fa44c85c0a663fa6577f240"
+      "sha256": "94cfebc961c266fc56fd9d13577132795dfab6eb1fe9e98248ef3a075ec14ea8"
     },
     {
       "id": "load-envelope-model",
@@ -3266,6 +3283,30 @@
             "id": "joint_6",
             "value": "quantity:Q-BRAKE-HOLDING-TORQUE-J6"
           }
+        ],
+        "motor_continuous_torque_nm": [
+          {"id":"joint_1","value":"quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J1"},
+          {"id":"joint_2","value":"quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J2"},
+          {"id":"joint_3","value":"quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J3"},
+          {"id":"joint_4","value":"quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J4"},
+          {"id":"joint_5","value":"quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J5"},
+          {"id":"joint_6","value":"quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J6"}
+        ],
+        "reducer_gear_ratio": [
+          {"id":"joint_1","value":"quantity:Q-ARM-REDUCER-GEAR-RATIO-J1"},
+          {"id":"joint_2","value":"quantity:Q-ARM-GEAR-RATIO-J2"},
+          {"id":"joint_3","value":"quantity:Q-ARM-REDUCER-GEAR-RATIO-J3"},
+          {"id":"joint_4","value":"quantity:Q-ARM-REDUCER-GEAR-RATIO-J4"},
+          {"id":"joint_5","value":"quantity:Q-ARM-REDUCER-GEAR-RATIO-J5"},
+          {"id":"joint_6","value":"quantity:Q-ARM-REDUCER-GEAR-RATIO-J6"}
+        ],
+        "reducer_efficiency": [
+          {"id":"joint_1","value":"quantity:Q-ARM-REDUCER-EFFICIENCY-J1"},
+          {"id":"joint_2","value":"quantity:Q-ARM-REDUCER-EFFICIENCY-J2"},
+          {"id":"joint_3","value":"quantity:Q-ARM-REDUCER-EFFICIENCY-J3"},
+          {"id":"joint_4","value":"quantity:Q-ARM-REDUCER-EFFICIENCY-J4"},
+          {"id":"joint_5","value":"quantity:Q-ARM-REDUCER-EFFICIENCY-J5"},
+          {"id":"joint_6","value":"quantity:Q-ARM-REDUCER-EFFICIENCY-J6"}
         ]
       }
     },
@@ -3498,7 +3539,7 @@
       "level": "assumed",
       "source": {
         "path": "assumptions.json",
-        "sha256": "434a5ebe0f9e250a016213da989abb17902773150fa44c85c0a663fa6577f240"
+        "sha256": "94cfebc961c266fc56fd9d13577132795dfab6eb1fe9e98248ef3a075ec14ea8"
       },
       "supports": [
         "artifact:assumption-registry",
@@ -3542,6 +3583,23 @@
         "quantity:Q-ARM-CONTINUOUS-TORQUE-J4",
         "quantity:Q-ARM-CONTINUOUS-TORQUE-J5",
         "quantity:Q-ARM-CONTINUOUS-TORQUE-J6",
+        "quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J1",
+        "quantity:Q-ARM-REDUCER-GEAR-RATIO-J1",
+        "quantity:Q-ARM-REDUCER-EFFICIENCY-J1",
+        "quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J2",
+        "quantity:Q-ARM-REDUCER-EFFICIENCY-J2",
+        "quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J3",
+        "quantity:Q-ARM-REDUCER-GEAR-RATIO-J3",
+        "quantity:Q-ARM-REDUCER-EFFICIENCY-J3",
+        "quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J4",
+        "quantity:Q-ARM-REDUCER-GEAR-RATIO-J4",
+        "quantity:Q-ARM-REDUCER-EFFICIENCY-J4",
+        "quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J5",
+        "quantity:Q-ARM-REDUCER-GEAR-RATIO-J5",
+        "quantity:Q-ARM-REDUCER-EFFICIENCY-J5",
+        "quantity:Q-ARM-MOTOR-CONTINUOUS-TORQUE-J6",
+        "quantity:Q-ARM-REDUCER-GEAR-RATIO-J6",
+        "quantity:Q-ARM-REDUCER-EFFICIENCY-J6",
         "quantity:Q-BRAKE-HOLDING-TORQUE-J1",
         "quantity:Q-BRAKE-HOLDING-TORQUE-J2",
         "quantity:Q-BRAKE-HOLDING-TORQUE-J3",
