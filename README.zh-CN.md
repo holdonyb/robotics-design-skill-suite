@@ -86,6 +86,24 @@ python skills/robotics-design/scripts/generate_design_hypotheses.py reference/mo
 [`hypothesis-engine-contract.md`](skills/robotics-design/references/hypothesis-engine-contract.md)
 与公开的 [`hypothesis benchmark`](reference/mobile-manipulator/hypothesis-benchmark.md)。
 
+## 仿真、回放与训练边界
+
+0.5 版增加了封闭的仿真入场回执、十个确定性参考场景、带外部回执的规范
+trace 包、独立平面动力学交叉检查、受限标定，以及只能产生仿真证据的策略
+回调边界。
+
+```bash
+python skills/robotics-design/scripts/validate_simulation_bundle.py \
+  --reference-root reference/mobile-manipulator
+```
+
+退出码 `0` 表示全部场景通过的有效便携式合成回放；`1` 表示有效但包含失败
+或不确定场景的基准；`2` 表示输入被篡改/非法或安全失败。它不是 Gazebo live
+运行，绝不授权硬件晋级。独立的 Linux Jazzy/Harmonic 工作流才会实际加载
+Gazebo、ros2_control、MoveIt 和 Nav2，并在失败时保留日志和包清单。详情见
+[`simulation benchmark`](reference/mobile-manipulator/simulation-benchmark.md)。v0.5 候选版在
+`ced7dc3` 上已有两条保留的 consumer-gate 成功记录；它只是集成证据，绝不构成硬件晋级。
+
 ## 结构保真的机器人效果图
 
 0.2.0 版禁止图像生成模型悄悄改写机器人的机构。拓扑与姿态必须由 CAD、URDF、SDF 或等价的确定性模型负责；生成图只允许改变材质、表面处理、颜色、光照、背景和不接触机器人的环境内容。

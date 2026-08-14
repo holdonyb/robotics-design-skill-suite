@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "robot_name": "reference_mobile_manipulator",
+  "units": {"angle": "rad", "length": "m", "mass": "kg"},
+  "assumptions": [
+    "Primitive envelopes are generated for simulation and review; engineering-placeholder motors, reducers, bearings, brakes, and electronics are not vendor geometry.",
+    "Mass and inertia values are contract-owned inputs and are not derived from CAD volume."
+  ],
+  "base": {
+    "link": "base_link",
+    "size_m": [0.8, 0.6, 0.4],
+    "origin_xyz_m": [0.0, 0.0, 0.2],
+    "arm_mount": {"radius_m": 0.11, "height_m": 0.15, "origin_xyz_m": [0.0, 0.0, 0.475]},
+    "physical_owner": "physical_source:robot.urdf#base_link"
+  },
+  "wheels": [
+    {"link": "left_wheel_link", "joint": "left_wheel_joint", "origin_xyz_m": [0.0, 0.34, 0.15], "axis": [0.0, 1.0, 0.0], "radius_m": 0.15, "width_m": 0.08},
+    {"link": "right_wheel_link", "joint": "right_wheel_joint", "origin_xyz_m": [0.0, -0.34, 0.15], "axis": [0.0, 1.0, 0.0], "radius_m": 0.15, "width_m": 0.08}
+  ],
+  "arm_links": [
+    {"link": "arm_link_1", "length_m": 0.18, "radius_m": 0.09, "physical_owner": "physical_source:robot.urdf#arm_link_1"},
+    {"link": "arm_link_2", "length_m": 0.35, "radius_m": 0.075, "physical_owner": "physical_source:robot.urdf#arm_link_2"},
+    {"link": "arm_link_3", "length_m": 0.30, "radius_m": 0.065, "physical_owner": "physical_source:robot.urdf#arm_link_3"},
+    {"link": "arm_link_4", "length_m": 0.20, "radius_m": 0.055, "physical_owner": "physical_source:robot.urdf#arm_link_4"},
+    {"link": "arm_link_5", "length_m": 0.12, "radius_m": 0.045, "physical_owner": "physical_source:robot.urdf#arm_link_5"},
+    {"link": "arm_link_6", "length_m": 0.10, "radius_m": 0.04, "physical_owner": "physical_source:robot.urdf#arm_link_6"}
+  ],
+  "arm_joints": [
+    {"joint": "joint_1", "parent": "base_link", "child": "arm_link_1", "origin_xyz_m": [0.0, 0.0, 0.55], "axis": [0.0, 0.0, 1.0], "lower_rad": -3.14, "upper_rad": 3.14, "effort_nm": 120.0, "velocity_rad_s": 1.5},
+    {"joint": "joint_2", "parent": "arm_link_1", "child": "arm_link_2", "origin_xyz_m": [0.0, 0.0, 0.18], "axis": [0.0, 1.0, 0.0], "lower_rad": -1.5, "upper_rad": 1.5, "effort_nm": 120.0, "velocity_rad_s": 1.2},
+    {"joint": "joint_3", "parent": "arm_link_2", "child": "arm_link_3", "origin_xyz_m": [0.35, 0.0, 0.0], "axis": [0.0, 1.0, 0.0], "lower_rad": -2.2, "upper_rad": 2.2, "effort_nm": 100.0, "velocity_rad_s": 1.5},
+    {"joint": "joint_4", "parent": "arm_link_3", "child": "arm_link_4", "origin_xyz_m": [0.30, 0.0, 0.0], "axis": [1.0, 0.0, 0.0], "lower_rad": -3.14, "upper_rad": 3.14, "effort_nm": 60.0, "velocity_rad_s": 2.0},
+    {"joint": "joint_5", "parent": "arm_link_4", "child": "arm_link_5", "origin_xyz_m": [0.20, 0.0, 0.0], "axis": [0.0, 1.0, 0.0], "lower_rad": -2.0, "upper_rad": 2.0, "effort_nm": 40.0, "velocity_rad_s": 2.0},
+    {"joint": "joint_6", "parent": "arm_link_5", "child": "arm_link_6", "origin_xyz_m": [0.12, 0.0, 0.0], "axis": [1.0, 0.0, 0.0], "lower_rad": -3.14, "upper_rad": 3.14, "effort_nm": 25.0, "velocity_rad_s": 2.5}
+  ],
+  "tool": {"link": "tool0", "parent": "arm_link_6", "joint": "tool0_fixed", "origin_xyz_m": [0.10, 0.0, 0.0]},
+  "sensors": [{"name": "base_imu", "type": "imu", "parent": "base_link", "frame": "imu_link", "update_rate_hz": 100.0}],
+  "ros2_control": {
+    "plugin": "mock_components/GenericSystem",
+    "arm_command_interfaces": ["position"],
+    "arm_state_interfaces": ["position", "velocity"],
+    "wheel_command_interfaces": ["velocity"],
+    "wheel_state_interfaces": ["position", "velocity"]
+  },
+  "moveit": {"group": "manipulator", "base_link": "base_link", "tip_link": "tool0", "home_rad": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+}

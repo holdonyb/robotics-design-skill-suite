@@ -15,6 +15,8 @@ REQUIRED = {
     "manifest.json",
     "PROJECT_STATUS.md",
     "docs/releases/v0.4-completion-audit.md",
+    "docs/research/2026-08-14-v05-dependency-audit.md",
+    "reference/mobile-manipulator/simulation-benchmark.md",
     "scripts/install.py",
     "scripts/validate.py",
     "skills/robotics-design/SKILL.md",
@@ -25,6 +27,8 @@ REQUIRED = {
     "skills/robotics-design/references/hypothesis-engine-contract.md",
     "skills/robotics-design/scripts/validate_design_contract.py",
     "skills/robotics-design/scripts/generate_design_hypotheses.py",
+    "skills/robotics-design/scripts/validate_simulation_bundle.py",
+    "skills/robotics-design/references/simulation-evidence-contract.md",
     "reference/mobile-manipulator/design-contract.json",
     "reference/mobile-manipulator/hypothesis-space.json",
     "reference/mobile-manipulator/hypothesis-expected.json",
@@ -32,6 +36,7 @@ REQUIRED = {
     "skills/robotics-design/scripts/validate_visual_manifest.py",
     "skills/robotics-design/scripts/validate_mission_animation_manifest.py",
     ".github/workflows/ci.yml",
+    ".github/workflows/simulation.yml",
     ".gitattributes",
 }
 TEXT_SUFFIXES = {".md", ".py", ".json", ".yml", ".yaml", ".txt"}
@@ -125,6 +130,15 @@ class PublicHygieneTests(unittest.TestCase):
         missing = sorted(item for item in references - optional if not (skill_root / item).is_file())
         self.assertEqual(missing, [])
 
+    def test_distribution_validator_requires_simulation_evidence_boundary(self):
+        validator = (ROOT / "scripts" / "validate.py").read_text(encoding="utf-8")
+        for phrase in (
+            "simulation-evidence-contract.md",
+            "validate_simulation_bundle.py",
+            "Training callbacks have no actuator interface",
+        ):
+            self.assertIn(phrase, validator)
+
     def test_tracked_distribution_excludes_generated_bytecode(self):
         completed = subprocess.run(
             ["git", "ls-files", "-z"],
@@ -160,6 +174,54 @@ class PublicHygieneTests(unittest.TestCase):
             self.assertIn(phrase, chinese)
         self.assertIn("does not prove simulation or hardware performance", english)
         self.assertIn("不能证明仿真或实机性能", chinese)
+
+    def test_bilingual_docs_expose_simulation_quick_start_and_hardware_boundary(self):
+        english = (ROOT / "README.md").read_text(encoding="utf-8")
+        chinese = (ROOT / "README.zh-CN.md").read_text(encoding="utf-8")
+        for phrase in (
+            "validate_simulation_bundle.py",
+            "portable synthetic replay",
+            "hardware promotion",
+        ):
+            self.assertIn(phrase, english)
+        for phrase in (
+            "validate_simulation_bundle.py",
+            "便携式合成回放",
+            "硬件",
+        ):
+            self.assertIn(phrase, chinese)
+
+    def test_live_simulation_workflow_is_an_additional_gate_not_a_silent_success(self):
+        workflow = (ROOT / ".github/workflows/simulation.yml").read_text(encoding="utf-8")
+        for phrase in (
+            "ubuntu-24.04",
+            "Dockerfile.jazzy-harmonic",
+            "run_live_simulation_gate.sh",
+            "if: always()",
+            "upload-artifact",
+        ):
+            self.assertIn(phrase, workflow)
+        self.assertNotIn("continue-on-error: true", workflow)
+
+    def test_v050_completion_audit_records_live_evidence_and_hardware_boundary(self):
+        manifest = (ROOT / "manifest.json").read_text(encoding="utf-8")
+        audit = (ROOT / "docs/releases/v0.5-completion-audit.md").read_text(
+            encoding="utf-8"
+        )
+        benchmark = (ROOT / "reference/mobile-manipulator/simulation-benchmark.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"version": "0.5.0"', manifest)
+        for phrase in (
+            "31755294605",
+            "31755295908",
+            "8c7acb48090911107a341238ba94d333e9497858b3fe1d64baa79e25560f7d02",
+            "does not establish a real robot's safety",
+            "No v0.5 action authorizes purchasing",
+        ):
+            self.assertIn(phrase, audit)
+        self.assertIn("hardware_promotable: false", benchmark)
+        self.assertIn("consumer-load evidence is still not", benchmark)
 
     def test_ci_compiles_local_skill_runtime_before_tests(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")

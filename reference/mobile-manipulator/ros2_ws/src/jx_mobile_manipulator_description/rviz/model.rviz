@@ -1,0 +1,5 @@
+Visualization Manager:
+  Global Options: {Fixed Frame: base_link}
+  Displays:
+    - {Class: rviz_default_plugins/RobotModel, Name: Robot}
+    - {Class: rviz_default_plugins/TF, Name: TF}

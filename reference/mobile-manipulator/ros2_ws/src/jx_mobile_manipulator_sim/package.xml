@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>jx_mobile_manipulator_sim</name><version>0.5.0</version>
+  <description>Gazebo Harmonic simulation bringup for the reference robot.</description>
+  <maintainer email="maintainers@example.invalid">Jingxin Digital Intelligence</maintainer><license>Apache-2.0</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>jx_mobile_manipulator_description</depend><depend>ros_gz_sim</depend><depend>ros_gz_bridge</depend>
+  <depend>gz_ros2_control</depend><depend>controller_manager</depend><depend>joint_state_broadcaster</depend>
+  <depend>joint_trajectory_controller</depend><depend>diff_drive_controller</depend><depend>robot_state_publisher</depend>
+  <depend>xacro</depend><depend>rviz2</depend><export><build_type>ament_cmake</build_type></export>
+</package>

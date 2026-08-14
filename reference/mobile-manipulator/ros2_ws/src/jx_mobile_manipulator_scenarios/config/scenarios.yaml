@@ -1,0 +1,5 @@
+storage: rosbag2_storage_mcap
+scenarios:
+  nominal_drive: {max_duration_s: 30, command_topic: /diff_drive_controller/cmd_vel, stop_on_timeout: true}
+  nominal_arm: {max_duration_s: 30, action: /arm_controller/follow_joint_trajectory, stop_on_timeout: true}
+  safe_stop: {max_duration_s: 5, expected_zero_velocity: true, stop_on_timeout: true}

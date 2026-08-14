@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<robot name="reference_mobile_manipulator">
+  <link name="base_link"><inertial><origin xyz="0 0 0.25" rpy="0 0 0"/><mass value="100"/><inertia ixx="8" ixy="0" ixz="0" iyy="10" iyz="0" izz="12"/></inertial><visual><origin xyz="0 0 0.2" rpy="0 0 0"/><geometry><box size="0.8 0.6 0.4"/></geometry></visual><collision><origin xyz="0 0 0.2" rpy="0 0 0"/><geometry><box size="0.8 0.6 0.4"/></geometry></collision></link>
+  <link name="arm_link_1"><inertial><mass value="8"/><inertia ixx="0.12" ixy="0" ixz="0" iyy="0.12" iyz="0" izz="0.08"/></inertial><visual><geometry><cylinder radius="0.09" length="0.18"/></geometry></visual><collision><geometry><cylinder radius="0.09" length="0.18"/></geometry></collision></link>
+  <link name="arm_link_2"><inertial><mass value="7"/><inertia ixx="0.10" ixy="0" ixz="0" iyy="0.10" iyz="0" izz="0.06"/></inertial><visual><geometry><cylinder radius="0.075" length="0.35"/></geometry></visual><collision><geometry><cylinder radius="0.075" length="0.35"/></geometry></collision></link>
+  <link name="arm_link_3"><inertial><mass value="5"/><inertia ixx="0.07" ixy="0" ixz="0" iyy="0.07" iyz="0" izz="0.04"/></inertial><visual><geometry><cylinder radius="0.065" length="0.30"/></geometry></visual><collision><geometry><cylinder radius="0.065" length="0.30"/></geometry></collision></link>
+  <link name="arm_link_4"><inertial><mass value="4"/><inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.03"/></inertial><visual><geometry><cylinder radius="0.055" length="0.20"/></geometry></visual><collision><geometry><cylinder radius="0.055" length="0.20"/></geometry></collision></link>
+  <link name="arm_link_5"><inertial><mass value="3"/><inertia ixx="0.03" ixy="0" ixz="0" iyy="0.03" iyz="0" izz="0.02"/></inertial><visual><geometry><cylinder radius="0.045" length="0.12"/></geometry></visual><collision><geometry><cylinder radius="0.045" length="0.12"/></geometry></collision></link>
+  <link name="arm_link_6"><inertial><mass value="2"/><inertia ixx="0.02" ixy="0" ixz="0" iyy="0.02" iyz="0" izz="0.01"/></inertial><visual><geometry><cylinder radius="0.04" length="0.10"/></geometry></visual><collision><geometry><cylinder radius="0.04" length="0.10"/></geometry></collision></link>
+  <link name="tool0"/>
+  <joint name="joint_1" type="revolute"><parent link="base_link"/><child link="arm_link_1"/><origin xyz="0 0 0.55" rpy="0 0 0"/><axis xyz="0 0 1"/><limit lower="-3.14" upper="3.14" effort="120" velocity="1.5"/></joint>
+  <joint name="joint_2" type="revolute"><parent link="arm_link_1"/><child link="arm_link_2"/><origin xyz="0 0 0.18" rpy="0 0 0"/><axis xyz="0 1 0"/><limit lower="-1.5" upper="1.5" effort="120" velocity="1.2"/></joint>
+  <joint name="joint_3" type="revolute"><parent link="arm_link_2"/><child link="arm_link_3"/><origin xyz="0.35 0 0" rpy="0 0 0"/><axis xyz="0 1 0"/><limit lower="-2.2" upper="2.2" effort="100" velocity="1.5"/></joint>
+  <joint name="joint_4" type="revolute"><parent link="arm_link_3"/><child link="arm_link_4"/><origin xyz="0.30 0 0" rpy="0 0 0"/><axis xyz="1 0 0"/><limit lower="-3.14" upper="3.14" effort="60" velocity="2"/></joint>
+  <joint name="joint_5" type="revolute"><parent link="arm_link_4"/><child link="arm_link_5"/><origin xyz="0.20 0 0" rpy="0 0 0"/><axis xyz="0 1 0"/><limit lower="-2.0" upper="2.0" effort="40" velocity="2"/></joint>
+  <joint name="joint_6" type="revolute"><parent link="arm_link_5"/><child link="arm_link_6"/><origin xyz="0.12 0 0" rpy="0 0 0"/><axis xyz="1 0 0"/><limit lower="-3.14" upper="3.14" effort="25" velocity="2.5"/></joint>
+  <joint name="tool0_fixed" type="fixed"><parent link="arm_link_6"/><child link="tool0"/><origin xyz="0.10 0 0" rpy="0 0 0"/></joint>
+  <transmission name="joint_1_transmission"><type>transmission_interface/SimpleTransmission</type><joint name="joint_1"/><actuator name="joint_1_motor"/></transmission>
+  <transmission name="joint_2_transmission"><type>transmission_interface/SimpleTransmission</type><joint name="joint_2"/><actuator name="joint_2_motor"/></transmission>
+  <transmission name="joint_3_transmission"><type>transmission_interface/SimpleTransmission</type><joint name="joint_3"/><actuator name="joint_3_motor"/></transmission>
+  <transmission name="joint_4_transmission"><type>transmission_interface/SimpleTransmission</type><joint name="joint_4"/><actuator name="joint_4_motor"/></transmission>
+  <transmission name="joint_5_transmission"><type>transmission_interface/SimpleTransmission</type><joint name="joint_5"/><actuator name="joint_5_motor"/></transmission>
+  <transmission name="joint_6_transmission"><type>transmission_interface/SimpleTransmission</type><joint name="joint_6"/><actuator name="joint_6_motor"/></transmission>
+</robot>

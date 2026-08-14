@@ -1,0 +1,25 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+    use_sim_time: true
+    joint_state_broadcaster: {type: joint_state_broadcaster/JointStateBroadcaster}
+    arm_controller: {type: joint_trajectory_controller/JointTrajectoryController}
+    diff_drive_controller: {type: diff_drive_controller/DiffDriveController}
+arm_controller:
+  ros__parameters:
+    joints: [joint_1, joint_2, joint_3, joint_4, joint_5, joint_6]
+    command_interfaces: [position]
+    state_interfaces: [position, velocity]
+    allow_partial_joints_goal: false
+diff_drive_controller:
+  ros__parameters:
+    left_wheel_names: [left_wheel_joint]
+    right_wheel_names: [right_wheel_joint]
+    wheel_separation: 0.68
+    wheel_radius: 0.15
+    use_stamped_vel: true
+    publish_rate: 50.0
+    cmd_vel_timeout: 0.25
+    enable_odom_tf: true
+    odom_frame_id: odom
+    base_frame_id: base_link

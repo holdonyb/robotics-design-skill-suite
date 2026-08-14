@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>jx_mobile_manipulator_scenarios</name><version>0.5.0</version><description>Bounded reference scenario registry and launch orchestration.</description>
+  <maintainer email="maintainers@example.invalid">Jingxin Digital Intelligence</maintainer><license>Apache-2.0</license>
+  <buildtool_depend>ament_cmake</buildtool_depend><depend>jx_mobile_manipulator_sim</depend><depend>rosbag2</depend>
+  <depend>rosbag2_storage_mcap</depend><export><build_type>ament_cmake</build_type></export>
+</package>

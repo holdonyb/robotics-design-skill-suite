@@ -13,10 +13,31 @@ ROS 2, and simulation skills to audited commits.
 - Public release: `v0.4.0`; pull request `#4` merged as `f37cd3b`, annotated tag,
   GitHub Release, tag CI, public verification, and controlled local-skill
   refresh are complete.
-- Current development baseline: public `main` at `f37cd3b`; v0.5 planning is
-  the next active engineering phase.
-- Released version: `0.4.0` in `manifest.json`.
+- Current development baseline: public `main` at `f37cd3b`; v0.5.0 release
+  candidate is in pull request `#6` on `feature/v050-simulation-integration`.
+- Candidate version: `0.5.0` in `manifest.json`; public release remains
+  `v0.4.0` until PR `#6` is reviewed, merged, tagged, and verified.
 - Third-party source locks are unchanged from v0.3.0.
+
+## v0.5 Development Checkpoint
+
+The v0.5 release candidate adds closed simulation admission, source-bound ROS 2
+workspace artifacts, ten deterministic scenarios, trace receipts and replay,
+two distinct portable dynamics calculations, bounded calibration, and a
+train/evaluation/held-out synthetic policy firewall. The portable reference
+benchmark compiles and replays 10/10 scenarios, retains a placeholder-only
+simulation admission (`hardware_promotable: false`), a passed calculated
+backend comparison, simulated synthetic calibration, and a simulated/
+not-justified training result.
+
+Retained Linux Jazzy/Harmonic consumer evidence is now present: GitHub Actions
+`31754134659` and `31754138979` passed at `ced7dc3`; the artifact digest is
+`f83e27da5cb0f9832e8f58f43b83e9f8af6469b2319d5a0298a4b58a40493c41`.
+It records active controllers, MoveIt planning readiness, and Nav2 lifecycle
+servers. This is live simulator-consumer evidence, not task validation, bench
+calibration, hardware safety, or real robot motion evidence. The Windows host
+still has no local Docker execution evidence because its Docker Desktop Linux
+containerd metadata store failed before image pull.
 
 ## v0.4 Candidate Capability
 

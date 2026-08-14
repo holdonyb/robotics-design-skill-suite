@@ -1,0 +1,21 @@
+# Immutable Ubuntu 24.04 index digest recorded 2026-08-14.  The live gate also
+# writes its inspected image ID and dpkg inventory to retained evidence.  ROS
+# Jazzy's ros-gz packages provide the Gazebo Harmonic (`gz-harmonic`) consumer.
+FROM ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
+
+ENV DEBIAN_FRONTEND=noninteractive
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential ca-certificates curl gnupg lsb-release python3 python3-pip \
+    && curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+       -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu noble main" \
+       > /etc/apt/sources.list.d/ros2.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+       ros-jazzy-desktop ros-jazzy-ros-gz ros-jazzy-ros2-control \
+       ros-jazzy-gz-ros2-control ros-jazzy-joint-trajectory-controller \
+       ros-jazzy-moveit ros-jazzy-nav2-bringup \
+       ros-jazzy-xacro python3-colcon-common-extensions \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace

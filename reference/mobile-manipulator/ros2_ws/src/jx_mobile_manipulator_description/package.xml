@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>jx_mobile_manipulator_description</name>
+  <version>0.5.0</version>
+  <description>Deterministic reference mobile manipulator description.</description>
+  <maintainer email="maintainers@example.invalid">Jingxin Digital Intelligence</maintainer>
+  <license>Apache-2.0</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>xacro</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>joint_state_publisher</depend>
+  <depend>rviz2</depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

@@ -8,5 +8,13 @@
     "constant drivetrain efficiency and rolling resistance at the checked point",
     "axis-aligned static support rectangle",
     "battery usable energy already includes an assumed reserve"
-  ]
+  ],
+  "simulation_dynamics": {
+    "evidence_level": "assumed",
+    "claim_boundary": "Wheel mass and inertia are simulator-only assumed parameters until replaced by verified component or test evidence.",
+    "links": {
+      "left_wheel_link": {"mass_kg": 5.0, "inertia_kg_m2": [0.03, 0.06, 0.03]},
+      "right_wheel_link": {"mass_kg": 5.0, "inertia_kg_m2": [0.03, 0.06, 0.03]}
+    }
+  }
 }

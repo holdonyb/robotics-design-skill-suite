@@ -1,0 +1,9 @@
+Visualization Manager:
+  Global Options: {Fixed Frame: odom}
+  Displays:
+    - {Class: rviz_default_plugins/RobotModel, Name: Robot}
+    - {Class: rviz_default_plugins/TF, Name: TF}
+    - {Class: rviz_default_plugins/Odometry, Name: Odometry, Topic: /odom}
+    - {Class: rviz_default_plugins/Imu, Name: IMU, Topic: /imu/data}
+    - {Class: rviz_default_plugins/LaserScan, Name: Laser Scan, Topic: /scan}
+    - {Class: rviz_default_plugins/Path, Name: Plan, Topic: /plan}

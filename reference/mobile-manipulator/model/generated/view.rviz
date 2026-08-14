@@ -1,0 +1,5 @@
+Panels:
+  - Class: rviz_common/Displays
+Visualization Manager:
+  Global Options:
+    Fixed Frame: base_link
