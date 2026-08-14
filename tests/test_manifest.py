@@ -15,7 +15,7 @@ class ManifestTests(unittest.TestCase):
     def test_manifest_has_expected_schema(self):
         self.assertEqual(self.data["schema_version"], 1)
         self.assertEqual(self.data["suite"]["name"], "robotics-design-skill-suite")
-        self.assertEqual(self.data["suite"]["version"], "0.6.0")
+        self.assertEqual(self.data["suite"]["version"], "0.7.0")
 
     def test_sources_are_pinned_and_licensed(self):
         source_ids = []
