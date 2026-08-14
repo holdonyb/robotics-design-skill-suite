@@ -145,6 +145,22 @@ engineering gaps; `2` means malformed or tampered input. Both
 reference package intentionally exits `1` because it has no selected supplier
 parts, controlled drawings, or authorized hardware test conditions.
 
+## Raw bench-evidence intake
+
+v0.7 accepts future component measurements only when they include an original
+local CSV, hash, exact units/columns and timestamps, instrument-calibration
+snapshot, approved recording card, site/operator metadata, and explicit
+component/claim edges.
+
+```bash
+python skills/robotics-design/scripts/validate_bench_evidence.py \
+  --index reference/mobile-manipulator/bench-evidence/intake-index.json
+```
+
+The empty reference index exits `1` with `awaiting_authorization`; it is not a
+bench result. Validation has no device interface and never authorizes
+purchasing, energization, or motion.
+
 ## Structure-preserving robot renders
 
 Version 0.2.0 prevents image generation from silently changing a robot's mechanism. CAD, URDF, SDF, or an equivalent deterministic model must own topology and pose. A generated image may change materials, surface finish, color, lighting, background, and non-contact environment context only.

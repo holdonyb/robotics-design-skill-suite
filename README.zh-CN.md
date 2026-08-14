@@ -115,6 +115,17 @@ python skills/robotics-design/scripts/validate_engineering_freeze.py \
 
 退出码 `0` 代表完整的审查包，`1` 代表输入有效但仍有开放工程缺口，`2` 代表输入非法或被篡改。`procurement_authorized` 与 `motion_authorized` 永远为 `false`。参考包会刻意返回 `1`，因为尚未有选定供应商部件、受控图纸或获授权的硬件测试条件。
 
+## 原始台架证据接收
+
+v0.7 只在未来部件测量同时提供原始本地 CSV、哈希、精确单位/列和时间戳、仪器校准快照、已批准的记录测试卡、场地/操作者元数据及部件/需求边时接收它。
+
+```bash
+python skills/robotics-design/scripts/validate_bench_evidence.py \
+  --index reference/mobile-manipulator/bench-evidence/intake-index.json
+```
+
+空的参考索引会以 `awaiting_authorization` 返回退出码 `1`，它不是台架结果。验证器没有设备接口，绝不授权采购、通电或运动。
+
 ## 结构保真的机器人效果图
 
 0.2.0 版禁止图像生成模型悄悄改写机器人的机构。拓扑与姿态必须由 CAD、URDF、SDF 或等价的确定性模型负责；生成图只允许改变材质、表面处理、颜色、光照、背景和不接触机器人的环境内容。
