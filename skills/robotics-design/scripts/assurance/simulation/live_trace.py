@@ -312,8 +312,14 @@ def _raw_inventory(raw_bag: str | Path) -> list[dict[str, Any]]:
 def publish_live_trace_bundle(output: str | Path, capture: object, profile: object, raw_bag: str | Path) -> BundleReceipt:
     """Publish canonical trace evidence and bind it to a retained raw MCAP bag."""
     result = validate_live_capture(capture, profile)
-    _, _, workspace, sources = _profile(profile)
+    # Authenticate raw evidence before deriving any secondary result so malformed
+    # bags fail at their owning evidence boundary with an actionable diagnostic.
     inventory = _raw_inventory(raw_bag)
+    crosscheck = crosscheck_live_dynamics(capture, profile)
+    if crosscheck["status"] != "passed":
+        raise LiveTraceError("live dynamics crosscheck did not pass")
+    result["dynamics_crosscheck"] = crosscheck
+    _, _, workspace, sources = _profile(profile)
     files = {
         "index.json": {"schema_version": 1, "kind": "live_simulation_trace"},
         "provenance.json": {
@@ -365,6 +371,15 @@ def validate_retained_live_trace_bundle(bundle: str | Path, receipt: str, raw_ba
         inventory = _raw_inventory(raw_bag)
         if provenance["raw_bag_files"] != inventory:
             return ["raw bag SHA-256 mismatch"]
+        validation = _load_object(root / "validation.json")
+        if (
+            validation.get("kind") != "live_simulation_trace"
+            or validation.get("evidence_level") != "simulated"
+            or validation.get("hardware_promotable") is not False
+            or not isinstance(validation.get("dynamics_crosscheck"), dict)
+            or validation["dynamics_crosscheck"].get("status") != "passed"
+        ):
+            return ["retained live dynamics crosscheck is invalid"]
     except LiveTraceError as exc:
         return [str(exc)]
     return []

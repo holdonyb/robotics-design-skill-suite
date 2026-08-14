@@ -1,3 +1,4 @@
+import json
 import shutil
 import sys
 import tempfile
@@ -114,6 +115,7 @@ class LiveTraceTests(unittest.TestCase):
             self.assertIn(token, source)
         self.assertIn('topic == "/diff_drive_controller/odom"', source)
         self.assertNotIn('topic == "/odom"', source)
+        self.assertIn("crosscheck_live_dynamics", source)
 
     def test_valid_capture_is_simulated_and_hardware_firewalled(self):
         result = validate_live_capture(capture(), PROFILE)
@@ -148,8 +150,10 @@ class LiveTraceTests(unittest.TestCase):
             bag.mkdir()
             (bag / "metadata.yaml").write_text("rosbag2_bagfile_information: {}\n", encoding="utf-8")
             (bag / "live-drive_0.mcap").write_bytes(b"\x89MCAP0\r\ntrace\x89MCAP0\r\n")
-            receipt = publish_live_trace_bundle(root / "bundle", capture(), PROFILE, bag)
+            receipt = publish_live_trace_bundle(root / "bundle", dynamics_capture(), PROFILE, bag)
             self.assertEqual([], validate_retained_live_trace_bundle(root / "bundle", receipt.manifest_sha256, bag))
+            validation = json.loads((root / "bundle" / "validation.json").read_text(encoding="utf-8"))
+            self.assertEqual("passed", validation["dynamics_crosscheck"]["status"])
             (bag / "live-drive_0.mcap").write_bytes(b"\x89MCAP0\r\nchanged\x89MCAP0\r\n")
             self.assertIn("raw bag SHA-256 mismatch", validate_retained_live_trace_bundle(root / "bundle", receipt.manifest_sha256, bag))
 
