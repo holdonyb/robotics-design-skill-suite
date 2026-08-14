@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "14309233f6fb894f5d50cd3b188f3d1b3caa9308b0e65be9000c6d739e8cfb61"
+ROS_MANIFEST_RECEIPT = "020bc0798d963971a6da1759f597bfb6f2a21979eb92e6d6da7eeba1ce945c87"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
