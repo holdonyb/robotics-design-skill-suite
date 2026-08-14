@@ -10,7 +10,7 @@ from typing import Any
 
 from ..engineering_freeze.schema import FreezeSchemaError, load_canonical_json
 from ..hypothesis.canonical import validate_identifier, validate_sha256
-from .model import MetricSummary, TaskEvidenceFinding, TaskEvidenceReport
+from .model import ComparisonResidual, FaultDisposition, MetricSummary, TaskEvidenceFinding, TaskEvidenceReport
 from .protocol import TaskProtocol
 
 
@@ -69,6 +69,8 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
     expected_envelope = {axis.id: set(axis.values) for axis in protocol.envelope}
     metric_rules = {item.id: item for item in protocol.metrics}
     metric_values: dict[str, list[float]] = {item.id: [] for item in protocol.metrics}
+    fault_dispositions: list[FaultDisposition] = []
+    comparison_residuals: list[ComparisonResidual] = []
     for index, package in enumerate(packages):
         path = f"packages[{index}]"
         if not isinstance(package, dict) or set(package) != _PACKAGE or type(package.get("schema_version")) is not int or package["schema_version"] != 1:
@@ -98,11 +100,13 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
             if profile is None:
                 findings.append(_finding("TASK.FAULT_UNKNOWN", f"{path}.fault_id", "fault must be declared by protocol"))
             elif fault is not None:
+                passed = True
                 for event in fault:
                     if event.get("fault_id") != profile.id or type(event.get("detected")) is not bool or not event["detected"] or event.get("safe_state") != profile.safe_state:
-                        findings.append(_finding("TASK.FAULT_SAFE_STATE", f"{path}.fault_record", "fault must be detected and reach declared safe state"))
+                        findings.append(_finding("TASK.FAULT_SAFE_STATE", f"{path}.fault_record", "fault must be detected and reach declared safe state")); passed = False
                     if event.get("recovery") != profile.recovery:
-                        findings.append(_finding("TASK.FAULT_RECOVERY", f"{path}.fault_record", "fault recovery must match protocol"))
+                        findings.append(_finding("TASK.FAULT_RECOVERY", f"{path}.fault_record", "fault recovery must match protocol")); passed = False
+                fault_dispositions.append(FaultDisposition(profile.id, package["package_id"], profile.safe_state, profile.recovery, passed))
         if package["kind"] == "endurance":
             record = _trace(_bound_json(root, package.get("endurance_record"), f"{path}.endurance_record", findings), frozenset({"timestamp_ns", "health", "terminal"}), f"{path}.endurance_record", findings)
             if record is not None:
@@ -115,6 +119,7 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
             record = _trace(_bound_json(root, package.get("comparison_record"), f"{path}.comparison_record", findings), frozenset({"timestamp_ns", "quantity_id", "simulated", "observed"}), f"{path}.comparison_record", findings)
             rules = {item.id: item for item in protocol.comparison}
             if record is not None:
+                residuals: dict[str, list[tuple[float, float]]] = {}
                 for event in record:
                     quantity_id = event.get("quantity_id")
                     rule = rules.get(quantity_id) if isinstance(quantity_id, str) else None
@@ -122,8 +127,14 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
                         findings.append(_finding("TASK.COMPARISON_INVALID", f"{path}.comparison_record", "comparison quantity and finite values are required")); continue
                     absolute = abs(float(event["observed"]) - float(event["simulated"]))
                     relative = absolute / max(abs(float(event["simulated"])), 1e-12)
+                    residuals.setdefault(rule.id, []).append((absolute, relative))
                     if absolute > rule.max_abs_residual or relative > rule.max_rel_residual:
                         findings.append(_finding("TASK.COMPARISON_RESIDUAL", f"{path}.comparison_record", "comparison residual exceeds declared limit"))
+                for quantity_id, values in residuals.items():
+                    rule = rules[quantity_id]
+                    maximum_abs = max(item[0] for item in values)
+                    maximum_rel = max(item[1] for item in values)
+                    comparison_residuals.append(ComparisonResidual(quantity_id, package["package_id"], len(values), maximum_abs, maximum_rel, maximum_abs <= rule.max_abs_residual and maximum_rel <= rule.max_rel_residual))
         envelope = package.get("envelope")
         envelope_valid = isinstance(envelope, dict) and set(envelope) == set(expected_envelope) and not any(not _finite(value) or float(value) not in expected_envelope[name] for name, value in envelope.items())
         if not envelope_valid:
@@ -183,4 +194,4 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
             findings.append(_finding("TASK.METRIC_THRESHOLD", f"metrics.{rule.id}", "aggregate metric exceeds its declared threshold"))
     findings.sort(key=lambda item: (item.code, item.path, item.message, item.severity))
     status = "rejected" if any(item.severity == "error" for item in findings) else "awaiting_authorization" if any(item.severity == "indeterminate" for item in findings) else "evidence_complete"
-    return TaskEvidenceReport(protocol.task_id, status, tuple(findings), tuple(summaries), (), ())
+    return TaskEvidenceReport(protocol.task_id, status, tuple(findings), tuple(summaries), tuple(fault_dispositions), tuple(comparison_residuals))

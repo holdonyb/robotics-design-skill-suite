@@ -65,6 +65,7 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
             result = evaluate_task_packages(root, value, [nominal(root), fault(root)])
         self.assertEqual("evidence_complete", result.status)
         self.assertEqual(("completion-time", 1, 2.0, 2.0, 2.0, True), tuple(result.metric_summaries[0].to_dict().values()))
+        self.assertEqual(("timeout-fault", "fault-001", "motion_inhibited", "manual-inspection", True), tuple(result.fault_dispositions[0].to_dict().values()))
         self.assertFalse(result.task_validated)
 
     def test_nonobject_event_is_rejected_without_traceback(self):
@@ -107,6 +108,10 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
             root = Path(raw)
             result = evaluate_task_packages(root, value, [nominal(root), fault(root), comparison(root)])
             self.assertEqual("evidence_complete", result.status)
+            residual = result.comparison_residuals[0]
+            self.assertEqual(("base-speed", "comparison-001", 2, True), (residual.quantity_id, residual.package_id, residual.count, residual.passed))
+            self.assertAlmostEqual(0.02, residual.maximum_abs_residual)
+            self.assertAlmostEqual(0.2, residual.maximum_rel_residual)
             bad = comparison(root)
             bad["comparison_record"] = bind(root, "traces/comparison.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "quantity_id": "base-speed", "simulated": 0.1, "observed": 0.5}]})
             result = evaluate_task_packages(root, value, [nominal(root), bad])

@@ -52,13 +52,50 @@ class MetricSummary:
 
 
 @dataclass(frozen=True)
+class FaultDisposition:
+    fault_id: str
+    package_id: str
+    safe_state: str
+    recovery: str
+    passed: bool
+
+    def __post_init__(self) -> None:
+        validate_identifier(self.fault_id, "fault_id")
+        validate_identifier(self.package_id, "package_id")
+        if not all(isinstance(value, str) and value for value in (self.safe_state, self.recovery)) or type(self.passed) is not bool:
+            raise ValueError("fault disposition fields are invalid")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"fault_id": self.fault_id, "package_id": self.package_id, "safe_state": self.safe_state, "recovery": self.recovery, "passed": self.passed}
+
+
+@dataclass(frozen=True)
+class ComparisonResidual:
+    quantity_id: str
+    package_id: str
+    count: int
+    maximum_abs_residual: float
+    maximum_rel_residual: float
+    passed: bool
+
+    def __post_init__(self) -> None:
+        validate_identifier(self.quantity_id, "quantity_id")
+        validate_identifier(self.package_id, "package_id")
+        if type(self.count) is not int or self.count <= 0 or type(self.passed) is not bool or any(type(value) not in {int, float} or not math.isfinite(float(value)) or float(value) < 0 for value in (self.maximum_abs_residual, self.maximum_rel_residual)):
+            raise ValueError("comparison residual fields are invalid")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"quantity_id": self.quantity_id, "package_id": self.package_id, "count": self.count, "maximum_abs_residual": self.maximum_abs_residual, "maximum_rel_residual": self.maximum_rel_residual, "passed": self.passed}
+
+
+@dataclass(frozen=True)
 class TaskEvidenceReport:
     task_evidence_id: str
     status: str
     findings: tuple[TaskEvidenceFinding, ...]
-    metric_summaries: tuple[Any, ...]
-    fault_dispositions: tuple[Any, ...]
-    comparison_residuals: tuple[Any, ...]
+    metric_summaries: tuple[MetricSummary, ...]
+    fault_dispositions: tuple[FaultDisposition, ...]
+    comparison_residuals: tuple[ComparisonResidual, ...]
     procurement_authorized: bool = False
     motion_authorized: bool = False
     task_validated: bool = False
@@ -73,8 +110,10 @@ class TaskEvidenceReport:
             raise ValueError("findings must contain TaskEvidenceFinding records")
         if any(not isinstance(item, MetricSummary) for item in self.metric_summaries):
             raise ValueError("metric_summaries must contain MetricSummary records")
-        if self.fault_dispositions or self.comparison_residuals:
-            raise ValueError("fault_dispositions and comparison_residuals require typed records")
+        if any(not isinstance(item, FaultDisposition) for item in self.fault_dispositions):
+            raise ValueError("fault_dispositions must contain FaultDisposition records")
+        if any(not isinstance(item, ComparisonResidual) for item in self.comparison_residuals):
+            raise ValueError("comparison_residuals must contain ComparisonResidual records")
         if any(type(value) is not bool for value in (self.procurement_authorized, self.motion_authorized, self.task_validated)):
             raise ValueError("authorization and task_validated flags must be booleans")
         if self.procurement_authorized or self.motion_authorized or self.task_validated:
@@ -92,6 +131,6 @@ class TaskEvidenceReport:
             "task_validated": False,
             "findings": [item.to_dict() for item in sorted(self.findings, key=lambda item: (item.code, item.path, item.message, item.severity))],
             "metric_summaries": [item.to_dict() for item in sorted(self.metric_summaries, key=lambda item: item.metric_id)],
-            "fault_dispositions": list(self.fault_dispositions),
-            "comparison_residuals": list(self.comparison_residuals),
+            "fault_dispositions": [item.to_dict() for item in sorted(self.fault_dispositions, key=lambda item: (item.fault_id, item.package_id))],
+            "comparison_residuals": [item.to_dict() for item in sorted(self.comparison_residuals, key=lambda item: (item.quantity_id, item.package_id))],
         }
