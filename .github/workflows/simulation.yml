@@ -1,6 +1,7 @@
 name: simulation
 
 on:
+  workflow_dispatch:
   push:
     branches: [main, "feature/**"]
   pull_request:
@@ -16,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build immutable Jazzy/Harmonic consumer image
         run: |
-          docker build --pull=false \
+          timeout --preserve-status 20m docker build --pull=false \
             --tag robotics-design-jazzy-harmonic:${{ github.sha }} \
             --file reference/mobile-manipulator/simulation/Dockerfile.jazzy-harmonic .
       - name: Run headless consumer gate
