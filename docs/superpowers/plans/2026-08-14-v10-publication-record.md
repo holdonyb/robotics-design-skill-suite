@@ -20,7 +20,7 @@ distribution and release validators.
 **Files:**
 - Modify: `tests/test_public_hygiene.py`
 
-- [ ] **Step 1: Write the failing public-hygiene test**
+- [x] **Step 1: Write the failing public-hygiene test**
 
 ```python
 def test_v100_publication_record_reports_observed_gates_without_hardware_claims(self):
@@ -39,7 +39,7 @@ def test_v100_publication_record_reports_observed_gates_without_hardware_claims(
         self.assertIn(phrase, record)
 ```
 
-- [ ] **Step 2: Run the focused test to verify it fails**
+- [x] **Step 2: Run the focused test to verify it fails**
 
 Run: `python -m unittest tests.test_public_hygiene.PublicHygieneTests.test_v100_publication_record_reports_observed_gates_without_hardware_claims -v`
 
@@ -50,14 +50,14 @@ Expected: FAIL because the record does not exist.
 **Files:**
 - Create: `docs/releases/v1.0-publication-record.md`
 
-- [ ] **Step 1: Add the record**
+- [x] **Step 1: Add the record**
 
 Include the tag, exact commit, PR #15, both reviewed-head simulation runs,
 main CI, main simulation, tag CI, and release URL. State that the file is a
 post-release record, that the candidate audit remains unchanged, and that no
 hardware evidence or authority is implied.
 
-- [ ] **Step 2: Run focused verification**
+- [x] **Step 2: Run focused verification**
 
 Run: `python -m unittest tests.test_public_hygiene.PublicHygieneTests.test_v100_publication_record_reports_observed_gates_without_hardware_claims -v`
 
@@ -70,19 +70,19 @@ Expected: PASS.
 - Verify only: `docs/releases/v1.0-completion-audit.md`
 - Verify only: `release/v1-release-contract.json`
 
-- [ ] **Step 1: Verify immutable inputs were not changed**
+- [x] **Step 1: Verify immutable inputs were not changed**
 
 Run: `git diff --exit-code origin/main -- PROJECT_STATUS.md docs/releases/v1.0-completion-audit.md release/v1-release-contract.json`
 
 Expected: exit code 0.
 
-- [ ] **Step 2: Run release and distribution validators**
+- [x] **Step 2: Run release and distribution validators**
 
 Run: `python skills/robotics-design/scripts/validate_release_delivery.py --root . --contract release/v1-release-contract.json; python scripts/validate.py; git diff --check origin/main...HEAD`
 
 Expected: release report `status: passed`, distribution validation passes, and
 the diff check is clean.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 Run: `git add docs/releases/v1.0-publication-record.md tests/test_public_hygiene.py docs/superpowers/specs/2026-08-14-v10-publication-record-design.md docs/superpowers/plans/2026-08-14-v10-publication-record.md; git commit -m "docs: record v1 publication evidence"`
