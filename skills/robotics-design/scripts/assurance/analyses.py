@@ -952,6 +952,123 @@ def _thermal_duty(inputs: dict[str, Any]) -> AnalysisResult:
         assumptions,
     )
 
+
+def _component_mass_closure(inputs: dict[str, Any]) -> AnalysisResult:
+    """Check explicit component and residual masses close to every link mass."""
+
+    name = "component_mass_closure_v1"
+    assumptions = (
+        "every component mass contribution is placed on exactly one declared link",
+        "structural residual mass covers only explicitly non-component mass",
+        "the check validates mass bookkeeping, not mass datum, center of mass, inertia, or mounting",
+    )
+    diagnostics: list[Diagnostic] = []
+    outputs: dict[str, Any] = {"links": []}
+    links = inputs.get("links")
+    if not isinstance(links, list) or not links:
+        diagnostics.append(
+            _diagnostic(
+                "PHY.INPUT.MISSING",
+                "error",
+                f"analyses.{name}.inputs.links",
+                "at least one mass-closure link record is required",
+            )
+        )
+        return AnalysisResult(name, "1", dict(inputs), outputs, tuple(diagnostics), assumptions)
+
+    seen_links: set[str] = set()
+    seen_components: set[str] = set()
+    required_link_fields = {
+        "id",
+        "link_mass_kg",
+        "structural_residual_mass_kg",
+        "components",
+    }
+    for link_index, link in enumerate(links):
+        path = f"analyses.{name}.inputs.links[{link_index}]"
+        if not isinstance(link, dict) or set(link) != required_link_fields:
+            diagnostics.append(
+                _diagnostic(
+                    "PHY.INPUT.TYPE",
+                    "error",
+                    path,
+                    "mass-closure link record must have exactly id, link_mass_kg, structural_residual_mass_kg, and components",
+                )
+            )
+            continue
+        link_id = link["id"]
+        if not isinstance(link_id, str) or not link_id:
+            diagnostics.append(_diagnostic("PHY.INPUT.TYPE", "error", f"{path}.id", "link id must be a non-empty string"))
+            continue
+        if link_id in seen_links:
+            diagnostics.append(_diagnostic("PHY.INPUT.TYPE", "error", f"{path}.id", f"duplicate link id: {link_id}"))
+            continue
+        seen_links.add(link_id)
+
+        values: dict[str, float] = {}
+        for field in ("link_mass_kg", "structural_residual_mass_kg"):
+            value = link[field]
+            if (
+                not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or not math.isfinite(float(value))
+                or float(value) < 0.0
+            ):
+                diagnostics.append(_diagnostic("PHY.INPUT.TYPE", "error", f"{path}.{field}", f"{field} must be a finite non-negative mass"))
+            else:
+                values[field] = float(value)
+
+        components = link["components"]
+        component_masses: list[float] = []
+        if not isinstance(components, list):
+            diagnostics.append(_diagnostic("PHY.INPUT.TYPE", "error", f"{path}.components", "components must be a list"))
+        else:
+            for component_index, component in enumerate(components):
+                component_path = f"{path}.components[{component_index}]"
+                if not isinstance(component, dict) or set(component) != {"id", "mass_kg"}:
+                    diagnostics.append(_diagnostic("PHY.INPUT.TYPE", "error", component_path, "component mass record must have exactly id and mass_kg"))
+                    continue
+                component_id = component["id"]
+                mass = component["mass_kg"]
+                if not isinstance(component_id, str) or not component_id:
+                    diagnostics.append(_diagnostic("PHY.INPUT.TYPE", "error", f"{component_path}.id", "component id must be a non-empty string"))
+                    continue
+                if component_id in seen_components:
+                    diagnostics.append(_diagnostic("PHY.INPUT.TYPE", "error", f"{component_path}.id", f"duplicate component contribution id: {component_id}"))
+                    continue
+                seen_components.add(component_id)
+                if (
+                    not isinstance(mass, (int, float))
+                    or isinstance(mass, bool)
+                    or not math.isfinite(float(mass))
+                    or float(mass) < 0.0
+                ):
+                    diagnostics.append(_diagnostic("PHY.INPUT.TYPE", "error", f"{component_path}.mass_kg", "mass_kg must be a finite non-negative mass"))
+                    continue
+                component_masses.append(float(mass))
+
+        if len(values) != 2 or len(component_masses) != len(components):
+            continue
+        component_mass = math.fsum(component_masses)
+        expected_link_mass = values["structural_residual_mass_kg"] + component_mass
+        closure_margin = values["link_mass_kg"] - expected_link_mass
+        if not all(math.isfinite(value) for value in (component_mass, expected_link_mass, closure_margin)):
+            diagnostics.append(_diagnostic("PHY.NUMERIC.OVERFLOW", "error", path, "mass-closure calculation is non-finite"))
+            continue
+        outputs["links"].append(
+            {
+                "id": link_id,
+                "link_mass_kg": values["link_mass_kg"],
+                "structural_residual_mass_kg": values["structural_residual_mass_kg"],
+                "component_mass_kg": component_mass,
+                "expected_link_mass_kg": expected_link_mass,
+                "closure_margin_kg": closure_margin,
+            }
+        )
+        if abs(closure_margin) > 1e-9:
+            diagnostics.append(_diagnostic("PHY.MASS.CLOSURE", "error", path, "link mass does not equal structural residual mass plus declared component masses"))
+    return AnalysisResult(name, "1", dict(inputs), outputs, tuple(diagnostics), assumptions)
+
 def _bearing_static(inputs: dict[str, Any]) -> AnalysisResult:
     name = "bearing_static_v1"
     assumptions = (
@@ -1006,6 +1123,9 @@ PLUGINS: dict[str, AnalysisPlugin] = {
     "bearing_static_v1": AnalysisPlugin("bearing_static_v1", "1", ("joints",), _bearing_static),
     "thermal_duty_v1": AnalysisPlugin(
         "thermal_duty_v1", "1", THERMAL_DUTY_INPUTS, _thermal_duty
+    ),
+    "component_mass_closure_v1": AnalysisPlugin(
+        "component_mass_closure_v1", "1", ("links",), _component_mass_closure
     ),
 }
 

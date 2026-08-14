@@ -39,6 +39,8 @@ V100_REQUIRED_PATHS = frozenset(
 
 V110_RUNTIME_PATHS = frozenset(
     {
+        "reference/mobile-manipulator/component-mass-closure.json",
+        "reference/mobile-manipulator/design-contract.json",
         "skills/robotics-design/references/hardware-authority-contract.md",
         "skills/robotics-design/scripts/generate_release_delivery_contract.py",
         "skills/robotics-design/scripts/validate_release_delivery.py",

@@ -63,7 +63,7 @@ components to explicit left/right drive and per-joint responsibilities, closes
 each plug-in input to an expected physical dimension, checks artifact hashes,
 owned URDF observations, and bounded declared-JSON observations, and emits deterministic diagnostics and signed
 margins for drivetrain, battery/runtime, static stability, arm gravity/brake
-holding, and conservative steady-state winding thermal duty.
+holding, component mass closure, and conservative steady-state winding thermal duty.
 
 ```bash
 python skills/robotics-design/scripts/validate_design_contract.py path/to/design-contract.json --report evidence.json
@@ -81,7 +81,9 @@ differential-drive plus six-axis-arm regression fixture with 35 critical fault
 mutations. Most component ratings are engineering assumptions, not a build or
 purchasing recommendation; its J2 bearing and reducer are hash-bound parsed
 catalog candidates, not validated assemblies. Static arm load demand is also
-screened back through declared motor/reducer transmissions, while motor curves,
+screened back through declared motor/reducer transmissions. Link mass closes
+against an explicit structural residual plus selected component contributions;
+unbound supplier candidates contribute no reference mass. Motor curves,
 life, and transient dynamics remain separate evidence gates. It intentionally remains
 unpromoted until exact parts and stronger evidence replace every claim-driving
 placeholder. See the

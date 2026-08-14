@@ -88,6 +88,7 @@ class ReferenceRobotTests(unittest.TestCase):
                 "battery_v1",
                 "stability_v1",
                 "arm_load_envelope_v1",
+                "component_mass_closure_v1",
                 "bearing_static_v1",
                 "thermal_duty_v1",
             },
@@ -181,6 +182,24 @@ class ReferenceRobotTests(unittest.TestCase):
         joint = next(item for item in arm["outputs"]["joints"] if item["id"] == "joint_2")
         self.assertGreater(joint["continuous_margin_nm"], 0.0)
         self.assertFalse(report.promotable)
+
+    def test_component_mass_closure_starts_with_urdf_structural_budgets(self):
+        report, errors = evaluate_contract(REFERENCE / "design-contract.json")
+        self.assertEqual([], errors)
+        closure = next(
+            item
+            for item in report.analyses
+            if item["analysis_id"] == "AN-COMPONENT-MASS-CLOSURE"
+        )
+        self.assertTrue(closure["passed"])
+        self.assertEqual(6, len(closure["outputs"]["links"]))
+        self.assertTrue(
+            all(
+                item["component_mass_kg"] == 0.0
+                and item["closure_margin_kg"] == 0.0
+                for item in closure["outputs"]["links"]
+            )
+        )
 
     def test_joint_two_static_bearing_screen_binds_catalog_and_load_model(self):
         data = json.loads(

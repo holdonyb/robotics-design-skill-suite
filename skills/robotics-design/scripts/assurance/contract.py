@@ -69,6 +69,8 @@ ROLE_LIMIT_DIMENSIONS: dict[str, dict[str, str]] = {
     "strain_relief": {"retention_force": "force"},
     "cable_management": {"minimum_bend_radius": "length"},
 }
+for _role_limits in ROLE_LIMIT_DIMENSIONS.values():
+    _role_limits["mass"] = "mass"
 ROOT_FIELDS = frozenset(
     {
         "schema_version",
@@ -587,7 +589,8 @@ def validate_contract(data: Any) -> list[str]:
         )
 
     for index, item in enumerate(collections["analyses"]):
-        if not _nonempty(item.get("plugin")):
+        plugin = item.get("plugin")
+        if not _nonempty(plugin):
             errors.append(f"analyses[{index}].plugin must be a non-empty string")
         inputs = item.get("inputs")
         if not isinstance(inputs, dict):
@@ -601,16 +604,21 @@ def validate_contract(data: Any) -> list[str]:
                 errors.append(
                     f"analyses[{index}].covers references unknown responsibility: {coverage}"
                 )
-        for name, reference in sorted(inputs.items()):
-            if not _nonempty(name):
-                errors.append(f"analyses[{index}].inputs keys must be non-empty strings")
-            else:
-                _validate_analysis_input(
-                    reference,
-                    f"analyses[{index}].inputs.{name}",
-                    quantity_ids,
-                    errors,
-                )
+        # Component mass closure owns its fully closed nested grammar, including a
+        # legitimate empty ``components`` list before a placeholder is replaced by
+        # a selected part.  Its plug-in validator below still verifies every
+        # quantity reference and rejects all other malformed shapes.
+        if plugin != "component_mass_closure_v1":
+            for name, reference in sorted(inputs.items()):
+                if not _nonempty(name):
+                    errors.append(f"analyses[{index}].inputs keys must be non-empty strings")
+                else:
+                    _validate_analysis_input(
+                        reference,
+                        f"analyses[{index}].inputs.{name}",
+                        quantity_ids,
+                        errors,
+                    )
         errors.extend(
             validate_plugin_inputs(
                 item.get("plugin"),

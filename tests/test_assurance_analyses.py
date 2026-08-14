@@ -336,6 +336,53 @@ class AssuranceAnalysisTests(unittest.TestCase):
             {item.code for item in overloaded.diagnostics},
         )
 
+    def test_component_mass_closure_detects_omission_and_double_count(self):
+        inputs = {
+            "links": [
+                {
+                    "id": "arm_link_2",
+                    "link_mass_kg": 10.0,
+                    "structural_residual_mass_kg": 2.0,
+                    "components": [
+                        {"id": "CMP-BRAKE-J2", "mass_kg": 3.0},
+                        {"id": "CMP-DRIVER-J2", "mass_kg": 5.0},
+                    ],
+                }
+            ]
+        }
+        result = run_plugin("component_mass_closure_v1", inputs)
+        link = result.outputs["links"][0]
+        self.assertTrue(result.passed)
+        self.assertEqual(link["component_mass_kg"], 8.0)
+        self.assertEqual(link["closure_margin_kg"], 0.0)
+
+        duplicate_across_links = {
+            "links": [
+                inputs["links"][0],
+                {
+                    "id": "arm_link_3",
+                    "link_mass_kg": 5.0,
+                    "structural_residual_mass_kg": 2.0,
+                    "components": [{"id": "CMP-BRAKE-J2", "mass_kg": 3.0}],
+                },
+            ]
+        }
+        duplicated = run_plugin("component_mass_closure_v1", duplicate_across_links)
+        self.assertFalse(duplicated.passed)
+        self.assertIn("PHY.INPUT.TYPE", {item.code for item in duplicated.diagnostics})
+
+        inputs["links"][0]["link_mass_kg"] = 9.0
+        mismatched = run_plugin("component_mass_closure_v1", inputs)
+        self.assertFalse(mismatched.passed)
+        self.assertIn(
+            "PHY.MASS.CLOSURE", {item.code for item in mismatched.diagnostics}
+        )
+
+        inputs["links"][0]["link_mass_kg"] = float("inf")
+        nonfinite = run_plugin("component_mass_closure_v1", inputs)
+        self.assertFalse(nonfinite.passed)
+        self.assertTrue(nonfinite.diagnostics)
+
     def test_missing_and_invalid_inputs_are_fail_closed_not_tracebacks(self):
         missing = run_plugin("drivetrain_v1", {"base_mass_kg": 10.0})
         self.assertTrue(any(item.severity == "indeterminate" for item in missing.diagnostics))

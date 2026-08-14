@@ -89,7 +89,13 @@ ARM_LOAD_ENVELOPE_FIELDS = frozenset(
 )
 
 KNOWN_PLUGINS = frozenset(
-    (*FLAT_PLUGIN_DIMENSIONS, "arm_gravity_v1", "arm_load_envelope_v1", "bearing_static_v1")
+    (
+        *FLAT_PLUGIN_DIMENSIONS,
+        "arm_gravity_v1",
+        "arm_load_envelope_v1",
+        "bearing_static_v1",
+        "component_mass_closure_v1",
+    )
 )
 
 
@@ -137,6 +143,63 @@ def _identifier(value: Any, path: str, errors: list[str]) -> str | None:
         errors.append(f"{path} must be a non-empty string")
         return None
     return value
+
+
+def _validate_component_mass_closure_inputs(
+    inputs: Any,
+    quantities: dict[str, dict[str, Any]],
+    path: str,
+) -> list[str]:
+    """Validate closed component-to-link mass-accounting records."""
+
+    errors: list[str] = []
+    if not _closed_object(inputs, {"links"}, path, errors):
+        return errors
+    links = inputs["links"]
+    if not isinstance(links, list) or not links:
+        return [*errors, f"{path}.links must be a non-empty list"]
+
+    link_ids: set[str] = set()
+    component_ids: set[str] = set()
+    for link_index, link in enumerate(links):
+        link_path = f"{path}.links[{link_index}]"
+        fields = {"id", "link_mass_kg", "structural_residual_mass_kg", "components"}
+        if not _closed_object(link, fields, link_path, errors):
+            continue
+        link_id = _identifier(link["id"], f"{link_path}.id", errors)
+        if link_id is not None:
+            if link_id in link_ids:
+                errors.append(f"{link_path}.id duplicates {link_id}")
+            link_ids.add(link_id)
+        _quantity_reference(
+            link["link_mass_kg"], "mass", f"{link_path}.link_mass_kg", quantities, errors
+        )
+        _quantity_reference(
+            link["structural_residual_mass_kg"],
+            "mass",
+            f"{link_path}.structural_residual_mass_kg",
+            quantities,
+            errors,
+        )
+        components = link["components"]
+        if not isinstance(components, list):
+            errors.append(f"{link_path}.components must be a list")
+            continue
+        for component_index, component in enumerate(components):
+            component_path = f"{link_path}.components[{component_index}]"
+            if not _closed_object(component, {"id", "mass_kg"}, component_path, errors):
+                continue
+            component_id = _identifier(component["id"], f"{component_path}.id", errors)
+            if component_id is not None:
+                if component_id in component_ids:
+                    errors.append(
+                        f"{component_path}.id duplicates component contribution {component_id}"
+                    )
+                component_ids.add(component_id)
+            _quantity_reference(
+                component["mass_kg"], "mass", f"{component_path}.mass_kg", quantities, errors
+            )
+    return errors
 
 
 def _quantity_vector(
@@ -344,6 +407,9 @@ def validate_plugin_inputs(
 
     if plugin == "arm_load_envelope_v1":
         return _validate_arm_load_envelope_inputs(inputs, quantities, path)
+
+    if plugin == "component_mass_closure_v1":
+        return _validate_component_mass_closure_inputs(inputs, quantities, path)
 
     if plugin == "bearing_static_v1":
         if not _closed_object(inputs, {"joints"}, path, errors):

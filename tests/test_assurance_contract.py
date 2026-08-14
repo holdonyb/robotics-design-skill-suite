@@ -214,7 +214,89 @@ def valid_load_envelope_inputs():
     }
 
 
+def component_mass_closure_quantities():
+    return {
+        "Q-LINK-MASS": {"dimension": "mass"},
+        "Q-STRUCTURAL-MASS": {"dimension": "mass"},
+        "Q-BRAKE-MASS": {"dimension": "mass"},
+        "Q-DRIVER-MASS": {"dimension": "mass"},
+        "Q-CURRENT": {"dimension": "current"},
+    }
+
+
+def valid_component_mass_closure_inputs():
+    return {
+        "links": [
+            {
+                "id": "arm_link_2",
+                "link_mass_kg": "quantity:Q-LINK-MASS",
+                "structural_residual_mass_kg": "quantity:Q-STRUCTURAL-MASS",
+                "components": [
+                    {"id": "CMP-BRAKE-J2", "mass_kg": "quantity:Q-BRAKE-MASS"},
+                    {"id": "CMP-DRIVER-J2", "mass_kg": "quantity:Q-DRIVER-MASS"},
+                ],
+            }
+        ]
+    }
+
+
 class AssuranceContractTests(unittest.TestCase):
+    def test_component_mass_closure_requires_closed_mass_records(self):
+        quantities = component_mass_closure_quantities()
+        valid = valid_component_mass_closure_inputs()
+        self.assertEqual(
+            [],
+            validate_plugin_inputs(
+                "component_mass_closure_v1", valid, quantities, "inputs"
+            ),
+        )
+
+        duplicate = valid_component_mass_closure_inputs()
+        duplicate["links"][0]["components"][1]["id"] = "CMP-BRAKE-J2"
+        self.assertTrue(
+            validate_plugin_inputs("component_mass_closure_v1", duplicate, quantities, "inputs")
+        )
+
+        duplicate_across_links = valid_component_mass_closure_inputs()
+        duplicate_across_links["links"].append(
+            {
+                "id": "arm_link_3",
+                "link_mass_kg": "quantity:Q-LINK-MASS",
+                "structural_residual_mass_kg": "quantity:Q-STRUCTURAL-MASS",
+                "components": [
+                    {"id": "CMP-BRAKE-J2", "mass_kg": "quantity:Q-BRAKE-MASS"}
+                ],
+            }
+        )
+        self.assertTrue(
+            validate_plugin_inputs(
+                "component_mass_closure_v1", duplicate_across_links, quantities, "inputs"
+            )
+        )
+
+        missing = valid_component_mass_closure_inputs()
+        del missing["links"][0]["structural_residual_mass_kg"]
+        self.assertTrue(
+            validate_plugin_inputs("component_mass_closure_v1", missing, quantities, "inputs")
+        )
+
+        unknown = valid_component_mass_closure_inputs()
+        unknown["links"][0]["components"][0]["candidate_note"] = "unbound"
+        self.assertTrue(
+            validate_plugin_inputs("component_mass_closure_v1", unknown, quantities, "inputs")
+        )
+
+        wrong_dimension = valid_component_mass_closure_inputs()
+        wrong_dimension["links"][0]["components"][0]["mass_kg"] = "quantity:Q-CURRENT"
+        self.assertTrue(
+            any(
+                "expects dimension mass" in error
+                for error in validate_plugin_inputs(
+                    "component_mass_closure_v1", wrong_dimension, quantities, "inputs"
+                )
+            )
+        )
+
     def test_bearing_static_inputs_are_closed_and_dimensioned(self):
         quantities = {
             "Q-R": {"dimension": "force"}, "Q-A": {"dimension": "force"},
@@ -704,6 +786,74 @@ class AssuranceContractTests(unittest.TestCase):
         diagnostics = _analysis_rating_owner_diagnostics(data)
         self.assertIn(
             "PHY.THERMAL.DRIVER_CURRENT_INPUT",
+            {item.code for item in diagnostics},
+        )
+
+    def test_component_mass_closure_binds_exact_component_mass(self):
+        data = {
+            "quantities": [
+                {"id": "Q-J2-MASS", "owner": "component:CMP-BRAKE-J2"},
+                {"id": "Q-J2-ALT-MASS", "owner": "component:CMP-BRAKE-J2"},
+                {"id": "Q-J3-MASS", "owner": "component:CMP-BRAKE-J3"},
+                {"id": "Q-STRUCTURE", "owner": "artifact:robot-model"},
+                {
+                    "id": "Q-LINK",
+                    "owner": "artifact:robot-model",
+                    "observation": "artifact:robot-model#links.arm_link_2.mass_kg",
+                },
+            ],
+            "components": [
+                {
+                    "id": "CMP-BRAKE-J2",
+                    "role": "brake",
+                    "state": "verified_part",
+                    "bindings": ["actuator:joint_2"],
+                    "limits": {"mass": "quantity:Q-J2-MASS"},
+                },
+                {
+                    "id": "CMP-BRAKE-J3",
+                    "role": "brake",
+                    "state": "engineering_placeholder",
+                    "bindings": ["actuator:joint_3"],
+                },
+            ],
+            "analyses": [
+                {
+                    "plugin": "component_mass_closure_v1",
+                    "covers": ["actuator:joint_2"],
+                    "inputs": {
+                        "links": [
+                            {
+                                "id": "arm_link_2",
+                                "link_mass_kg": "quantity:Q-LINK",
+                                "structural_residual_mass_kg": "quantity:Q-STRUCTURE",
+                                "components": [
+                                    {"id": "CMP-BRAKE-J2", "mass_kg": "quantity:Q-J3-MASS"}
+                                ],
+                            }
+                        ]
+                    },
+                }
+            ],
+        }
+        diagnostics = _analysis_rating_owner_diagnostics(data)
+        self.assertIn("PHY.MASS.OWNER", {item.code for item in diagnostics})
+
+        data["analyses"][0]["inputs"]["links"][0]["components"][0]["mass_kg"] = "quantity:Q-J2-MASS"
+        data["analyses"][0]["inputs"]["links"][0]["link_mass_kg"] = "quantity:Q-J2-MASS"
+        diagnostics = _analysis_rating_owner_diagnostics(data)
+        self.assertIn("PHY.MASS.OWNER", {item.code for item in diagnostics})
+
+        data["analyses"][0]["inputs"]["links"][0]["link_mass_kg"] = "quantity:Q-LINK"
+
+        data["analyses"][0]["inputs"]["links"][0]["components"][0]["mass_kg"] = "quantity:Q-J2-ALT-MASS"
+        diagnostics = _analysis_rating_owner_diagnostics(data)
+        self.assertIn("PHY.MASS.LIMIT", {item.code for item in diagnostics})
+
+        data["analyses"][0]["inputs"]["links"][0]["components"] = []
+        diagnostics = _analysis_rating_owner_diagnostics(data)
+        self.assertIn(
+            "PHY.MASS.MISSING_CONTRIBUTION",
             {item.code for item in diagnostics},
         )
 

@@ -197,6 +197,29 @@ assembly quality, or an authorized hardware capability.
 Domain violations, non-finite values, missing inputs, unsupported units, and
 unknown plug-ins fail closed with stable diagnostics instead of tracebacks.
 
+### `component_mass_closure_v1`
+
+Every declared link record closes the explicitly typed mass ledger:
+
+```text
+link_mass = structural_residual_mass + sum(component_masses)
+closure_margin = link_mass - structural_residual_mass - sum(component_masses)
+```
+
+The link mass and structural residual are independently source-bound mass
+quantities. Each component contribution names exactly one declared component
+and uses a quantity owned by that component. A `verified_part` or
+`qualified_substitute` that declares a catalog mass limit must contribute that
+exact limit to one closure record; it cannot disappear into a residual. An
+empty contribution list is allowed only while the corresponding link remains
+an explicit structural budget, not as evidence that a supplier candidate has
+been installed.
+
+This is mass bookkeeping only. It does not establish the component datum,
+centre of mass, inertia, fastener loads, structural stiffness, wiring mass,
+contact, CAD fit, suitability, procurement, energization, or hardware
+authorization.
+
 ## Artifact ownership and drift
 
 Each quantity has one owner. Hash every source file used as evidence. Git

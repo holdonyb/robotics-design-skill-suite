@@ -427,6 +427,121 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
                     "motor_driver",
                     "continuous_current",
                 )
+        elif plugin == "component_mass_closure_v1":
+            links = inputs.get("links")
+            if not isinstance(links, list):
+                continue
+            for link_index, link in enumerate(links):
+                if not isinstance(link, dict):
+                    continue
+                link_path = f"analyses[{index}].inputs.links[{link_index}]"
+                link_reference = link.get("link_mass_kg")
+                link_quantity = (
+                    quantities.get(link_reference[9:])
+                    if isinstance(link_reference, str)
+                    and link_reference.startswith("quantity:")
+                    else None
+                )
+                expected_observation = (
+                    f"artifact:robot-model#links.{link.get('id')}.mass_kg"
+                    if isinstance(link.get("id"), str)
+                    else None
+                )
+                if (
+                    link_quantity is None
+                    or link_quantity.get("owner") != "artifact:robot-model"
+                    or link_quantity.get("observation") != expected_observation
+                ):
+                    diagnostics.append(
+                        Diagnostic(
+                            "PHY.MASS.OWNER",
+                            "indeterminate",
+                            f"{link_path}.link_mass_kg",
+                            "link mass must be the matching artifact:robot-model URDF link-mass observation",
+                        )
+                    )
+                residual_reference = link.get("structural_residual_mass_kg")
+                residual_quantity = (
+                    quantities.get(residual_reference[9:])
+                    if isinstance(residual_reference, str)
+                    and residual_reference.startswith("quantity:")
+                    else None
+                )
+                if residual_quantity is not None and residual_quantity.get("owner") not in {
+                    "artifact:robot-model",
+                    "project:system",
+                }:
+                    diagnostics.append(
+                        Diagnostic(
+                            "PHY.MASS.OWNER",
+                            "indeterminate",
+                            f"{link_path}.structural_residual_mass_kg",
+                            "structural residual mass must be owned by artifact:robot-model or project:system",
+                        )
+                    )
+                component_records = link.get("components")
+                if not isinstance(component_records, list):
+                    continue
+                for component_index, record in enumerate(component_records):
+                    if not isinstance(record, dict) or not isinstance(record.get("id"), str):
+                        continue
+                    record_path = f"{link_path}.components[{component_index}]"
+                    component_id = record["id"]
+                    matches = [item for item in components if item.get("id") == component_id]
+                    reference = record.get("mass_kg")
+                    quantity = (
+                        quantities.get(reference[9:])
+                        if isinstance(reference, str) and reference.startswith("quantity:")
+                        else None
+                    )
+                    if len(matches) != 1 or quantity is None or quantity.get("owner") != f"component:{component_id}":
+                        diagnostics.append(
+                            Diagnostic(
+                                "PHY.MASS.OWNER",
+                                "indeterminate",
+                                f"{record_path}.mass_kg",
+                                f"mass_kg must be owned by declared component:{component_id}",
+                            )
+                        )
+                        continue
+                    component = matches[0]
+                    if component.get("state") in {"verified_part", "qualified_substitute"}:
+                        limits = component.get("limits")
+                        if not isinstance(limits, dict) or limits.get("mass") != reference:
+                            diagnostics.append(
+                                Diagnostic(
+                                    "PHY.MASS.LIMIT",
+                                    "indeterminate",
+                                    f"{record_path}.mass_kg",
+                                    f"mass_kg must equal the mass limit of component:{component_id}",
+                                )
+                            )
+    declared_mass_contributions: set[str] = set()
+    for analysis in data.get("analyses", []):
+        if not isinstance(analysis, dict) or analysis.get("plugin") != "component_mass_closure_v1":
+            continue
+        inputs = analysis.get("inputs")
+        if not isinstance(inputs, dict) or not isinstance(inputs.get("links"), list):
+            continue
+        for link in inputs["links"]:
+            if not isinstance(link, dict) or not isinstance(link.get("components"), list):
+                continue
+            for record in link["components"]:
+                if isinstance(record, dict) and isinstance(record.get("id"), str):
+                    declared_mass_contributions.add(record["id"])
+    for component_index, component in enumerate(components):
+        if component.get("state") not in {"verified_part", "qualified_substitute"}:
+            continue
+        limits = component.get("limits")
+        if isinstance(limits, dict) and "mass" in limits and component.get("id") not in declared_mass_contributions:
+            diagnostics.append(
+                Diagnostic(
+                    "PHY.MASS.MISSING_CONTRIBUTION",
+                    "indeterminate",
+                    f"components[{component_index}].limits.mass",
+                    f"verified component:{component.get('id')} declares mass but is absent from every component mass-closure record",
+                )
+            )
     return diagnostics
 
 

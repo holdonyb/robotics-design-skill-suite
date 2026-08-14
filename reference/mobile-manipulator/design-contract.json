@@ -2139,6 +2139,60 @@
       "owner": "project:system",
       "source": "evidence:EV-LOAD-ENVELOPE",
       "evidence_level": "assumed"
+    },
+    {
+      "id": "Q-MASS-CLOSURE-L1-RESIDUAL",
+      "dimension": "mass",
+      "value": {"value": 8.0, "unit": "kg"},
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-COMPONENT-MASS-CLOSURE",
+      "evidence_level": "assumed",
+      "observation": "artifact:component-mass-closure#links.arm_link_1.structural_residual_mass_kg"
+    },
+    {
+      "id": "Q-MASS-CLOSURE-L2-RESIDUAL",
+      "dimension": "mass",
+      "value": {"value": 7.0, "unit": "kg"},
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-COMPONENT-MASS-CLOSURE",
+      "evidence_level": "assumed",
+      "observation": "artifact:component-mass-closure#links.arm_link_2.structural_residual_mass_kg"
+    },
+    {
+      "id": "Q-MASS-CLOSURE-L3-RESIDUAL",
+      "dimension": "mass",
+      "value": {"value": 5.0, "unit": "kg"},
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-COMPONENT-MASS-CLOSURE",
+      "evidence_level": "assumed",
+      "observation": "artifact:component-mass-closure#links.arm_link_3.structural_residual_mass_kg"
+    },
+    {
+      "id": "Q-MASS-CLOSURE-L4-RESIDUAL",
+      "dimension": "mass",
+      "value": {"value": 4.0, "unit": "kg"},
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-COMPONENT-MASS-CLOSURE",
+      "evidence_level": "assumed",
+      "observation": "artifact:component-mass-closure#links.arm_link_4.structural_residual_mass_kg"
+    },
+    {
+      "id": "Q-MASS-CLOSURE-L5-RESIDUAL",
+      "dimension": "mass",
+      "value": {"value": 3.0, "unit": "kg"},
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-COMPONENT-MASS-CLOSURE",
+      "evidence_level": "assumed",
+      "observation": "artifact:component-mass-closure#links.arm_link_5.structural_residual_mass_kg"
+    },
+    {
+      "id": "Q-MASS-CLOSURE-L6-RESIDUAL",
+      "dimension": "mass",
+      "value": {"value": 2.0, "unit": "kg"},
+      "owner": "artifact:robot-model",
+      "source": "evidence:EV-COMPONENT-MASS-CLOSURE",
+      "evidence_level": "assumed",
+      "observation": "artifact:component-mass-closure#links.arm_link_6.structural_residual_mass_kg"
     }
   ],
   "components": [
@@ -2884,7 +2938,7 @@
       "id": "assumption-registry",
       "kind": "assumptions",
       "path": "assumptions.json",
-      "sha256": "94cfebc961c266fc56fd9d13577132795dfab6eb1fe9e98248ef3a075ec14ea8"
+      "sha256": "fa7a1f6bbbabd40d96e0528e550be507c58ee8ce12b96290489c9549245d44e0"
     },
     {
       "id": "load-envelope-model",
@@ -2897,6 +2951,12 @@
       "kind": "declared_json",
       "path": "model/bearing-load-j2.json",
       "sha256": "137c16792c8da03dd0f9d3127feef88d4d666735c50d3b9a5a10771a43233cfc"
+    },
+    {
+      "id": "component-mass-closure",
+      "kind": "declared_json",
+      "path": "component-mass-closure.json",
+      "sha256": "18d1b73eb67626851f168366f9fc1be6203fc0a224df4817152ac44c1f9a32e0"
     }
   ],
   "analyses": [
@@ -3311,6 +3371,23 @@
       }
     },
     {
+      "id": "AN-COMPONENT-MASS-CLOSURE",
+      "plugin": "component_mass_closure_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL"
+      ],
+      "inputs": {
+        "links": [
+          {"id":"arm_link_1","link_mass_kg":"quantity:Q-LE-L1-MASS","structural_residual_mass_kg":"quantity:Q-MASS-CLOSURE-L1-RESIDUAL","components":[]},
+          {"id":"arm_link_2","link_mass_kg":"quantity:Q-LE-L2-MASS","structural_residual_mass_kg":"quantity:Q-MASS-CLOSURE-L2-RESIDUAL","components":[]},
+          {"id":"arm_link_3","link_mass_kg":"quantity:Q-LE-L3-MASS","structural_residual_mass_kg":"quantity:Q-MASS-CLOSURE-L3-RESIDUAL","components":[]},
+          {"id":"arm_link_4","link_mass_kg":"quantity:Q-LE-L4-MASS","structural_residual_mass_kg":"quantity:Q-MASS-CLOSURE-L4-RESIDUAL","components":[]},
+          {"id":"arm_link_5","link_mass_kg":"quantity:Q-LE-L5-MASS","structural_residual_mass_kg":"quantity:Q-MASS-CLOSURE-L5-RESIDUAL","components":[]},
+          {"id":"arm_link_6","link_mass_kg":"quantity:Q-LE-L6-MASS","structural_residual_mass_kg":"quantity:Q-MASS-CLOSURE-L6-RESIDUAL","components":[]}
+        ]
+      }
+    },
+    {
       "id": "AN-BEARING-J2",
       "plugin": "bearing_static_v1",
       "covers": [
@@ -3539,7 +3616,7 @@
       "level": "assumed",
       "source": {
         "path": "assumptions.json",
-        "sha256": "94cfebc961c266fc56fd9d13577132795dfab6eb1fe9e98248ef3a075ec14ea8"
+        "sha256": "fa7a1f6bbbabd40d96e0528e550be507c58ee8ce12b96290489c9549245d44e0"
       },
       "supports": [
         "artifact:assumption-registry",
@@ -3722,6 +3799,23 @@
         "quantity:Q-LE-PAYLOAD-MASS",
         "quantity:Q-LE-CONTINUOUS-SF",
         "quantity:Q-LE-BRAKE-SF"
+      ]
+    },
+    {
+      "id": "EV-COMPONENT-MASS-CLOSURE",
+      "level": "assumed",
+      "source": {
+        "path": "component-mass-closure.json",
+        "sha256": "18d1b73eb67626851f168366f9fc1be6203fc0a224df4817152ac44c1f9a32e0"
+      },
+      "supports": [
+        "artifact:component-mass-closure",
+        "quantity:Q-MASS-CLOSURE-L1-RESIDUAL",
+        "quantity:Q-MASS-CLOSURE-L2-RESIDUAL",
+        "quantity:Q-MASS-CLOSURE-L3-RESIDUAL",
+        "quantity:Q-MASS-CLOSURE-L4-RESIDUAL",
+        "quantity:Q-MASS-CLOSURE-L5-RESIDUAL",
+        "quantity:Q-MASS-CLOSURE-L6-RESIDUAL"
       ]
     },
     {
