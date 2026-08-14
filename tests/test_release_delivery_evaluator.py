@@ -61,6 +61,14 @@ class ReleaseDeliveryEvaluatorTests(unittest.TestCase):
         self.assertFalse(first.hardware_claims)
 
     def test_v110_profile_binds_the_authority_runtime(self):
+        required = required_paths_for("v1.1.0")
+        for path in (
+            "scripts/run_live_simulation_gate.sh",
+            "scripts/validate_live_simulation_trace.py",
+            "skills/robotics-design/scripts/assurance/simulation/__init__.py",
+            "skills/robotics-design/scripts/assurance/simulation/live_trace.py",
+        ):
+            self.assertIn(path, required)
         root = self.copy_candidate_tree("v1.1.0")
         contract = self.write_contract(root, "v1.1.0")
         self.assertTrue(evaluate_release_delivery(root, contract).passed)

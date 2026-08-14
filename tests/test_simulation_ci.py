@@ -56,6 +56,19 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn("include-hidden-files: true", workflow)
         self.assertNotIn("continue-on-error: true", workflow)
 
+    def test_live_gate_retains_a_bounded_controller_trace_not_a_synthetic_substitute(self):
+        gate = (ROOT / "scripts/run_live_simulation_gate.sh").read_text(encoding="utf-8")
+        for token in (
+            'ros2 bag record --storage mcap --output "$EVIDENCE/live-drive"',
+            "/clock", "/joint_states", "/odom", "/diff_drive_controller/cmd_vel",
+            'timeout 2s ros2 topic pub -r 10 /diff_drive_controller/cmd_vel geometry_msgs/msg/TwistStamped',
+            "x: 0.10", "z: 0.0", "validate_live_simulation_trace.py",
+            '"$EVIDENCE/live-trace-bundle"',
+        ):
+            self.assertIn(token, gate)
+        self.assertLess(gate.index("wait_for_active_controllers"), gate.index("ros2 bag record --storage mcap"))
+        self.assertLess(gate.index("ros2 bag record --storage mcap"), gate.index("validate_live_simulation_trace.py"))
+
 
 if __name__ == "__main__":
     unittest.main()

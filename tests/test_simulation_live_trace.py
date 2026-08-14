@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
 from assurance.simulation.live_trace import (  # noqa: E402
     LiveTraceError,
+    normalize_records,
     publish_live_trace_bundle,
     validate_live_capture,
     validate_retained_live_trace_bundle,
@@ -51,6 +52,34 @@ def capture():
 
 
 class LiveTraceTests(unittest.TestCase):
+    def test_normalizer_accepts_only_the_live_gate_ros_topics(self):
+        records = [
+            {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "timestamp_ns": 0, "message": {"clock": {"sec": 0, "nanosec": 0}}},
+            {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "timestamp_ns": 1_000_000_000, "message": {"clock": {"sec": 1, "nanosec": 0}}},
+            {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "timestamp_ns": 2_000_000_000, "message": {"clock": {"sec": 2, "nanosec": 0}}},
+            {"topic": "/joint_states", "type": "sensor_msgs/msg/JointState", "timestamp_ns": 0, "message": {"header": {"stamp": {"sec": 0, "nanosec": 0}}, "name": ["left_wheel_joint", "right_wheel_joint", "joint_1"], "position": [0.0, 0.0, 0.0]}},
+            {"topic": "/joint_states", "type": "sensor_msgs/msg/JointState", "timestamp_ns": 2_000_000_000, "message": {"header": {"stamp": {"sec": 2, "nanosec": 0}}, "name": ["left_wheel_joint", "right_wheel_joint", "joint_1"], "position": [1.0, 1.0, 0.0]}},
+            {"topic": "/odom", "type": "nav_msgs/msg/Odometry", "timestamp_ns": 0, "message": {"header": {"stamp": {"sec": 0, "nanosec": 0}}, "pose": {"pose": {"position": {"x": 0.0, "y": 0.0}, "orientation": {"z": 0.0, "w": 1.0}}}}},
+            {"topic": "/odom", "type": "nav_msgs/msg/Odometry", "timestamp_ns": 2_000_000_000, "message": {"header": {"stamp": {"sec": 2, "nanosec": 0}}, "pose": {"pose": {"position": {"x": 0.15, "y": 0.0}, "orientation": {"z": 0.0, "w": 1.0}}}}},
+            {"topic": "/diff_drive_controller/cmd_vel", "type": "geometry_msgs/msg/TwistStamped", "timestamp_ns": 500_000_000, "message": {"header": {"stamp": {"sec": 0, "nanosec": 500_000_000}}, "twist": {"linear": {"x": 0.1}, "angular": {"z": 0.0}}}},
+            {"topic": "/diff_drive_controller/cmd_vel", "type": "geometry_msgs/msg/TwistStamped", "timestamp_ns": 1_500_000_000, "message": {"header": {"stamp": {"sec": 1, "nanosec": 500_000_000}}, "twist": {"linear": {"x": 0.1}, "angular": {"z": 0.0}}}},
+        ]
+        normalized = normalize_records(records)
+        self.assertEqual(capture(), normalized)
+        invalid = list(records)
+        invalid[0] = dict(invalid[0], topic="/rogue")
+        with self.assertRaisesRegex(LiveTraceError, "unknown topic"):
+            normalize_records(invalid)
+        invalid = list(records)
+        invalid[3] = dict(invalid[3], message={"name": [], "position": []})
+        with self.assertRaisesRegex(LiveTraceError, "header"):
+            normalize_records(invalid)
+
+    def test_runtime_adapter_uses_rosbag_deserialization_only_at_linux_boundary(self):
+        source = (ROOT / "scripts" / "validate_live_simulation_trace.py").read_text(encoding="utf-8")
+        for token in ("rosbag2_py.SequentialReader", "deserialize_message", "get_message", 'storage_id="mcap"', "publish_live_trace_bundle", "validate_retained_live_trace_bundle"):
+            self.assertIn(token, source)
+
     def test_valid_capture_is_simulated_and_hardware_firewalled(self):
         result = validate_live_capture(capture(), PROFILE)
         self.assertEqual("live_simulation_trace", result["kind"])

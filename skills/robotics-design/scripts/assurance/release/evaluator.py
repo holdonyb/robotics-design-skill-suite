@@ -39,6 +39,8 @@ V100_REQUIRED_PATHS = frozenset(
 
 V110_RUNTIME_PATHS = frozenset(
     {
+        "scripts/run_live_simulation_gate.sh",
+        "scripts/validate_live_simulation_trace.py",
         "reference/mobile-manipulator/component-mass-closure.json",
         "reference/mobile-manipulator/design-contract.json",
         "skills/robotics-design/references/hardware-authority-contract.md",
@@ -54,6 +56,8 @@ V110_RUNTIME_PATHS = frozenset(
         "skills/robotics-design/scripts/assurance/engineering_freeze/schema.py",
         "skills/robotics-design/scripts/assurance/engineering_freeze/suppliers.py",
         "skills/robotics-design/scripts/assurance/hypothesis/canonical.py",
+        "skills/robotics-design/scripts/assurance/simulation/__init__.py",
+        "skills/robotics-design/scripts/assurance/simulation/live_trace.py",
         "skills/robotics-design/scripts/assurance/release/__init__.py",
         "skills/robotics-design/scripts/assurance/release/evaluator.py",
         "skills/robotics-design/scripts/assurance/release/model.py",

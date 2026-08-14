@@ -108,5 +108,25 @@ grep -q move_group "$EVIDENCE/consumer-nodes.txt"
 grep -Eq 'controller_server|planner_server' "$EVIDENCE/consumer-nodes.txt"
 grep -Eq 'bt_navigator|behavior_server' "$EVIDENCE/consumer-nodes.txt"
 
+# Retain one bounded response from the running Gazebo controller.  This command
+# targets only the Dockerized simulation namespace; its profile limit is 0.4 m/s.
+timeout 30s ros2 bag record --storage mcap --output "$EVIDENCE/live-drive" /clock /joint_states /odom /diff_drive_controller/cmd_vel > "$EVIDENCE/live-record.log" 2>&1 & pids+=("$!")
+RECORDER_PID="${pids[${#pids[@]}-1]}"
+sleep 1
+require_running "$RECORDER_PID" "$EVIDENCE/live-record.log"
+set +e
+timeout 2s ros2 topic pub -r 10 /diff_drive_controller/cmd_vel geometry_msgs/msg/TwistStamped "{twist: {linear: {x: 0.10}, angular: {z: 0.0}}}" > "$EVIDENCE/live-command.log" 2>&1
+COMMAND_STATUS=$?
+set -e
+if [ "$COMMAND_STATUS" -ne 124 ]; then
+  cat "$EVIDENCE/live-command.log" >&2 || true
+  exit "$COMMAND_STATUS"
+fi
+sleep 1
+require_running "$RECORDER_PID" "$EVIDENCE/live-record.log"
+kill "$RECORDER_PID"
+wait "$RECORDER_PID" || true
+run python3 "$ROOT/scripts/validate_live_simulation_trace.py" --reference-root "$REFERENCE" --bag "$EVIDENCE/live-drive" --out "$EVIDENCE/live-trace-bundle" > "$EVIDENCE/live-trace-receipt.json"
+
 run python3 "$ROOT/skills/robotics-design/scripts/validate_simulation_bundle.py" --reference-root "$REFERENCE" > "$EVIDENCE/portable-benchmark.json"
 cp "$REFERENCE/simulation/environment-lock.json" "$EVIDENCE/environment-lock.json"

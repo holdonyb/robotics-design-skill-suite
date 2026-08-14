@@ -19,6 +19,12 @@ _CAPTURE_FIELDS = {"clock_ns", "joint_samples", "odom_samples", "command_samples
 _MAX_SAMPLES = 10_000
 _MAX_RAW_BYTES = 64 * 1024 * 1024
 _DRIVE_JOINTS = {"left_wheel_joint", "right_wheel_joint"}
+_TOPIC_TYPES = {
+    "/clock": "rosgraph_msgs/msg/Clock",
+    "/joint_states": "sensor_msgs/msg/JointState",
+    "/odom": "nav_msgs/msg/Odometry",
+    "/diff_drive_controller/cmd_vel": "geometry_msgs/msg/TwistStamped",
+}
 
 
 def _finite(value: object, name: str) -> float:
@@ -70,6 +76,59 @@ def _profile(profile: object) -> tuple[float, float, str, list[dict[str, str]]]:
         seen.add(path)
         normalized.append({"path": path, "sha256": digest})
     return radius, speed, workspace, sorted(normalized, key=lambda item: item["path"])
+
+
+def _header(message: object, name: str) -> None:
+    if not isinstance(message, dict) or not isinstance(message.get("header"), dict):
+        raise LiveTraceError(f"{name} message must contain a header")
+    stamp = message["header"].get("stamp")
+    if not isinstance(stamp, dict) or type(stamp.get("sec")) is not int or type(stamp.get("nanosec")) is not int:
+        raise LiveTraceError(f"{name} header stamp is invalid")
+
+
+def normalize_records(records: object) -> dict[str, Any]:
+    """Convert message-shaped records from the ROS-only adapter to closed primitives."""
+    if not isinstance(records, list) or not records:
+        raise LiveTraceError("decoded records must be a non-empty list")
+    output: dict[str, list[Any]] = {
+        "clock_ns": [], "joint_samples": [], "odom_samples": [], "command_samples": [],
+    }
+    for index, record in enumerate(records):
+        if not isinstance(record, dict) or set(record) != {"topic", "type", "timestamp_ns", "message"}:
+            raise LiveTraceError(f"decoded records[{index}] fields are not closed")
+        topic, message_type, stamp, message = record["topic"], record["type"], record["timestamp_ns"], record["message"]
+        if topic not in _TOPIC_TYPES:
+            raise LiveTraceError(f"decoded records[{index}] has unknown topic")
+        if message_type != _TOPIC_TYPES[topic]:
+            raise LiveTraceError(f"decoded records[{index}] has unexpected ROS type")
+        if type(stamp) is not int or stamp < 0 or not isinstance(message, dict):
+            raise LiveTraceError(f"decoded records[{index}] timestamp or message is invalid")
+        if topic == "/clock":
+            clock = message.get("clock")
+            if not isinstance(clock, dict) or type(clock.get("sec")) is not int or type(clock.get("nanosec")) is not int:
+                raise LiveTraceError("clock message is invalid")
+            output["clock_ns"].append(stamp)
+        elif topic == "/joint_states":
+            _header(message, "joint state")
+            output["joint_samples"].append({"timestamp_ns": stamp, "names": message.get("name"), "positions": message.get("position")})
+        elif topic == "/odom":
+            _header(message, "odometry")
+            try:
+                pose = message["pose"]["pose"]
+                position, orientation = pose["position"], pose["orientation"]
+                z, w = _finite(orientation["z"], "odometry orientation.z"), _finite(orientation["w"], "odometry orientation.w")
+                yaw = math.atan2(2.0 * z * w, 1.0 - 2.0 * z * z)
+                output["odom_samples"].append({"timestamp_ns": stamp, "x_m": position["x"], "y_m": position["y"], "yaw_rad": yaw})
+            except (KeyError, TypeError, LiveTraceError) as exc:
+                raise LiveTraceError(f"odometry message is invalid: {exc}") from None
+        else:
+            _header(message, "command")
+            try:
+                twist = message["twist"]
+                output["command_samples"].append({"timestamp_ns": stamp, "linear_x_m_s": twist["linear"]["x"], "angular_z_rad_s": twist["angular"]["z"]})
+            except (KeyError, TypeError) as exc:
+                raise LiveTraceError(f"command message is invalid: {exc}") from None
+    return output
 
 
 def validate_live_capture(capture: object, profile: object) -> dict[str, Any]:
