@@ -45,6 +45,23 @@ require_active_controller() {
     return 1
   fi
 }
+wait_for_active_controllers() {
+  local pid="$1"
+  local log="$2"
+  local deadline=$((SECONDS + 30))
+  while (( SECONDS < deadline )); do
+    require_running "$pid" "$log"
+    if ros2 control list_controllers > "$EVIDENCE/controllers.txt" 2>> "$log" \
+      && grep -Eq '^joint_state_broadcaster[[:space:]].*active' "$EVIDENCE/controllers.txt" \
+      && grep -Eq '^arm_controller[[:space:]].*active' "$EVIDENCE/controllers.txt" \
+      && grep -Eq '^diff_drive_controller[[:space:]].*active' "$EVIDENCE/controllers.txt"; then
+      return 0
+    fi
+    sleep 1
+  done
+  cat "$log" >&2 || true
+  return 1
+}
 
 set +u
 source /opt/ros/jazzy/setup.bash
@@ -67,7 +84,7 @@ run colcon test-result --test-result-base "$WORKSPACE/build" --verbose
 timeout 45s ros2 launch jx_mobile_manipulator_sim sim.launch.py > "$EVIDENCE/sim.log" 2>&1 & pids+=("$!")
 wait_for_clock "${pids[0]}" "$EVIDENCE/sim.log"
 ros2 node list | tee "$EVIDENCE/sim-nodes.txt"
-ros2 control list_controllers | tee "$EVIDENCE/controllers.txt"
+wait_for_active_controllers "${pids[0]}" "$EVIDENCE/sim.log"
 require_active_controller "joint_state_broadcaster"
 require_active_controller "arm_controller"
 require_active_controller "diff_drive_controller"

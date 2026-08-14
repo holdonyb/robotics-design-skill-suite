@@ -31,6 +31,8 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn("wait_for_clock()", gate)
         self.assertIn('timeout 3s ros2 topic echo --once /clock', gate)
         self.assertIn('wait_for_clock "${pids[0]}"', gate)
+        self.assertIn("wait_for_active_controllers()", gate)
+        self.assertIn('wait_for_active_controllers "${pids[0]}"', gate)
         self.assertNotIn("sleep 12", gate)
         self.assertIn('require_active_controller "arm_controller"', gate)
         self.assertIn("runpy.run_path", gate)
