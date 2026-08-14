@@ -52,7 +52,12 @@ def _bound_json(root: Path, value: object, path: str, findings: list[Commissioni
     except ValueError as exc:
         findings.append(_finding("COMM.EVIDENCE_BINDING_INVALID", "error", f"{path}.sha256", str(exc)))
         return None
-    if hashlib.sha256(target.read_bytes()).hexdigest() != expected:
+    try:
+        actual = hashlib.sha256(target.read_bytes()).hexdigest()
+    except OSError as exc:
+        findings.append(_finding("COMM.EVIDENCE_READ_INVALID", "error", path, f"cannot read evidence safely: {exc}"))
+        return None
+    if actual != expected:
         findings.append(_finding("COMM.EVIDENCE_HASH_MISMATCH", "error", f"{path}.sha256", "evidence hash does not match"))
         return None
     try:
@@ -140,6 +145,8 @@ def _validate_phase(root: Path, item: object, index: int, findings: list[Commiss
     stop_events = _events(data.get("stop_trace"), f"{path}.stop_trace", frozenset({"timestamp_ns", "initiating_event", "safe_state", "latency_ns"}), findings)
     if limits is not None and command_events is not None:
         for event_index, event in enumerate(command_events):
+            if not isinstance(event, dict):
+                continue
             if not isinstance(event.get("mode"), str) or not event["mode"] or any(not _finite(event.get(name)) for name in _LIMITS):
                 findings.append(_finding("COMM.COMMAND_TRACE_INVALID", "error", f"{path}.command_trace.events[{event_index}]", "command event requires finite mode, energy, speed, and torque"))
                 continue
@@ -147,6 +154,8 @@ def _validate_phase(root: Path, item: object, index: int, findings: list[Commiss
                 findings.append(_finding("COMM.COMMAND_LIMIT_EXCEEDED", "error", f"{path}.command_trace.events[{event_index}]", "command exceeds declared commissioning limit"))
     if limits is not None and state_events is not None:
         for event_index, event in enumerate(state_events):
+            if not isinstance(event, dict):
+                continue
             if not isinstance(event.get("mode"), str) or not event["mode"] or type(event.get("motion_inhibited")) is not bool or type(event.get("watchdog_healthy")) is not bool or not _finite(event.get("speed_m_s")) or not _finite(event.get("torque_nm")):
                 findings.append(_finding("COMM.STATE_TRACE_INVALID", "error", f"{path}.state_trace.events[{event_index}]", "state event fields are invalid"))
                 continue
@@ -156,6 +165,8 @@ def _validate_phase(root: Path, item: object, index: int, findings: list[Commiss
                 findings.append(_finding("COMM.INHIBITED_MOTION", "error", f"{path}.state_trace.events[{event_index}]", "inhibited stage must retain zero observed motion and torque"))
     if phase in {"unpowered_inspection", "protected_power"} and command_events is not None:
         for event_index, event in enumerate(command_events):
+            if not isinstance(event, dict):
+                continue
             if all(_finite(event.get(name)) for name in _LIMITS) and any(float(event[name]) != 0.0 for name in _LIMITS):
                 findings.append(_finding("COMM.INHIBITED_COMMAND", "error", f"{path}.command_trace.events[{event_index}]", "inhibited stage must retain zero command energy, speed, and torque"))
     if phase not in {"unpowered_inspection", "protected_power"} and stop_events is not None:
@@ -164,6 +175,8 @@ def _validate_phase(root: Path, item: object, index: int, findings: list[Commiss
             findings.append(_finding("COMM.STOP_TRANSITION_REQUIRED", "error", f"{path}.stop_trace", "motion phase requires emergency-stop and command-timeout transitions to motion_inhibited"))
     if stop_events is not None:
         for event_index, event in enumerate(stop_events):
+            if not isinstance(event, dict):
+                continue
             if not isinstance(event.get("initiating_event"), str) or not event["initiating_event"] or not isinstance(event.get("safe_state"), str) or not event["safe_state"] or type(event.get("latency_ns")) is not int or event["latency_ns"] < 0:
                 findings.append(_finding("COMM.STOP_TRACE_INVALID", "error", f"{path}.stop_trace.events[{event_index}]", "stop event fields are invalid"))
     inspection = data.get("inspection_record")

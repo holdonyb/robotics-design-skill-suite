@@ -141,6 +141,18 @@ class CommissioningEvaluatorTests(unittest.TestCase):
         self.assertEqual("rejected", result.status)
         self.assertIn("COMM.LIMIT_INVALID", {item.code for item in result.findings})
 
+    def test_nonobject_trace_event_is_retained_as_a_finding_without_traceback(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            value = package(root)
+            command_path = root / "records" / "isolated_joint" / "command.json"
+            command = json.loads(command_path.read_text(encoding="utf-8"))
+            command["events"].append([])
+            value["phases"][2]["command_trace"] = write_json(root, command_path, command)
+            result = evaluate_commissioning_package(root, value)
+        self.assertEqual("rejected", result.status)
+        self.assertIn("COMM.TRACE_INVALID", {item.code for item in result.findings})
+
 
 if __name__ == "__main__":
     unittest.main()
