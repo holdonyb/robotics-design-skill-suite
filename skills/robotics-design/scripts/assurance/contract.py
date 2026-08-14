@@ -43,7 +43,11 @@ ROLE_LIMIT_DIMENSIONS: dict[str, dict[str, str]] = {
     },
     "reducer": {"gear_ratio": "dimensionless", "efficiency": "dimensionless"},
     "wheel": {"radius": "length", "rated_load": "force"},
-    "bearing": {"static_load": "force", "dynamic_load": "force"},
+    "bearing": {
+        "static_load": "force",
+        "dynamic_load": "force",
+        "pitch_diameter": "length",
+    },
     "motor_driver": {"continuous_current": "current", "peak_current": "current"},
     "battery": {
         "nominal_voltage": "voltage",

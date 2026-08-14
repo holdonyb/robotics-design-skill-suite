@@ -58,6 +58,10 @@ objects are recursively closed; a typed limit contains exactly `value` and
 `unit`. Every limit is a role-approved `quantity:ID` reference owned by that
 component and sourced from that same evidence.
 
+A bearing may additionally declare its catalog `pitch_diameter` as a length
+limit when a static equivalent-load analysis needs the exact roller
+pitch-circle geometry.
+
 Architecture contains string lists: `features`, `drive_units`, `actuators`, `moving_cables`,
 and `claimed_safety_functions`. The ledger maps these declarations to mandatory
 component roles; absence from the schema never means absence from the robot.

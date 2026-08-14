@@ -32,10 +32,8 @@ class ReferenceHypothesisTests(unittest.TestCase):
         for filename in ("design-contract.json", "robot.urdf", "assumptions.json"):
             shutil.copy2(REFERENCE / filename, root / filename)
         (root / "model").mkdir(exist_ok=True)
-        shutil.copy2(
-            REFERENCE / "model" / "load-envelope.json",
-            root / "model" / "load-envelope.json",
-        )
+        for filename in ("load-envelope.json", "bearing-load-j2.json"):
+            shutil.copy2(REFERENCE / "model" / filename, root / "model" / filename)
         shutil.copytree(
             REFERENCE / "supplier-catalogs", root / "supplier-catalogs", dirs_exist_ok=True
         )

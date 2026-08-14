@@ -88,7 +88,7 @@ input. A mismatched quantity dimension is invalid before evaluation. They publis
 outputs, signed margins, diagnostics, version, and `calculated` evidence level.
 Coverage is bidirectional: architecture responsibilities require applicable
 analyses, and an analysis may cover only declared responsibilities. Drive,
-battery, arm, and thermal ratings must be owned by the exact component whose
+battery, arm, bearing, and thermal ratings must be owned by the exact component whose
 responsibility is being evaluated and must equal its corresponding named
 component limit. Extra unrelated scopes are invalid and cannot suppress owner
 checks. Every drive and actuator requires a separate
@@ -166,6 +166,23 @@ This conservative steady-state winding screen requires explicit resistance,
 duty, thermal resistance, ambient, and winding-temperature limit. It does not
 replace temperature-dependent resistance, a transient thermal network, gearbox
 and controller losses, hot-spot analysis, cooling degradation, or bench data.
+
+### `bearing_static_v1`
+
+For a catalog-declared bearing pitch diameter `d_p`, radial reaction `F_r`,
+axial reaction `F_a`, and applied overturning moment `M`:
+
+```text
+P0 = |Fr| + 0.44 * |Fa| + 2 * |M| / dp
+required_static_load = P0 * declared_safety_factor
+margin = catalog_static_load_rating - required_static_load
+```
+
+The static-load rating and pitch diameter must be owned by the exact bearing
+bound to the covered actuator. Reaction forces and moments remain separately
+declared load-model inputs. This is a static screen only: it does not establish
+mounting fit, preload, stiffness, dynamic life, lubrication, shock load,
+assembly quality, or an authorized hardware capability.
 
 Domain violations, non-finite values, missing inputs, unsupported units, and
 unknown plug-ins fail closed with stable diagnostics instead of tracebacks.

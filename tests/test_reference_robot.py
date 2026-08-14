@@ -43,6 +43,7 @@ class ReferenceRobotTests(unittest.TestCase):
             "battery_v1": ("voltage_v",),
             "stability_v1": ("com_height_m",),
             "arm_load_envelope_v1": ("rated_continuous_torque_nm", 0, "value"),
+            "bearing_static_v1": ("joints", 0, "static_load_rating_n"),
             "thermal_duty_v1": ("ambient_temperature_k",),
         }
         baseline = json.loads(
@@ -87,6 +88,7 @@ class ReferenceRobotTests(unittest.TestCase):
                 "battery_v1",
                 "stability_v1",
                 "arm_load_envelope_v1",
+                "bearing_static_v1",
                 "thermal_duty_v1",
             },
         )
@@ -108,6 +110,7 @@ class ReferenceRobotTests(unittest.TestCase):
             {
                 "static_load": "quantity:Q-BEARING-STATIC-LOAD-J2",
                 "dynamic_load": "quantity:Q-BEARING-DYNAMIC-LOAD-J2",
+                "pitch_diameter": "quantity:Q-BEARING-PITCH-DIAMETER-J2",
             },
             bearing["limits"],
         )
@@ -121,12 +124,66 @@ class ReferenceRobotTests(unittest.TestCase):
         )
         snapshot = json.loads(catalog_path.read_text(encoding="utf-8"))
         self.assertEqual(
-            {"dynamic_load": {"unit": "N", "value": 89400}, "static_load": {"unit": "N", "value": 152000}},
+            {
+                "dynamic_load": {"unit": "N", "value": 89400},
+                "pitch_diameter": {"unit": "mm", "value": 188.6},
+                "static_load": {"unit": "N", "value": 152000},
+            },
             snapshot["components"][0]["limits"],
         )
         report, errors = evaluate_contract(REFERENCE / "design-contract.json")
         self.assertEqual([], errors)
         self.assertFalse(report.promotable)
+
+    def test_joint_two_static_bearing_screen_binds_catalog_and_load_model(self):
+        data = json.loads(
+            (REFERENCE / "design-contract.json").read_text(encoding="utf-8")
+        )
+        artifact = next(
+            item for item in data["artifacts"] if item["id"] == "bearing-load-model"
+        )
+        self.assertEqual("declared_json", artifact["kind"])
+        analysis = next(
+            item for item in data["analyses"] if item["id"] == "AN-BEARING-J2"
+        )
+        self.assertEqual("bearing_static_v1", analysis["plugin"])
+        self.assertEqual(
+            ["requirement:REQ-PHYSICAL", "actuator:joint_2"],
+            analysis["covers"],
+        )
+        joint = analysis["inputs"]["joints"][0]
+        self.assertEqual("joint_2", joint["id"])
+        self.assertEqual(
+            "quantity:Q-BEARING-STATIC-LOAD-J2",
+            joint["static_load_rating_n"],
+        )
+        self.assertEqual(
+            "quantity:Q-BEARING-PITCH-DIAMETER-J2",
+            joint["pitch_diameter_m"],
+        )
+
+        report, errors = evaluate_contract(REFERENCE / "design-contract.json")
+        self.assertEqual([], errors)
+        record = next(item for item in report.analyses if item["analysis_id"] == "AN-BEARING-J2")
+        self.assertTrue(record["passed"])
+        self.assertGreater(record["outputs"]["joints"][0]["static_margin_n"], 0.0)
+
+        mutated = copy.deepcopy(data)
+        mutated_analysis = next(
+            item for item in mutated["analyses"] if item["id"] == "AN-BEARING-J2"
+        )
+        mutated_analysis["inputs"]["joints"][0]["static_load_rating_n"] = (
+            "quantity:Q-BEARING-DYNAMIC-LOAD-J2"
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            contract = Path(temp_dir) / "design-contract.json"
+            contract.write_text(json.dumps(mutated), encoding="utf-8")
+            mutated_report, errors = evaluate_contract(contract)
+        self.assertEqual([], errors)
+        self.assertIn(
+            "PHY.ANALYSIS.RATING_LIMIT",
+            {item.code for item in mutated_report.diagnostics},
+        )
 
     def test_tampered_joint_two_bearing_catalog_invalidates_physical_report(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -201,11 +258,12 @@ class ReferenceRobotTests(unittest.TestCase):
             "com-outside-support", "arm-torque-overload",
             "brake-holding-overload", "stale-artifact-hash", "base-mass-drift",
             "joint-limit-drift", "thermal-over-temperature", "slope-tip-over",
+            "bearing-static-overload",
         }
         actual_ids = {
             json.loads(path.read_text(encoding="utf-8"))["id"] for path in fault_paths
         }
-        self.assertEqual(len(fault_paths), 32)
+        self.assertEqual(len(fault_paths), 33)
         self.assertEqual(actual_ids, expected_ids)
         seen = set()
         for fault_path in fault_paths:
