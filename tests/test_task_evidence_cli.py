@@ -109,6 +109,26 @@ class TaskEvidenceCliTests(unittest.TestCase):
         self.assertIn("TASK.BENCH_EVIDENCE_REQUIRED", {item["code"] for item in report["findings"]})
         self.assertIn("TASK.COMMISSIONING_REQUIRED", {item["code"] for item in report["findings"]})
 
+    def test_populated_intake_rejects_duplicate_package_hash_before_evaluation(self):
+        reference = ROOT / "reference" / "mobile-manipulator"
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw) / "reference"
+            shutil.copytree(reference, root)
+            protocol_binding = write_bound(root, Path("task-protocol.json"), minimal_protocol())
+            package_binding = write_bound(root, Path("task-package.json"), nominal(root))
+            index = root / "task-evidence-index.json"
+            index.write_bytes(canonical({
+                "schema_version": 1, "task_evidence_id": "task-evidence-reference", "packages": [package_binding, package_binding],
+                "design_contract": bound_existing(root, Path("design-contract.json")),
+                "freeze_package": bound_existing(root, Path("engineering-freeze/freeze-package.json")),
+                "bench_index": write_bound(root, Path("bench-index.json"), {"schema_version": 1, "intake_id": "bench-reference", "packages": []}),
+                "commissioning_index": bound_existing(root, Path("commissioning/commissioning-index.json")), "task_protocol": protocol_binding,
+            }))
+            result = subprocess.run([sys.executable, str(CLI), "--index", str(index)], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=False)
+        self.assertEqual(2, result.returncode)
+        self.assertIn("duplicates an earlier package hash", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

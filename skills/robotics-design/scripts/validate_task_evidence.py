@@ -138,7 +138,18 @@ def main(argv: list[str] | None = None) -> int:
             protocol, protocol_findings = validate_task_protocol(protocol_data)
             if protocol is None:
                 raise ValueError("task protocol is invalid: " + "; ".join(item.message for item in protocol_findings))
-            packages = [load_canonical_json(_bound_file(args.index.parent, record, f"packages[{position}]")) for position, record in enumerate(index["packages"])]
+            package_paths: list[Path] = []
+            package_hashes: set[str] = set()
+            for position, record in enumerate(index["packages"]):
+                package_path = _bound_file(args.index.parent, record, f"packages[{position}]")
+                if not isinstance(record, dict):
+                    raise ValueError(f"packages[{position}] must contain a hash binding")
+                package_hash = validate_sha256(record.get("sha256"), f"packages[{position}].sha256")
+                if package_hash in package_hashes:
+                    raise ValueError(f"packages[{position}] duplicates an earlier package hash")
+                package_hashes.add(package_hash)
+                package_paths.append(package_path)
+            packages = [load_canonical_json(package_path) for package_path in package_paths]
             report = evaluate_task_packages(args.index.parent, protocol, packages)
             upstream = _upstream_findings(args.index.parent, index, design_path=bound["design_contract"], freeze_path=bound["freeze_package"], bench_path=bound["bench_index"], commissioning_path=bound["commissioning_index"])
             findings = report.findings + upstream
