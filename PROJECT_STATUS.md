@@ -10,21 +10,17 @@ ROS 2, and simulation skills to audited commits.
 
 ## Live State
 
-- Public release: `v0.7.0`; pull request `#8` merged as `ffa896d`, annotated
-  tag and GitHub Release are published. Main CI `31760534621`, main
-  Jazzy/Harmonic consumer gate `31760534644`, and tag CI `31760895492` passed.
-- v0.7 accepts future raw bench-evidence packages through a local fail-closed
-  intake; the shipped reference index is intentionally empty and remains
-  `awaiting_authorization`, not bench-tested.
-- Hardware boundaries remain unchanged: every v0.7 result derives
+- Public release: `v0.8.0`; pull request `#10` merged as `e6521fd`, annotated
+  tag and GitHub Release are published. Main CI `31763218034`, main
+  Jazzy/Harmonic consumer gate `31763218001`, and tag CI `31763519145` passed.
+- v0.8 accepts future offline commissioning-evidence submissions only through
+  hash-bound staged records and accepted non-fixture bench evidence. The
+  shipped reference index is intentionally empty and remains
+  `awaiting_authorization`, not integrated-hardware-tested.
+- Hardware boundaries remain unchanged: every v0.8 result derives
   `procurement_authorized: false` and `motion_authorized: false`.
-- Current development baseline: v0.8.0 commissioning-evidence candidate on
-  `feature/v080-commissioning`; the public release remains `v0.7.0` until
-  candidate CI, merge, tag, and release verification complete.
-- Candidate evidence: 419 local tests, distribution validation, installer
-  dry-run, compilation, and diff check passed. The reference commissioning
-  intake intentionally returns `awaiting_authorization` with both
-  authorization flags false.
+- Release evidence: 419 local tests, distribution validation, installer dry-run,
+  compilation, PR/main/tag CI, and Jazzy/Harmonic consumer gates passed.
 - Third-party source locks are unchanged from v0.3.0.
 
 ## v0.5 Development Checkpoint
@@ -170,14 +166,10 @@ report 0 accepted because placeholders remain.
 
 ## Roadmap and Next Action
 
-1. Execute v0.6 engineering freeze: supplier/BOM evidence schema, controlled
-   drawing and wiring/protection manifests, hazard/safety-function records,
-   verification matrix, inspection plan, and planned hardware test cards. This
-   must remain a no-purchase/no-motion release.
-2. Continue v0.7-v0.9 with supplier/BOM, curves, traction/braking, structure,
+1. Continue v0.9 with supplier/BOM, curves, traction/braking, structure,
    transient thermal/electrical, safety faults, bench evidence, controlled
    integration, field trials, and reliability evidence.
-3. Complete v1.0 only after the end-to-end evidence chain and every required
+2. Complete v1.0 only after the end-to-end evidence chain and every required
    real-hardware dependency/authorization are genuinely satisfied.
 
 ## Durable Sources
