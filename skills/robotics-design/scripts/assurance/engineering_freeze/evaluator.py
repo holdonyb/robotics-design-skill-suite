@@ -11,7 +11,7 @@ from .schema import FreezeSchemaError, load_canonical_json
 from ..hypothesis.canonical import validate_sha256
 
 
-_ROOT = frozenset({"schema_version", "freeze_id", "supplier_manifest", "artifacts", "hazards", "safety_functions", "verifications", "inspection_items", "test_cards"})
+_ROOT = frozenset({"schema_version", "freeze_id", "design_contract", "supplier_manifest", "artifacts", "hazards", "safety_functions", "verifications", "inspection_items", "test_cards"})
 _ARTIFACT = frozenset({"id", "kind", "path", "sha256"})
 _HAZARD = frozenset({"id", "phase", "pre_risk", "post_risk", "controls", "verification_ids", "safety_function_id", "residual_disposition"})
 _SAFETY = frozenset({"id", "initiating_event", "safe_state", "independent_path", "test_card_id"})
@@ -63,20 +63,21 @@ def evaluate_engineering_freeze(root: Path, package_path: Path, *, placeholder_c
     freeze_id = package.get("freeze_id") if isinstance(package.get("freeze_id"), str) else "freeze-invalid"
     if set(package) != _ROOT or package.get("schema_version") != 1 or freeze_id == "freeze-invalid":
         findings.append(_finding("FREEZE.PACKAGE_INVALID", "error", "package", "package fields are closed and schema_version must be 1"))
-    supplier = package.get("supplier_manifest")
-    if not isinstance(supplier, dict) or set(supplier) != {"path", "sha256"}:
-        findings.append(_finding("FREEZE.SUPPLIER_MANIFEST_INVALID", "error", "supplier_manifest", "supplier manifest needs path and SHA-256"))
-    else:
-        target = _safe_file(root, supplier.get("path"))
+    for manifest_name, code in (("design_contract", "FREEZE.DESIGN_CONTRACT_INVALID"), ("supplier_manifest", "FREEZE.SUPPLIER_MANIFEST_INVALID")):
+        manifest = package.get(manifest_name)
+        if not isinstance(manifest, dict) or set(manifest) != {"path", "sha256"}:
+            findings.append(_finding(code, "error", manifest_name, f"{manifest_name} needs path and SHA-256"))
+            continue
+        target = _safe_file(root, manifest.get("path"))
         if target is None:
-            findings.append(_finding("FREEZE.SUPPLIER_MANIFEST_INVALID", "error", "supplier_manifest.path", "supplier manifest must be a local regular file"))
+            findings.append(_finding(code, "error", f"{manifest_name}.path", f"{manifest_name} must be a local regular file"))
         else:
             try:
-                expected = validate_sha256(supplier.get("sha256"), "supplier_manifest.sha256")
+                expected = validate_sha256(manifest.get("sha256"), f"{manifest_name}.sha256")
                 if hashlib.sha256(target.read_bytes()).hexdigest() != expected:
-                    findings.append(_finding("FREEZE.SUPPLIER_MANIFEST_HASH_MISMATCH", "error", "supplier_manifest.sha256", "supplier manifest hash does not match"))
+                    findings.append(_finding(code.replace("INVALID", "HASH_MISMATCH"), "error", f"{manifest_name}.sha256", f"{manifest_name} hash does not match"))
             except ValueError as exc:
-                findings.append(_finding("FREEZE.SUPPLIER_MANIFEST_INVALID", "error", "supplier_manifest.sha256", str(exc)))
+                findings.append(_finding(code, "error", f"{manifest_name}.sha256", str(exc)))
     artifact_ids = _ids(package.get("artifacts"), "artifacts", findings)
     verification_ids = _ids(package.get("verifications"), "verifications", findings)
     safety_ids = _ids(package.get("safety_functions"), "safety_functions", findings)

@@ -22,8 +22,9 @@ def write_json(path, value):
 def complete_package(root):
     drawing_hash = write_json(root / "drawings/base.json", {"kind": "controlled_drawing"})
     supplier_hash = write_json(root / "supplier-manifest.json", {"schema_version": 1, "snapshots": [], "supplier_manifest_id": "supplier-reference"})
+    contract_hash = write_json(root / "design-contract.json", {"components": []})
     return {
-        "schema_version": 1, "freeze_id": "freeze-reference", "supplier_manifest": {"path": "supplier-manifest.json", "sha256": supplier_hash},
+        "schema_version": 1, "freeze_id": "freeze-reference", "design_contract": {"path": "design-contract.json", "sha256": contract_hash}, "supplier_manifest": {"path": "supplier-manifest.json", "sha256": supplier_hash},
         "artifacts": [{"id": "ART-DRAWING", "kind": "drawing", "path": "drawings/base.json", "sha256": drawing_hash}],
         "hazards": [{"id": "HZ-ENERGY", "phase": "power_up", "pre_risk": 5, "post_risk": 2, "controls": ["CTRL-ESTOP"], "verification_ids": ["VER-ESTOP"], "safety_function_id": "SF-ESTOP", "residual_disposition": "review_required"}],
         "safety_functions": [{"id": "SF-ESTOP", "initiating_event": "emergency", "safe_state": "power_removed", "independent_path": "wired", "test_card_id": "TC-POWER"}],

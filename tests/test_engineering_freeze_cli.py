@@ -1,4 +1,5 @@
 import subprocess
+import shutil
 import sys
 import tempfile
 import unittest
@@ -48,6 +49,18 @@ class EngineeringFreezeCliTests(unittest.TestCase):
             second = self.run_cli(REFERENCE, "--report", str(report))
             self.assertEqual(2, second.returncode)
             self.assertIn("already exists", second.stderr)
+
+    def test_hash_bound_design_contract_cannot_be_replaced_by_invalid_bom(self):
+        with tempfile.TemporaryDirectory() as raw:
+            copied = Path(raw) / "reference"
+            shutil.copytree(ROOT / "reference" / "mobile-manipulator", copied)
+            package = copied / "engineering-freeze" / "freeze-package.json"
+            contract = copied / "design-contract.json"
+            contract.write_text('{"components":[]}\n', encoding="utf-8")
+            result = self.run_cli(package)
+        self.assertEqual(2, result.returncode)
+        self.assertIn("hash does not match", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":
