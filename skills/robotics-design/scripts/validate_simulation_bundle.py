@@ -13,8 +13,10 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +29,7 @@ from assurance.simulation.backend import (
     evaluate_trace_kinematics,
 )
 from assurance.simulation.calibration import fit_calibration, load_calibration_dataset
+from assurance.simulation.artifacts import validate_ros_workspace_manifest
 from assurance.simulation.model import TraceSample
 from assurance.simulation.scenario import compile_scenarios, load_scenario_registry
 from assurance.simulation.trace import publish_trace_bundle, replay_trace_bundle
@@ -38,6 +41,12 @@ class BenchmarkError(ValueError):
 
 
 _EXPECTED_BLOCKER = "BOM.PLACEHOLDER_BLOCKS_CLAIM"
+_ROS_WORKSPACE_RECEIPT = "09a754c3253be4f799a8a7ea0bdea526db04c6741f81abdf5b765803b3bb3fb7"
+_PROFILE_SOURCES = (
+    "ros2_ws/src/jx_mobile_manipulator_description/urdf/reference_mobile_manipulator.urdf.xacro",
+    "ros2_ws/src/jx_mobile_manipulator_sim/config/controllers.yaml",
+    "ros2_ws/src/jx_mobile_manipulator_nav/config/nav2_params.yaml",
+)
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -116,7 +125,197 @@ def _samples_for(scenario, *, failed: bool) -> tuple[TraceSample, TraceSample]:
     )
 
 
-def _backend_input(replay: dict[str, Any]) -> dict[str, object]:
+def _profile_number(value: object, name: str) -> float:
+    if not isinstance(value, str):
+        raise BenchmarkError(f"{name} must be a numeric string")
+    try:
+        result = float(value)
+    except ValueError:
+        raise BenchmarkError(f"{name} must be a numeric string") from None
+    if not math.isfinite(result) or result <= 0:
+        raise BenchmarkError(f"{name} must be a positive finite number")
+    return result
+
+
+def _yaml_scalar(source: str, field: str) -> float:
+    values = re.findall(rf"(?m)^\s*{re.escape(field)}:\s*([^\s#]+)\s*$", source)
+    if len(values) != 1:
+        raise BenchmarkError(f"profile YAML requires exactly one {field}")
+    return _profile_number(values[0], f"profile YAML {field}")
+
+
+def _yaml_vector(source: str, field: str) -> tuple[float, float, float]:
+    values = re.findall(rf"(?m)^\s*{re.escape(field)}:\s*\[([^\]]+)\]\s*$", source)
+    if len(values) != 1:
+        raise BenchmarkError(f"profile YAML requires exactly one {field}")
+    parts = [item.strip() for item in values[0].split(",")]
+    if len(parts) != 3:
+        raise BenchmarkError(f"profile YAML {field} must contain exactly three values")
+    converted = []
+    for index, item in enumerate(parts):
+        try:
+            value = float(item)
+        except ValueError:
+            raise BenchmarkError(f"profile YAML {field}[{index}] must be numeric") from None
+        if not math.isfinite(value):
+            raise BenchmarkError(f"profile YAML {field}[{index}] must be finite")
+        converted.append(value)
+    return tuple(converted)  # type: ignore[return-value]
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _profile_source_snapshot(root: Path) -> dict[str, bytes]:
+    manifest_path = root / "simulation" / "ros-workspace-manifest.json"
+    errors = validate_ros_workspace_manifest(root, manifest_path, _ROS_WORKSPACE_RECEIPT)
+    if errors:
+        raise BenchmarkError("ROS workspace is not receipt-valid: " + "; ".join(errors))
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+        if hashlib.sha256(manifest_bytes).hexdigest() != _ROS_WORKSPACE_RECEIPT:
+            raise BenchmarkError("ROS workspace manifest changed after validation")
+        manifest = json.loads(manifest_bytes.decode("utf-8"), object_pairs_hook=_unique_json_object)
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise BenchmarkError(f"cannot snapshot ROS workspace manifest: {exc}") from None
+    outputs = manifest.get("outputs") if isinstance(manifest, dict) else None
+    if not isinstance(outputs, list):
+        raise BenchmarkError("ROS workspace manifest outputs are invalid")
+    hashes: dict[str, str] = {}
+    for item in outputs:
+        if not isinstance(item, dict) or set(item) != {"path", "sha256"}:
+            raise BenchmarkError("ROS workspace manifest output entry is invalid")
+        path, sha256 = item.get("path"), item.get("sha256")
+        if not isinstance(path, str) or path in hashes:
+            raise BenchmarkError("ROS workspace manifest output path is invalid")
+        try:
+            validate_sha256(sha256, f"ROS workspace output {path}")
+        except ValueError as exc:
+            raise BenchmarkError(str(exc)) from None
+        hashes[path] = sha256
+    snapshot: dict[str, bytes] = {}
+    for relative in _PROFILE_SOURCES:
+        path = root / relative
+        if path.is_symlink() or not path.is_file():
+            raise BenchmarkError("ROS workspace profile source is missing or a symlink")
+        try:
+            payload = path.read_bytes()
+        except OSError as exc:
+            raise BenchmarkError(f"cannot read ROS workspace profile source: {exc}") from None
+        if hashes.get(relative) != hashlib.sha256(payload).hexdigest():
+            raise BenchmarkError(f"profile source SHA-256 mismatch: {relative}")
+        snapshot[relative] = payload
+    return snapshot
+
+
+def _load_backend_profile(root: Path) -> dict[str, Any]:
+    """Extract a closed portable dynamics profile from receipt-bound ROS inputs."""
+    sources = _profile_source_snapshot(root)
+    xacro_bytes = sources[_PROFILE_SOURCES[0]]
+    if b"<!" in xacro_bytes:
+        raise BenchmarkError("xacro profile source must not contain declarations")
+    try:
+        xacro = ET.fromstring(xacro_bytes)
+        controllers = sources[_PROFILE_SOURCES[1]].decode("utf-8")
+        nav2 = sources[_PROFILE_SOURCES[2]].decode("utf-8")
+    except (UnicodeError, ET.ParseError) as exc:
+        raise BenchmarkError(f"cannot load ROS workspace profile source: {exc}") from None
+    if xacro.tag != "robot":
+        raise BenchmarkError("xacro profile source must have robot root")
+
+    xacro_inertial = "{" + "http://www.ros.org/wiki/xacro" + "}inertial"
+    xacro_cylinder_link = "{" + "http://www.ros.org/wiki/xacro" + "}cylinder_link"
+    links: set[str] = set()
+    cylinders: set[str] = set()
+    total_mass = 0.0
+    wheel_radii: dict[str, float] = {}
+    wheel_y: dict[str, float] = {}
+    for node in xacro:
+        if node.tag == "link":
+            name = node.get("name")
+            if not isinstance(name, str) or not name or name in links:
+                raise BenchmarkError("xacro top-level link inventory is invalid")
+            links.add(name)
+            inertial = node.find(xacro_inertial)
+            if inertial is not None:
+                total_mass += _profile_number(inertial.get("mass"), f"xacro {name} mass")
+        elif node.tag == xacro_cylinder_link:
+            name = node.get("name")
+            if not isinstance(name, str) or not name or name in cylinders:
+                raise BenchmarkError("xacro top-level cylinder-link inventory is invalid")
+            cylinders.add(name)
+            total_mass += _profile_number(node.get("mass"), f"xacro {name} mass")
+            if name in {"left_wheel_link", "right_wheel_link"}:
+                wheel_radii[name] = _profile_number(node.get("radius"), f"xacro {name} radius")
+        elif node.tag == "joint" and node.get("name") in {"left_wheel_joint", "right_wheel_joint"}:
+            name = node.get("name")
+            assert name is not None
+            if name in wheel_y:
+                raise BenchmarkError(f"xacro profile has duplicate {name}")
+            if node.get("type") != "continuous":
+                raise BenchmarkError(f"xacro {name} must be a continuous wheel joint")
+            parent, child = node.find("parent"), node.find("child")
+            if parent is None or parent.get("link") != "base_link":
+                raise BenchmarkError(f"xacro {name} must have parent link base_link")
+            expected_child = "left_wheel_link" if name == "left_wheel_joint" else "right_wheel_link"
+            if child is None or child.get("link") != expected_child:
+                raise BenchmarkError(f"xacro {name} must have child link {expected_child}")
+            origin = node.find("origin")
+            if origin is None or origin.get("xyz") is None:
+                raise BenchmarkError(f"xacro {name} must declare origin xyz")
+            parts = origin.get("xyz").split()
+            if len(parts) != 3:
+                raise BenchmarkError(f"xacro {name} origin must have three values")
+            try:
+                y = float(parts[1])
+            except ValueError:
+                raise BenchmarkError(f"xacro {name} origin y must be numeric") from None
+            if not math.isfinite(y):
+                raise BenchmarkError(f"xacro {name} origin y must be finite")
+            wheel_y[name] = y
+    if set(wheel_radii) != {"left_wheel_link", "right_wheel_link"}:
+        raise BenchmarkError("xacro profile must declare exactly two top-level drive wheels")
+    if wheel_radii["left_wheel_link"] != wheel_radii["right_wheel_link"]:
+        raise BenchmarkError("xacro wheel radii must agree")
+    if not math.isfinite(total_mass) or total_mass <= 0:
+        raise BenchmarkError("xacro total simulator mass must be positive and finite")
+    if set(wheel_y) != {"left_wheel_joint", "right_wheel_joint"}:
+        raise BenchmarkError("xacro profile must declare exactly two top-level drive wheel joints")
+    wheel_separation = abs(wheel_y["left_wheel_joint"] - wheel_y["right_wheel_joint"])
+    if wheel_separation <= 0:
+        raise BenchmarkError("xacro wheel separation must be positive")
+
+    controller_radius = _yaml_scalar(controllers, "wheel_radius")
+    controller_separation = _yaml_scalar(controllers, "wheel_separation")
+    max_linear, _, _ = _yaml_vector(nav2, "max_velocity")
+    max_decel, _, _ = _yaml_vector(nav2, "max_decel")
+    if max_linear <= 0 or max_decel >= 0:
+        raise BenchmarkError("Nav2 profile requires positive max velocity and negative max deceleration")
+    radius = wheel_radii["left_wheel_link"]
+    if controller_radius != radius or controller_separation != wheel_separation:
+        raise BenchmarkError("controller and xacro wheel geometry disagree")
+    return {
+        "evidence_level": "parsed",
+        "workspace_manifest_sha256": _ROS_WORKSPACE_RECEIPT,
+        "sources": [
+            {"path": relative, "sha256": hashlib.sha256(sources[relative]).hexdigest()}
+            for relative in _PROFILE_SOURCES
+        ],
+        "wheel_radius_m": radius,
+        "wheel_separation_m": wheel_separation,
+        "wheel_speed_limit_rad_s": max_linear / radius,
+        "mass_kg": total_mass,
+        "brake_deceleration_m_s2": abs(max_decel),
+    }
+
+
+def _backend_input(replay: dict[str, Any], profile: dict[str, Any]) -> dict[str, object]:
     """Use receipt-validated replay samples as the backend-consumer input."""
     try:
         identity = {
@@ -151,12 +350,12 @@ def _backend_input(replay: dict[str, Any]) -> dict[str, object]:
         "timestamps_ns": timestamps,
         "left_wheel_rad_s": left,
         "right_wheel_rad_s": right,
-        "wheel_radius_m": 0.1,
-        "wheel_separation_m": 0.5,
-        "wheel_speed_limit_rad_s": 2.0,
-        "mass_kg": 100.0,
+        "wheel_radius_m": profile["wheel_radius_m"],
+        "wheel_separation_m": profile["wheel_separation_m"],
+        "wheel_speed_limit_rad_s": profile["wheel_speed_limit_rad_s"],
+        "mass_kg": profile["mass_kg"],
         "slope_rad": 0.0,
-        "brake_deceleration_m_s2": 1.0,
+        "brake_deceleration_m_s2": profile["brake_deceleration_m_s2"],
         "joint_final_rad": replay["samples"][-1]["positions"],
         "joint_target_rad": [0.0] * len(replay["joint_order"]),
         "joint_error_limit_rad": 0.01,
@@ -180,8 +379,8 @@ def _backend_result(result: Any) -> dict[str, Any]:
     }
 
 
-def _crosscheck_record(replay: dict[str, Any]) -> dict[str, Any]:
-    backend_trace = _backend_input(replay)
+def _crosscheck_record(replay: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
+    backend_trace = _backend_input(replay, profile)
     primary = evaluate_trace_kinematics(backend_trace)
     independent = evaluate_independent_dynamics(backend_trace)
     tolerances = {metric.name: 1e-9 for metric in primary.metrics}
@@ -191,6 +390,7 @@ def _crosscheck_record(replay: dict[str, Any]) -> dict[str, Any]:
         "trace_sha256": replay["trace_sha256"],
         "model_sha256": replay["model_sha256"],
         "trajectory_sha256": replay["trajectory_sha256"],
+        "profile": profile,
         "primary": _backend_result(primary),
         "independent": _backend_result(independent),
         "comparison": _backend_result(comparison),
@@ -251,7 +451,8 @@ def run_reference_benchmark(
     passed = sum(item["status"] == "passed" for item in replayed)
     failed = len(replayed) - passed
 
-    crosschecks = [_crosscheck_record(replay) for replay in replayed]
+    profile = _load_backend_profile(root)
+    crosschecks = [_crosscheck_record(replay, profile) for replay in replayed]
     crosschecks.sort(key=lambda item: item["scenario_id"])
     comparison = "passed" if all(item["status"] == "passed" for item in crosschecks) else "failed"
     calibration = fit_calibration(
