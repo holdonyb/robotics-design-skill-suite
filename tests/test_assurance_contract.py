@@ -673,6 +673,40 @@ class AssuranceContractTests(unittest.TestCase):
                 quantity["dimension"] = original_dimension
                 quantity["value"] = original_value
 
+    def test_verified_thermal_driver_requires_its_current_input(self):
+        data = {
+            "quantities": [
+                {"id": "Q-MOTOR-CURRENT", "owner": "component:CMP-MOTOR"},
+            ],
+            "components": [
+                {
+                    "id": "CMP-MOTOR",
+                    "role": "motor",
+                    "state": "engineering_placeholder",
+                    "bindings": ["actuator:joint_2"],
+                },
+                {
+                    "id": "CMP-DRIVER",
+                    "role": "motor_driver",
+                    "state": "verified_part",
+                    "bindings": ["actuator:joint_2"],
+                    "limits": {"continuous_current": "quantity:Q-DRIVER-CURRENT"},
+                },
+            ],
+            "analyses": [
+                {
+                    "plugin": "thermal_duty_v1",
+                    "covers": ["actuator:joint_2"],
+                    "inputs": {"on_current_a": "quantity:Q-MOTOR-CURRENT"},
+                }
+            ],
+        }
+        diagnostics = _analysis_rating_owner_diagnostics(data)
+        self.assertIn(
+            "PHY.THERMAL.DRIVER_CURRENT_INPUT",
+            {item.code for item in diagnostics},
+        )
+
     def test_load_errors_are_actionable_without_traceback(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "contract.json"

@@ -842,12 +842,44 @@ def _thermal_duty(inputs: dict[str, Any]) -> AnalysisResult:
             assumptions,
         )
 
+    driver_continuous_current = inputs.get("driver_continuous_current_a")
+    if driver_continuous_current is not None:
+        if (
+            not isinstance(driver_continuous_current, (int, float))
+            or isinstance(driver_continuous_current, bool)
+            or not math.isfinite(float(driver_continuous_current))
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    "PHY.INPUT.TYPE",
+                    "error",
+                    "analyses.thermal_duty_v1.inputs.driver_continuous_current_a",
+                    "driver continuous current must be a finite number",
+                )
+            )
+        else:
+            values["driver_continuous_current_a"] = float(driver_continuous_current)
+    if diagnostics:
+        return AnalysisResult(
+            "thermal_duty_v1",
+            "1",
+            dict(inputs),
+            outputs,
+            tuple(diagnostics),
+            assumptions,
+        )
+
     invalid: list[str] = []
     for field in ("ambient_temperature_k", "winding_resistance_ohm", "thermal_resistance_k_per_w", "max_winding_temperature_k"):
         if values[field] <= 0.0:
             invalid.append(field)
     if values["on_current_a"] < 0.0:
         invalid.append("on_current_a")
+    if (
+        "driver_continuous_current_a" in values
+        and values["driver_continuous_current_a"] <= 0.0
+    ):
+        invalid.append("driver_continuous_current_a")
     if not 0.0 <= values["duty_cycle"] <= 1.0:
         invalid.append("duty_cycle")
     if values["max_winding_temperature_k"] <= values["ambient_temperature_k"]:
@@ -888,6 +920,20 @@ def _thermal_duty(inputs: dict[str, Any]) -> AnalysisResult:
             "temperature_margin_k": margin,
         }
     )
+    if "driver_continuous_current_a" in values:
+        driver_margin = (
+            values["driver_continuous_current_a"] - values["on_current_a"]
+        )
+        outputs["driver_continuous_current_margin_a"] = driver_margin
+        if driver_margin < 0.0:
+            diagnostics.append(
+                _diagnostic(
+                    "PHY.THERMAL.DRIVER_CONTINUOUS_CURRENT",
+                    "error",
+                    "analyses.thermal_duty_v1",
+                    "declared on-current exceeds the motor driver's continuous-current rating",
+                )
+            )
     if margin < 0.0:
         diagnostics.append(
             _diagnostic(

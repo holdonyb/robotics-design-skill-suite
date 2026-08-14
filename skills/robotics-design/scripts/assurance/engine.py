@@ -403,6 +403,30 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
                 ("max_winding_temperature_k", "max_winding_temperature"),
             ):
                 check_owner(index, inputs, field, responsibility, role, limit_name)
+            driver = component_for(responsibility, "motor_driver")
+            driver_current = inputs.get("driver_continuous_current_a")
+            if driver_current is None:
+                if driver is not None and driver.get("state") in {
+                    "verified_part",
+                    "qualified_substitute",
+                }:
+                    diagnostics.append(
+                        Diagnostic(
+                            "PHY.THERMAL.DRIVER_CURRENT_INPUT",
+                            "indeterminate",
+                            f"analyses[{index}].inputs.driver_continuous_current_a",
+                            "thermal duty for a verified motor driver requires its continuous-current input",
+                        )
+                    )
+            else:
+                check_owner(
+                    index,
+                    inputs,
+                    "driver_continuous_current_a",
+                    responsibility,
+                    "motor_driver",
+                    "continuous_current",
+                )
     return diagnostics
 
 

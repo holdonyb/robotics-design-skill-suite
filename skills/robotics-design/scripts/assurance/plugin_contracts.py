@@ -305,6 +305,33 @@ def validate_plugin_inputs(
     if plugin not in KNOWN_PLUGINS:
         return []
     errors: list[str] = []
+    if plugin == "thermal_duty_v1":
+        optional_driver_current = "driver_continuous_current_a"
+        dimensions = THERMAL_DIMENSIONS
+        if not isinstance(inputs, dict):
+            errors.append(f"{path} must be an object")
+            return errors
+        missing = sorted(set(dimensions) - set(inputs))
+        unknown = sorted(set(inputs) - {*dimensions, optional_driver_current})
+        if missing:
+            errors.append(f"{path} is missing required fields: {', '.join(missing)}")
+        if unknown:
+            errors.append(f"{path} has unknown fields: {', '.join(unknown)}")
+        if missing or unknown:
+            return errors
+        for field, dimension in dimensions.items():
+            _quantity_reference(
+                inputs[field], dimension, f"{path}.{field}", quantities, errors
+            )
+        if optional_driver_current in inputs:
+            _quantity_reference(
+                inputs[optional_driver_current],
+                "current",
+                f"{path}.{optional_driver_current}",
+                quantities,
+                errors,
+            )
+        return errors
     if plugin in FLAT_PLUGIN_DIMENSIONS:
         dimensions = FLAT_PLUGIN_DIMENSIONS[plugin]
         if not _closed_object(inputs, set(dimensions), path, errors):
