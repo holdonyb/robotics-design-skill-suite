@@ -1,4 +1,6 @@
 import sys
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -6,10 +8,23 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
-from validate_simulation_bundle import BenchmarkError, _backend_input, run_reference_benchmark  # noqa: E402
+from validate_simulation_bundle import (  # noqa: E402
+    BenchmarkError,
+    _backend_input,
+    _load_backend_profile,
+    run_reference_benchmark,
+)
 
 
 class ReferenceSimulationTests(unittest.TestCase):
+    def test_backend_profile_is_extracted_from_bound_ros_workspace(self):
+        profile = _load_backend_profile(ROOT / "reference" / "mobile-manipulator")
+        self.assertEqual(0.15, profile["wheel_radius_m"])
+        self.assertEqual(0.68, profile["wheel_separation_m"])
+        self.assertEqual(140.2, profile["mass_kg"])
+        self.assertEqual(0.8, profile["brake_deceleration_m_s2"])
+        self.assertAlmostEqual(0.4 / 0.15, profile["wheel_speed_limit_rad_s"])
+
     def test_reference_benchmark_is_admitted_replayable_and_never_hardware_promotable(self):
         report = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")
         self.assertEqual("simulation_admitted", report["admission"]["status"])
@@ -47,22 +62,56 @@ class ReferenceSimulationTests(unittest.TestCase):
         )
         self.assertTrue(all(item["status"] == "passed" for item in records))
 
+    def test_crosschecks_report_bound_physical_profile(self):
+        report = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")
+        profile = report["backend_crosschecks"][0]["profile"]
+        self.assertEqual("parsed", profile["evidence_level"])
+        self.assertEqual(
+            "09a754c3253be4f799a8a7ea0bdea526db04c6741f81abdf5b765803b3bb3fb7",
+            profile["workspace_manifest_sha256"],
+        )
+        self.assertEqual(0.15, profile["wheel_radius_m"])
+        self.assertEqual(0.68, profile["wheel_separation_m"])
+        self.assertEqual(140.2, profile["mass_kg"])
+        primary = {
+            item["name"]: item["value"]
+            for item in report["backend_crosschecks"][0]["primary"]["metrics"]
+        }
+        self.assertEqual(0.15, primary["base_distance_m"])
+        self.assertAlmostEqual(0.0140625, primary["braking_distance_m"])
+
+    def test_backend_profile_rejects_workspace_source_drift(self):
+        with tempfile.TemporaryDirectory() as raw:
+            copied = Path(raw) / "reference"
+            shutil.copytree(ROOT / "reference" / "mobile-manipulator", copied)
+            controllers = copied / "ros2_ws" / "src" / "jx_mobile_manipulator_sim" / "config" / "controllers.yaml"
+            controllers.write_text(
+                controllers.read_text(encoding="utf-8").replace(
+                    "wheel_radius: 0.15", "wheel_radius: 0.14"
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(BenchmarkError, "receipt-valid"):
+                _load_backend_profile(copied)
+
     def test_backend_rejects_missing_or_nonfinite_replayed_wheel_state(self):
+        profile = _load_backend_profile(ROOT / "reference" / "mobile-manipulator")
         replay = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")["replays"][0]
         replay["samples"][1]["state"].pop("left_wheel_rad_s")
         with self.assertRaisesRegex(BenchmarkError, "wheel state"):
-            _backend_input(replay)
+            _backend_input(replay, profile)
 
         replay = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")["replays"][0]
         replay["samples"][1]["state"]["right_wheel_rad_s"] = float("inf")
         with self.assertRaisesRegex(BenchmarkError, "finite"):
-            _backend_input(replay)
+            _backend_input(replay, profile)
 
     def test_backend_rejects_missing_replayed_provenance(self):
+        profile = _load_backend_profile(ROOT / "reference" / "mobile-manipulator")
         replay = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")["replays"][0]
         replay.pop("trajectory_sha256")
         with self.assertRaisesRegex(BenchmarkError, "provenance"):
-            _backend_input(replay)
+            _backend_input(replay, profile)
 
 
 if __name__ == "__main__":
