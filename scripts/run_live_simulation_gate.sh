@@ -62,11 +62,30 @@ wait_for_active_controllers() {
   cat "$log" >&2 || true
   return 1
 }
+wait_for_recorded_topics() {
+  local pid="$1"
+  local log="$2"
+  local deadline=$((SECONDS + 15))
+  while (( SECONDS < deadline )); do
+    require_running "$pid" "$log"
+    if grep -q "Subscribed to topic '/clock'" "$log" \
+      && grep -q "Subscribed to topic '/joint_states'" "$log" \
+      && grep -q "Subscribed to topic '/diff_drive_controller/odom'" "$log" \
+      && grep -q "Subscribed to topic '/diff_drive_controller/cmd_vel'" "$log"; then
+      return 0
+    fi
+    sleep 1
+  done
+  cat "$log" >&2 || true
+  return 1
+}
 
 set +u
 source /opt/ros/jazzy/setup.bash
 set -u
 test "${ROS_DISTRO:-}" = "jazzy"
+test "${ROS_DOMAIN_ID:-}" = "139"
+test "${ROS_LOCALHOST_ONLY:-}" = "1"
 gz sim --versions > "$EVIDENCE/gazebo-versions.txt"
 dpkg-query -W > "$EVIDENCE/dpkg-inventory.txt"
 docker image inspect "${SIMULATION_IMAGE_REF:-unavailable}" > "$EVIDENCE/image-inspect.json" 2>/dev/null || true
@@ -107,6 +126,21 @@ ros2 node list | tee "$EVIDENCE/consumer-nodes.txt"
 grep -q move_group "$EVIDENCE/consumer-nodes.txt"
 grep -Eq 'controller_server|planner_server' "$EVIDENCE/consumer-nodes.txt"
 grep -Eq 'bt_navigator|behavior_server' "$EVIDENCE/consumer-nodes.txt"
+
+# Retain one bounded response from the running Gazebo controller.  This command
+# targets only the Dockerized simulation namespace; its profile limit is 0.4 m/s.
+timeout 30s ros2 bag record --storage mcap --output "$EVIDENCE/live-drive" /clock /joint_states /diff_drive_controller/odom /diff_drive_controller/cmd_vel > "$EVIDENCE/live-record.log" 2>&1 & pids+=("$!")
+RECORDER_PID="${pids[${#pids[@]}-1]}"
+timeout 5s ros2 topic pub -r 10 /diff_drive_controller/cmd_vel geometry_msgs/msg/TwistStamped "{twist: {linear: {x: 0.10}, angular: {z: 0.0}}}" > "$EVIDENCE/live-command.log" 2>&1 & pids+=("$!")
+COMMAND_PID="${pids[${#pids[@]}-1]}"
+wait_for_recorded_topics "$RECORDER_PID" "$EVIDENCE/live-record.log"
+sleep 2
+require_running "$RECORDER_PID" "$EVIDENCE/live-record.log"
+kill "$COMMAND_PID" 2>/dev/null || true
+wait "$COMMAND_PID" || true
+kill "$RECORDER_PID"
+wait "$RECORDER_PID" || true
+run python3 "$ROOT/scripts/validate_live_simulation_trace.py" --reference-root "$REFERENCE" --bag "$EVIDENCE/live-drive" --out "$EVIDENCE/live-trace-bundle" > "$EVIDENCE/live-trace-receipt.json"
 
 run python3 "$ROOT/skills/robotics-design/scripts/validate_simulation_bundle.py" --reference-root "$REFERENCE" > "$EVIDENCE/portable-benchmark.json"
 cp "$REFERENCE/simulation/environment-lock.json" "$EVIDENCE/environment-lock.json"

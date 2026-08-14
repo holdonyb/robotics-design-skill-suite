@@ -17,6 +17,7 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn("gz-harmonic", dockerfile)
         self.assertIn("build-essential", dockerfile)
         self.assertIn("ros-jazzy-joint-trajectory-controller", dockerfile)
+        self.assertIn("ros-jazzy-rosbag2-storage-mcap", dockerfile)
         self.assertIn('"image_digest"', lock)
         self.assertNotIn(":latest", dockerfile + workflow)
         for token in ("xacro", "colcon test", "gz sim", "ros2_control", "move_group", "nav2", "timeout", "trap", "validate_simulation_bundle.py", "kill -0", "joint_state_broadcaster", "arm_controller", "diff_drive_controller"):
@@ -55,6 +56,28 @@ class SimulationCiTests(unittest.TestCase):
         self.assertIn("upload-artifact", workflow)
         self.assertIn("include-hidden-files: true", workflow)
         self.assertNotIn("continue-on-error: true", workflow)
+        self.assertNotIn("--network=host", workflow)
+        self.assertIn("--network=none", workflow)
+        self.assertIn("ROS_DOMAIN_ID=139", workflow)
+        self.assertIn("ROS_LOCALHOST_ONLY=1", workflow)
+        self.assertIn('test "${ROS_DOMAIN_ID:-}" = "139"', gate)
+        self.assertIn('test "${ROS_LOCALHOST_ONLY:-}" = "1"', gate)
+
+    def test_live_gate_retains_a_bounded_controller_trace_not_a_synthetic_substitute(self):
+        gate = (ROOT / "scripts/run_live_simulation_gate.sh").read_text(encoding="utf-8")
+        for token in (
+            'ros2 bag record --storage mcap --output "$EVIDENCE/live-drive"',
+            "/clock", "/joint_states", "/diff_drive_controller/odom", "/diff_drive_controller/cmd_vel",
+            'timeout 5s ros2 topic pub -r 10 /diff_drive_controller/cmd_vel geometry_msgs/msg/TwistStamped',
+            "x: 0.10", "z: 0.0", "validate_live_simulation_trace.py",
+            '"$EVIDENCE/live-trace-bundle"',
+        ):
+            self.assertIn(token, gate)
+        self.assertLess(gate.index("wait_for_active_controllers"), gate.index("ros2 bag record --storage mcap"))
+        self.assertLess(gate.index("ros2 bag record --storage mcap"), gate.index("validate_live_simulation_trace.py"))
+        self.assertIn("Subscribed to topic '/diff_drive_controller/odom'", gate)
+        self.assertIn("wait_for_recorded_topics", gate)
+        self.assertLess(gate.index("wait_for_recorded_topics \"$RECORDER_PID\""), gate.index("sleep 2"))
 
 
 if __name__ == "__main__":
