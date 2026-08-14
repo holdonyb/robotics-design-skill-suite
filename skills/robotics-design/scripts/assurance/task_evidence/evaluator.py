@@ -138,8 +138,15 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
                 for event in trace:
                     if not isinstance(event.get("phase"), str) or event["phase"] not in protocol.phases or not _finite(event.get("speed_m_s")) or not _finite(event.get("torque_nm")) or type(event.get("watchdog_healthy")) is not bool or not event["watchdog_healthy"]:
                         findings.append(_finding("TASK.TRACE_INVALID", f"{path}.{trace_path}_trace", "phase, finite motion values, and healthy watchdog are required"))
-        if task is not None and any(not isinstance(event.get("phase"), str) or event["phase"] not in protocol.phases or type(event.get("completed")) is not bool for event in task):
-            findings.append(_finding("TASK.TRACE_INVALID", f"{path}.task_trace", "task phase and completion flag are required"))
+        if task is not None:
+            if any(not isinstance(event.get("phase"), str) or event["phase"] not in protocol.phases or type(event.get("completed")) is not bool for event in task):
+                findings.append(_finding("TASK.TRACE_INVALID", f"{path}.task_trace", "task phase and completion flag are required"))
+            elif package["kind"] == "nominal":
+                phases = tuple(event["phase"] for event in task)
+                if phases != protocol.phases:
+                    findings.append(_finding("TASK.PHASE_ORDER", f"{path}.task_trace", "nominal task phases must exactly follow the declared protocol"))
+                if not task[-1]["completed"] or any(event["completed"] for event in task[:-1]):
+                    findings.append(_finding("TASK.TASK_NOT_COMPLETE", f"{path}.task_trace", "only the terminal declared phase may complete a nominal task"))
         if metrics is not None:
             for event in metrics:
                 metric_id = event.get("metric_id")

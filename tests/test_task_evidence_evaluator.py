@@ -33,7 +33,7 @@ def bind(root, name, value):
 def nominal(root):
     command = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "speed_m_s": 0.1, "torque_nm": 0.2, "watchdog_healthy": True}]}
     state = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "speed_m_s": 0.1, "torque_nm": 0.2, "watchdog_healthy": True}]}
-    task = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "completed": True}]}
+    task = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "completed": False}, {"timestamp_ns": 1, "phase": "grasp", "completed": False}, {"timestamp_ns": 2, "phase": "place", "completed": True}]}
     metrics = {"schema_version": 1, "events": [{"timestamp_ns": 0, "metric_id": "completion-time", "value": 2.0}]}
     return {"schema_version": 1, "package_id": "trial-001", "kind": "nominal", "envelope": {"payload": 1.0}, "repetition": 1, "fault_id": None, "fault_record": None, "endurance_record": None, "comparison_record": None, "command_trace": bind(root, "traces/command.json", command), "state_trace": bind(root, "traces/state.json", state), "task_trace": bind(root, "traces/task.json", task), "metric_trace": bind(root, "traces/metrics.json", metrics), "disposition": "passed"}
 
@@ -150,6 +150,16 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
             result = evaluate_task_packages(root, value, [unknown])
             self.assertEqual("rejected", result.status)
             self.assertIn("TASK.METRIC_INVALID", {item.code for item in result.findings})
+
+    def test_nominal_task_must_retain_ordered_complete_protocol_phases(self):
+        value, _ = validate_task_protocol(minimal_protocol())
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            package = nominal(root)
+            package["task_trace"] = bind(root, "traces/task.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "grasp", "completed": False}, {"timestamp_ns": 1, "phase": "approach", "completed": True}]})
+            result = evaluate_task_packages(root, value, [package])
+        self.assertEqual("rejected", result.status)
+        self.assertIn("TASK.PHASE_ORDER", {item.code for item in result.findings})
 
 
 if __name__ == "__main__":
