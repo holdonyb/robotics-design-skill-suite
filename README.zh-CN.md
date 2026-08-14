@@ -65,7 +65,7 @@ python skills/robotics-design/scripts/validate_design_contract.py path/to/design
 
 退出码 `0` 只表示声明的契约在当前证据等级下通过了已经实现的解析筛选。缺失或占位部件、过期证据、非法单位、不完整的执行器/载荷路径、缺少架构推导的分析覆盖以及失败或不确定的分析都会阻止晋级。仿真不能补上缺失的电机、减速器、轴承、驱动器、制动器、供电保护部件，也不能替代缺失的连续或热能力证据。
 
-[`reference/mobile-manipulator`](reference/mobile-manipulator) 是“差速底盘 + 六轴机械臂”的回归工装，包含 35 个关键故障变体。大多数组件额定值仍是工程假设，不是制造或采购推荐；J2 轴承与减速器是哈希绑定的已解析目录候选件，也不是已验证装配。静态臂载荷会反算到电机侧，但电机曲线、寿命和瞬态动力学仍需独立证据。在精确部件和更强证据替换所有影响结论的占位项之前，它会故意保持不可晋级。完整约束见 [`physical-plausibility-contract.md`](skills/robotics-design/references/physical-plausibility-contract.md)。
+[`reference/mobile-manipulator`](reference/mobile-manipulator) 是“差速底盘 + 六轴机械臂”的回归工装，包含 35 个关键故障变体。大多数组件额定值仍是工程假设，不是制造或采购推荐；J2 轴承与减速器是哈希绑定的已解析目录候选件，也不是已验证装配。静态臂载荷会反算到电机侧。链路质量也必须闭合为结构余量与已选组件质量之和；未绑定的供应商候选件不会进入参考模型质量。电机曲线、寿命和瞬态动力学仍需独立证据。在精确部件和更强证据替换所有影响结论的占位项之前，它会故意保持不可晋级。完整约束见 [`physical-plausibility-contract.md`](skills/robotics-design/references/physical-plausibility-contract.md)。
 
 ## 有边界的设计假设
 

@@ -29,7 +29,12 @@ def _tree_hash(root: Path) -> str:
 
 class ReferenceHypothesisTests(unittest.TestCase):
     def _run(self, root: Path, name="out"):
-        for filename in ("design-contract.json", "robot.urdf", "assumptions.json"):
+        for filename in (
+            "design-contract.json",
+            "robot.urdf",
+            "assumptions.json",
+            "component-mass-closure.json",
+        ):
             shutil.copy2(REFERENCE / filename, root / filename)
         (root / "model").mkdir(exist_ok=True)
         for filename in ("load-envelope.json", "bearing-load-j2.json"):

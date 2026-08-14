@@ -7,6 +7,7 @@
     "bounded payload and arm pose used only for conservative regression calculations",
     "constant drivetrain efficiency and rolling resistance at the checked point",
     "unverified arm-motor continuous ratings and reducer efficiencies are conservative static transmission-screen inputs, not vendor specifications",
+    "arm-link masses are assumed URDF budgets; component mass closure begins with explicit structural residuals and no selected supplier component contribution",
     "axis-aligned static support rectangle",
     "battery usable energy already includes an assumed reserve"
   ],

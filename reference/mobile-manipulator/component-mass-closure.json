@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "purpose": "assumed_structural_mass_budget_for_component_accounting_only",
+  "links": {
+    "arm_link_1": {"structural_residual_mass_kg": 8.0, "components": []},
+    "arm_link_2": {"structural_residual_mass_kg": 7.0, "components": []},
+    "arm_link_3": {"structural_residual_mass_kg": 5.0, "components": []},
+    "arm_link_4": {"structural_residual_mass_kg": 4.0, "components": []},
+    "arm_link_5": {"structural_residual_mass_kg": 3.0, "components": []},
+    "arm_link_6": {"structural_residual_mass_kg": 2.0, "components": []}
+  },
+  "assumptions": [
+    "Each residual equals the current URDF link mass until an explicitly selected component mass is placed on that link.",
+    "No unbound supplier-candidate mass, including the BFK458-20 candidate, is represented as a reference robot component contribution."
+  ],
+  "claim_boundary": "This bookkeeping record does not establish placement, centre of mass, inertia, CAD fit, structural adequacy, procurement, hardware authorization, energization or motion."
+}
