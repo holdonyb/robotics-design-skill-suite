@@ -27,12 +27,18 @@ def nominal(root):
     command = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "speed_m_s": 0.1, "torque_nm": 0.2, "watchdog_healthy": True}]}
     state = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "speed_m_s": 0.1, "torque_nm": 0.2, "watchdog_healthy": True}]}
     task = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "completed": True}]}
-    return {"schema_version": 1, "package_id": "trial-001", "kind": "nominal", "envelope": {"payload": 1.0}, "repetition": 1, "fault_id": None, "fault_record": None, "command_trace": bind(root, "traces/command.json", command), "state_trace": bind(root, "traces/state.json", state), "task_trace": bind(root, "traces/task.json", task), "disposition": "passed"}
+    return {"schema_version": 1, "package_id": "trial-001", "kind": "nominal", "envelope": {"payload": 1.0}, "repetition": 1, "fault_id": None, "fault_record": None, "endurance_record": None, "comparison_record": None, "command_trace": bind(root, "traces/command.json", command), "state_trace": bind(root, "traces/state.json", state), "task_trace": bind(root, "traces/task.json", task), "disposition": "passed"}
 
 
 def fault(root):
     value = nominal(root)
     value.update({"package_id": "fault-001", "kind": "fault", "fault_id": "timeout-fault", "fault_record": bind(root, "traces/fault.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "fault_id": "timeout-fault", "detected": True, "safe_state": "motion_inhibited", "recovery": "manual-inspection"}]})})
+    return value
+
+
+def endurance(root):
+    value = nominal(root)
+    value.update({"package_id": "endurance-001", "kind": "endurance", "endurance_record": bind(root, "traces/endurance.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "health": 1.0, "terminal": False}, {"timestamp_ns": 1_000_000_000, "health": 0.99, "terminal": True}]})})
     return value
 
 
@@ -66,6 +72,18 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
             result = evaluate_task_packages(root, value, [bad])
         self.assertEqual("rejected", result.status)
         self.assertIn("TASK.FAULT_SAFE_STATE", {item.code for item in result.findings})
+
+    def test_endurance_requires_exact_sampling_and_terminal_record(self):
+        value, _ = validate_task_protocol(protocol())
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            result = evaluate_task_packages(root, value, [endurance(root)])
+            self.assertEqual("evidence_complete", result.status)
+            bad = endurance(root)
+            bad["endurance_record"] = bind(root, "traces/endurance.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "health": 1.0, "terminal": False}, {"timestamp_ns": 2_000_000_000, "health": 0.99, "terminal": True}]})
+            result = evaluate_task_packages(root, value, [bad])
+        self.assertEqual("rejected", result.status)
+        self.assertIn("TASK.ENDURANCE_TIMESTAMPS", {item.code for item in result.findings})
 
 
 if __name__ == "__main__":
