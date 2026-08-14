@@ -15,9 +15,9 @@ from assurance.simulation.live_trace import (
     LiveTraceError,
     _TOPIC_TYPES,
     _raw_inventory,
-    crosscheck_live_dynamics,
     normalize_records,
     publish_live_trace_bundle,
+    require_live_dynamics_crosscheck,
     validate_live_capture,
     validate_retained_live_trace_bundle,
 )
@@ -74,9 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         capture = normalize_records(_decode_mcap(args.bag))
         profile = _load_backend_profile(args.reference_root)
         validation = validate_live_capture(capture, profile)
-        dynamics_crosscheck = crosscheck_live_dynamics(capture, profile)
-        if dynamics_crosscheck["status"] != "passed":
-            raise LiveTraceError("live dynamics crosscheck did not pass")
+        dynamics_crosscheck = require_live_dynamics_crosscheck(capture, profile)
         validation["dynamics_crosscheck"] = dynamics_crosscheck
         receipt = publish_live_trace_bundle(args.out, capture, profile, args.bag)
         errors = validate_retained_live_trace_bundle(args.out, receipt.manifest_sha256, args.bag)

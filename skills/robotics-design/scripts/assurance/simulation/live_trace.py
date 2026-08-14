@@ -279,6 +279,14 @@ def crosscheck_live_dynamics(capture: object, profile: object) -> dict[str, Any]
     }
 
 
+def require_live_dynamics_crosscheck(capture: object, profile: object) -> dict[str, Any]:
+    """Return the crosscheck or reject it with the exact retained diagnostics."""
+    crosscheck = crosscheck_live_dynamics(capture, profile)
+    if crosscheck["status"] != "passed":
+        raise LiveTraceError("live dynamics crosscheck did not pass: " + canonical_bytes(crosscheck).decode("utf-8"))
+    return crosscheck
+
+
 def _raw_inventory(raw_bag: str | Path) -> list[dict[str, Any]]:
     root = Path(raw_bag)
     if root.is_symlink() or not root.is_dir():
@@ -315,9 +323,7 @@ def publish_live_trace_bundle(output: str | Path, capture: object, profile: obje
     # Authenticate raw evidence before deriving any secondary result so malformed
     # bags fail at their owning evidence boundary with an actionable diagnostic.
     inventory = _raw_inventory(raw_bag)
-    crosscheck = crosscheck_live_dynamics(capture, profile)
-    if crosscheck["status"] != "passed":
-        raise LiveTraceError("live dynamics crosscheck did not pass")
+    crosscheck = require_live_dynamics_crosscheck(capture, profile)
     result["dynamics_crosscheck"] = crosscheck
     _, _, workspace, sources = _profile(profile)
     files = {

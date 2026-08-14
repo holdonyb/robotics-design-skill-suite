@@ -115,7 +115,7 @@ class LiveTraceTests(unittest.TestCase):
             self.assertIn(token, source)
         self.assertIn('topic == "/diff_drive_controller/odom"', source)
         self.assertNotIn('topic == "/odom"', source)
-        self.assertIn("crosscheck_live_dynamics", source)
+        self.assertIn("require_live_dynamics_crosscheck", source)
         self.assertIn("_raw_inventory(args.bag)", source)
         self.assertLess(source.index("_raw_inventory(args.bag)"), source.index("_decode_mcap(args.bag)"))
 
@@ -163,6 +163,18 @@ class LiveTraceTests(unittest.TestCase):
             shutil.copytree(bag, tampered)
             (tampered / "extra.mcap").write_bytes(b"\x89MCAP0\r\nextra\x89MCAP0\r\n")
             self.assertIn("raw bag files are not closed", validate_retained_live_trace_bundle(root / "bundle", receipt.manifest_sha256, tampered))
+
+    def test_publisher_reports_structured_dynamics_disagreement(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            bag = root / "live-drive"
+            bag.mkdir()
+            (bag / "metadata.yaml").write_text("rosbag2_bagfile_information: {}\n", encoding="utf-8")
+            (bag / "live-drive_0.mcap").write_bytes(b"\x89MCAP0\r\ntrace\x89MCAP0\r\n")
+            mismatch = dynamics_capture()
+            mismatch["odom_samples"][-1]["x_m"] = 0.60
+            with self.assertRaisesRegex(LiveTraceError, "base_distance_m"):
+                publish_live_trace_bundle(root / "bundle", mismatch, PROFILE, bag)
 
     def test_raw_bag_rejects_a_non_mcap_payload_even_with_a_valid_suffix(self):
         with tempfile.TemporaryDirectory() as raw:
