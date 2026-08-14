@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+from itertools import product
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -63,6 +64,7 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
     if not isinstance(packages, list) or not packages:
         findings.append(TaskEvidenceFinding("TASK.AUTHORIZATION_REQUIRED", "indeterminate", "packages", "no task package is supplied")); packages = []
     package_ids: set[str] = set()
+    nominal_coverage: set[tuple[tuple[tuple[str, float], ...], int]] = set()
     expected_envelope = {axis.id: set(axis.values) for axis in protocol.envelope}
     for index, package in enumerate(packages):
         path = f"packages[{index}]"
@@ -118,8 +120,11 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
                     if absolute > rule.max_abs_residual or relative > rule.max_rel_residual:
                         findings.append(_finding("TASK.COMPARISON_RESIDUAL", f"{path}.comparison_record", "comparison residual exceeds declared limit"))
         envelope = package.get("envelope")
-        if not isinstance(envelope, dict) or set(envelope) != set(expected_envelope) or any(not _finite(value) or float(value) not in expected_envelope[name] for name, value in envelope.items()):
+        envelope_valid = isinstance(envelope, dict) and set(envelope) == set(expected_envelope) and not any(not _finite(value) or float(value) not in expected_envelope[name] for name, value in envelope.items())
+        if not envelope_valid:
             findings.append(_finding("TASK.ENVELOPE_INVALID", f"{path}.envelope", "envelope must match declared protocol values"))
+        elif package["kind"] == "nominal":
+            nominal_coverage.add((tuple(sorted((name, float(value)) for name, value in envelope.items())), package["repetition"]))
         command = _trace(_bound_json(root, package["command_trace"], f"{path}.command_trace", findings), frozenset({"timestamp_ns", "phase", "speed_m_s", "torque_nm", "watchdog_healthy"}), f"{path}.command_trace", findings)
         state = _trace(_bound_json(root, package["state_trace"], f"{path}.state_trace", findings), frozenset({"timestamp_ns", "phase", "speed_m_s", "torque_nm", "watchdog_healthy"}), f"{path}.state_trace", findings)
         task = _trace(_bound_json(root, package["task_trace"], f"{path}.task_trace", findings), frozenset({"timestamp_ns", "phase", "completed"}), f"{path}.task_trace", findings)
@@ -130,6 +135,13 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
                         findings.append(_finding("TASK.TRACE_INVALID", f"{path}.{trace_path}_trace", "phase, finite motion values, and healthy watchdog are required"))
         if task is not None and any(not isinstance(event.get("phase"), str) or event["phase"] not in protocol.phases or type(event.get("completed")) is not bool for event in task):
             findings.append(_finding("TASK.TRACE_INVALID", f"{path}.task_trace", "task phase and completion flag are required"))
+    axis_values = [(axis.id, axis.values) for axis in protocol.envelope]
+    for values in product(*(values for _, values in axis_values)):
+        point = tuple(sorted((axis_values[position][0], float(value)) for position, value in enumerate(values)))
+        for repetition in range(1, protocol.repetitions + 1):
+            if (point, repetition) not in nominal_coverage:
+                findings.append(_finding("TASK.REPETITION_MISSING", "packages", "every declared envelope point requires every nominal repetition"))
+                break
     findings.sort(key=lambda item: (item.code, item.path, item.message, item.severity))
     status = "rejected" if any(item.severity == "error" for item in findings) else "awaiting_authorization" if any(item.severity == "indeterminate" for item in findings) else "evidence_complete"
     return TaskEvidenceReport(protocol.task_id, status, tuple(findings), (), (), ())
