@@ -279,6 +279,37 @@ class AssuranceAnalysisTests(unittest.TestCase):
         self.assertEqual(extreme_result.outputs, {})
         self.assertTrue(any(item.code == "PHY.NUMERIC.OVERFLOW" for item in extreme_result.diagnostics))
 
+    def test_bearing_static_equivalent_load_checks_force_moment_and_safety_factor(self):
+        inputs = {
+            "joints": [
+                {
+                    "id": "joint_2",
+                    "radial_load_n": 1000.0,
+                    "axial_load_n": 500.0,
+                    "moment_nm": 100.0,
+                    "pitch_diameter_m": 0.1,
+                    "static_load_rating_n": 10000.0,
+                    "safety_factor": 2.0,
+                }
+            ]
+        }
+        result = run_plugin("bearing_static_v1", inputs)
+        joint = result.outputs["joints"][0]
+        self.assertAlmostEqual(3220.0, joint["static_equivalent_load_n"])
+        self.assertAlmostEqual(6440.0, joint["required_static_load_n"])
+        self.assertAlmostEqual(3560.0, joint["static_margin_n"])
+        self.assertTrue(result.passed)
+
+        overloaded = run_plugin(
+            "bearing_static_v1",
+            {"joints": [{**inputs["joints"][0], "static_load_rating_n": 6000.0}]},
+        )
+        self.assertFalse(overloaded.passed)
+        self.assertIn(
+            "PHY.BEARING.STATIC_LOAD",
+            {item.code for item in overloaded.diagnostics},
+        )
+
     def test_missing_and_invalid_inputs_are_fail_closed_not_tracebacks(self):
         missing = run_plugin("drivetrain_v1", {"base_mass_kg": 10.0})
         self.assertTrue(any(item.severity == "indeterminate" for item in missing.diagnostics))
