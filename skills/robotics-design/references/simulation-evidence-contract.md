@@ -20,9 +20,13 @@ trusting a stored verdict.
 ## Backend and calibration boundary
 
 A trace-primary kinematics calculation is compared to an independent planar
-dynamics adapter over declared validity domains and metric intervals. A passing
-comparison is calculated evidence, not a higher-fidelity or live-simulator
-claim. Calibration stays `simulated` for synthetic data; only declared bench or
+dynamics adapter over declared validity domains and metric intervals. They may
+share strict input validation, but each must recompute every reported metric
+from the receipt-validated trace; neither result may call or reuse the other's
+metrics. Their bounded planar metrics include conservative worst-direction
+downslope braking and gravity force, so mass and slope cannot be inert inputs.
+A passing comparison is calculated evidence, not a higher-fidelity or
+live-simulator claim. Calibration stays `simulated` for synthetic data; only declared bench or
 integrated-hardware data can produce `calibrated_simulation`, and that still
 does not authorize hardware motion.
 
