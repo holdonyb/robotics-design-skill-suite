@@ -117,6 +117,22 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
         self.assertEqual("rejected", result.status)
         self.assertIn("TASK.REPETITION_MISSING", {item.code for item in result.findings})
 
+    def test_failed_trial_and_boolean_schema_version_are_rejected(self):
+        value, _ = validate_task_protocol(minimal_protocol())
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            failed = nominal(root)
+            failed["disposition"] = "failed"
+            result = evaluate_task_packages(root, value, [failed])
+            self.assertEqual("rejected", result.status)
+            self.assertIn("TASK.TRIAL_NOT_PASSED", {item.code for item in result.findings})
+
+            malformed = nominal(root)
+            malformed["schema_version"] = True
+            result = evaluate_task_packages(root, value, [malformed])
+            self.assertEqual("rejected", result.status)
+            self.assertIn("TASK.PACKAGE_INVALID", {item.code for item in result.findings})
+
 
 if __name__ == "__main__":
     unittest.main()

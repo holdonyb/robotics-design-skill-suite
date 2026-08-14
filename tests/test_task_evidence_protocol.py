@@ -44,6 +44,12 @@ class TaskEvidenceProtocolTests(unittest.TestCase):
         codes = {item.code for item in findings}
         self.assertTrue({"TASK.PROTOCOL_METRIC_INVALID", "TASK.PROTOCOL_ENVELOPE_INVALID", "TASK.PROTOCOL_COMPARISON_INVALID"} <= codes)
 
+    def test_boolean_schema_version_is_rejected(self):
+        value = protocol()
+        value["schema_version"] = True
+        _, findings = validate_task_protocol(value)
+        self.assertIn("TASK.PROTOCOL_INVALID", {item.code for item in findings})
+
 
 if __name__ == "__main__":
     unittest.main()

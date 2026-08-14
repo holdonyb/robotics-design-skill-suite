@@ -96,7 +96,7 @@ def _ids(records: object, fields: frozenset[str], path: str, findings: list[Task
 
 def validate_task_protocol(data: object) -> tuple[TaskProtocol | None, tuple[TaskEvidenceFinding, ...]]:
     findings: list[TaskEvidenceFinding] = []
-    if not isinstance(data, dict) or set(data) != _ROOT or data.get("schema_version") != 1:
+    if not isinstance(data, dict) or set(data) != _ROOT or type(data.get("schema_version")) is not int or data["schema_version"] != 1:
         return None, (_finding("TASK.PROTOCOL_INVALID", "protocol", "fields are closed and schema_version must be 1"),)
     try:
         validate_identifier(data.get("task_id"), "task_id")

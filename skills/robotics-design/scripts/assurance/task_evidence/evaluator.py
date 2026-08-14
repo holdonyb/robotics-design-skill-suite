@@ -46,7 +46,7 @@ def _bound_json(root: Path, record: object, path: str, findings: list[TaskEviden
 
 
 def _trace(data: object, fields: frozenset[str], path: str, findings: list[TaskEvidenceFinding]) -> list[dict[str, Any]] | None:
-    if not isinstance(data, dict) or set(data) != {"schema_version", "events"} or data.get("schema_version") != 1 or not isinstance(data.get("events"), list) or not data["events"] or len(data["events"]) > 10_000:
+    if not isinstance(data, dict) or set(data) != {"schema_version", "events"} or type(data.get("schema_version")) is not int or data["schema_version"] != 1 or not isinstance(data.get("events"), list) or not data["events"] or len(data["events"]) > 10_000:
         findings.append(_finding("TASK.TRACE_INVALID", path, "trace must be bounded schema-v1 events")); return None
     events: list[dict[str, Any]] = []
     stamps: list[int] = []
@@ -68,7 +68,7 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
     expected_envelope = {axis.id: set(axis.values) for axis in protocol.envelope}
     for index, package in enumerate(packages):
         path = f"packages[{index}]"
-        if not isinstance(package, dict) or set(package) != _PACKAGE or package.get("schema_version") != 1:
+        if not isinstance(package, dict) or set(package) != _PACKAGE or type(package.get("schema_version")) is not int or package["schema_version"] != 1:
             findings.append(_finding("TASK.PACKAGE_INVALID", path, "package fields are closed and schema_version must be 1")); continue
         try:
             validate_identifier(package.get("package_id"), f"{path}.package_id")
@@ -79,6 +79,8 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
         package_ids.add(package["package_id"])
         if package.get("kind") not in {"nominal", "fault", "endurance", "comparison"} or package.get("disposition") not in {"passed", "aborted", "failed"} or type(package.get("repetition")) is not int or not 1 <= package["repetition"] <= protocol.repetitions:
             findings.append(_finding("TASK.PACKAGE_INVALID", path, "kind, disposition, and repetition are invalid")); continue
+        if package["disposition"] != "passed":
+            findings.append(_finding("TASK.TRIAL_NOT_PASSED", f"{path}.disposition", "only a passed trial can satisfy task evidence coverage"))
         fault_profiles = {item.id: item for item in protocol.faults}
         if package["kind"] == "nominal" and (package.get("fault_id") is not None or package.get("fault_record") is not None):
             findings.append(_finding("TASK.PACKAGE_INVALID", path, "nominal trials must not carry fault evidence"))
@@ -123,7 +125,7 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
         envelope_valid = isinstance(envelope, dict) and set(envelope) == set(expected_envelope) and not any(not _finite(value) or float(value) not in expected_envelope[name] for name, value in envelope.items())
         if not envelope_valid:
             findings.append(_finding("TASK.ENVELOPE_INVALID", f"{path}.envelope", "envelope must match declared protocol values"))
-        elif package["kind"] == "nominal":
+        elif package["kind"] == "nominal" and package["disposition"] == "passed":
             nominal_coverage.add((tuple(sorted((name, float(value)) for name, value in envelope.items())), package["repetition"]))
         command = _trace(_bound_json(root, package["command_trace"], f"{path}.command_trace", findings), frozenset({"timestamp_ns", "phase", "speed_m_s", "torque_nm", "watchdog_healthy"}), f"{path}.command_trace", findings)
         state = _trace(_bound_json(root, package["state_trace"], f"{path}.state_trace", findings), frozenset({"timestamp_ns", "phase", "speed_m_s", "torque_nm", "watchdog_healthy"}), f"{path}.state_trace", findings)
