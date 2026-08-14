@@ -15,6 +15,7 @@ REQUIRED = {
     "manifest.json",
     "PROJECT_STATUS.md",
     "docs/releases/v0.4-completion-audit.md",
+    "docs/releases/v0.8-completion-audit.md",
     "docs/research/2026-08-14-v05-dependency-audit.md",
     "reference/mobile-manipulator/simulation-benchmark.md",
     "scripts/install.py",
@@ -28,11 +29,13 @@ REQUIRED = {
     "skills/robotics-design/scripts/validate_design_contract.py",
     "skills/robotics-design/scripts/generate_design_hypotheses.py",
     "skills/robotics-design/scripts/validate_simulation_bundle.py",
+    "skills/robotics-design/scripts/validate_commissioning_evidence.py",
     "skills/robotics-design/references/simulation-evidence-contract.md",
     "reference/mobile-manipulator/design-contract.json",
     "reference/mobile-manipulator/hypothesis-space.json",
     "reference/mobile-manipulator/hypothesis-expected.json",
     "reference/mobile-manipulator/robot.urdf",
+    "reference/mobile-manipulator/commissioning/commissioning-index.json",
     "skills/robotics-design/scripts/validate_visual_manifest.py",
     "skills/robotics-design/scripts/validate_mission_animation_manifest.py",
     ".github/workflows/ci.yml",
@@ -237,6 +240,20 @@ class PublicHygieneTests(unittest.TestCase):
         self.assertIn("fixture_only", audit)
         self.assertIn("awaiting_authorization", audit)
         self.assertIn("No v0.7 action authorizes purchasing", audit)
+
+    def test_v080_docs_preserve_commissioning_authority_boundary(self):
+        audit = (ROOT / "docs/releases/v0.8-completion-audit.md").read_text(
+            encoding="utf-8"
+        )
+        english = (ROOT / "README.md").read_text(encoding="utf-8")
+        chinese = (ROOT / "README.zh-CN.md").read_text(encoding="utf-8")
+        router = (ROOT / "skills" / "robotics-design" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        for text in (english, chinese, router):
+            self.assertIn("validate_commissioning_evidence.py", text)
+        self.assertIn("motion_authorized: false", audit)
+        self.assertIn("does not assemble", audit)
 
     def test_ci_compiles_local_skill_runtime_before_tests(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")

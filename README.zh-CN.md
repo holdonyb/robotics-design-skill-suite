@@ -126,6 +126,17 @@ python skills/robotics-design/scripts/validate_bench_evidence.py \
 
 空的参考索引会以 `awaiting_authorization` 返回退出码 `1`，它不是台架结果。验证器没有设备接口，绝不授权采购、通电或运动。
 
+## 调试证据接收
+
+v0.8 为未来受控、低能量的调试提交建立离线证据门禁。非空包必须绑定设计契约、工程冻结包、台架索引、按序阶段、受限的命令/状态/停止 trace，以及检后检查记录。
+
+```bash
+python skills/robotics-design/scripts/validate_commissioning_evidence.py \
+  --index reference/mobile-manipulator/commissioning/commissioning-index.json
+```
+
+随附参考索引没有任何记录，会以 `awaiting_authorization` 返回退出码 `1`。验证器绝不连接或控制设备；即使本地提交完整，采购和运动授权仍为 false，也不能宣称已完成集成实机测试。
+
 ## 结构保真的机器人效果图
 
 0.2.0 版禁止图像生成模型悄悄改写机器人的机构。拓扑与姿态必须由 CAD、URDF、SDF 或等价的确定性模型负责；生成图只允许改变材质、表面处理、颜色、光照、背景和不接触机器人的环境内容。

@@ -161,6 +161,23 @@ The empty reference index exits `1` with `awaiting_authorization`; it is not a
 bench result. Validation has no device interface and never authorizes
 purchasing, energization, or motion.
 
+## Commissioning-evidence intake
+
+v0.8 prepares future controlled low-energy commissioning submissions. A
+populated package must bind the design contract, engineering-freeze package,
+bench intake, ordered commissioning stages, bounded command/state/stop traces,
+and post-test inspection records.
+
+```bash
+python skills/robotics-design/scripts/validate_commissioning_evidence.py \
+  --index reference/mobile-manipulator/commissioning/commissioning-index.json
+```
+
+The shipped reference index has no records and exits `1` with
+`awaiting_authorization`. The validator never connects to or controls a device;
+even a complete local submission leaves procurement and motion authorization
+false and is not an integrated-hardware-tested claim.
+
 ## Structure-preserving robot renders
 
 Version 0.2.0 prevents image generation from silently changing a robot's mechanism. CAD, URDF, SDF, or an equivalent deterministic model must own topology and pose. A generated image may change materials, surface finish, color, lighting, background, and non-contact environment context only.
