@@ -10,11 +10,11 @@ from typing import Any
 
 from ..engineering_freeze.schema import FreezeSchemaError, load_canonical_json
 from ..hypothesis.canonical import validate_identifier, validate_sha256
-from .model import TaskEvidenceFinding, TaskEvidenceReport
+from .model import MetricSummary, TaskEvidenceFinding, TaskEvidenceReport
 from .protocol import TaskProtocol
 
 
-_PACKAGE = frozenset({"schema_version", "package_id", "kind", "envelope", "repetition", "fault_id", "fault_record", "endurance_record", "comparison_record", "command_trace", "state_trace", "task_trace", "disposition"})
+_PACKAGE = frozenset({"schema_version", "package_id", "kind", "envelope", "repetition", "fault_id", "fault_record", "endurance_record", "comparison_record", "command_trace", "state_trace", "task_trace", "metric_trace", "disposition"})
 
 
 def _finding(code: str, path: str, message: str) -> TaskEvidenceFinding:
@@ -66,6 +66,8 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
     package_ids: set[str] = set()
     nominal_coverage: set[tuple[tuple[tuple[str, float], ...], int]] = set()
     expected_envelope = {axis.id: set(axis.values) for axis in protocol.envelope}
+    metric_rules = {item.id: item for item in protocol.metrics}
+    metric_values: dict[str, list[float]] = {item.id: [] for item in protocol.metrics}
     for index, package in enumerate(packages):
         path = f"packages[{index}]"
         if not isinstance(package, dict) or set(package) != _PACKAGE or type(package.get("schema_version")) is not int or package["schema_version"] != 1:
@@ -130,6 +132,7 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
         command = _trace(_bound_json(root, package["command_trace"], f"{path}.command_trace", findings), frozenset({"timestamp_ns", "phase", "speed_m_s", "torque_nm", "watchdog_healthy"}), f"{path}.command_trace", findings)
         state = _trace(_bound_json(root, package["state_trace"], f"{path}.state_trace", findings), frozenset({"timestamp_ns", "phase", "speed_m_s", "torque_nm", "watchdog_healthy"}), f"{path}.state_trace", findings)
         task = _trace(_bound_json(root, package["task_trace"], f"{path}.task_trace", findings), frozenset({"timestamp_ns", "phase", "completed"}), f"{path}.task_trace", findings)
+        metrics = _trace(_bound_json(root, package["metric_trace"], f"{path}.metric_trace", findings), frozenset({"timestamp_ns", "metric_id", "value"}), f"{path}.metric_trace", findings)
         for trace, trace_path in ((command, "command"), (state, "state")):
             if trace is not None:
                 for event in trace:
@@ -137,6 +140,13 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
                         findings.append(_finding("TASK.TRACE_INVALID", f"{path}.{trace_path}_trace", "phase, finite motion values, and healthy watchdog are required"))
         if task is not None and any(not isinstance(event.get("phase"), str) or event["phase"] not in protocol.phases or type(event.get("completed")) is not bool for event in task):
             findings.append(_finding("TASK.TRACE_INVALID", f"{path}.task_trace", "task phase and completion flag are required"))
+        if metrics is not None:
+            for event in metrics:
+                metric_id = event.get("metric_id")
+                if not isinstance(metric_id, str) or metric_id not in metric_rules or not _finite(event.get("value")):
+                    findings.append(_finding("TASK.METRIC_INVALID", f"{path}.metric_trace", "metric id must be declared and value finite"))
+                elif package["kind"] == "nominal":
+                    metric_values[metric_id].append(float(event["value"]))
     axis_values = [(axis.id, axis.values) for axis in protocol.envelope]
     for values in product(*(values for _, values in axis_values)):
         point = tuple(sorted((axis_values[position][0], float(value)) for position, value in enumerate(values)))
@@ -144,6 +154,17 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
             if (point, repetition) not in nominal_coverage:
                 findings.append(_finding("TASK.REPETITION_MISSING", "packages", "every declared envelope point requires every nominal repetition"))
                 break
+    summaries: list[MetricSummary] = []
+    for rule in protocol.metrics:
+        values = metric_values[rule.id]
+        if not values:
+            findings.append(_finding("TASK.METRIC_MISSING", "packages", f"nominal trials must retain {rule.id} values"))
+            continue
+        minimum, maximum = min(values), max(values)
+        passed = maximum <= rule.threshold if rule.direction == "maximum" else minimum >= rule.threshold
+        summaries.append(MetricSummary(rule.id, len(values), minimum, maximum, sum(values) / len(values), passed))
+        if not passed:
+            findings.append(_finding("TASK.METRIC_THRESHOLD", f"metrics.{rule.id}", "aggregate metric exceeds its declared threshold"))
     findings.sort(key=lambda item: (item.code, item.path, item.message, item.severity))
     status = "rejected" if any(item.severity == "error" for item in findings) else "awaiting_authorization" if any(item.severity == "indeterminate" for item in findings) else "evidence_complete"
-    return TaskEvidenceReport(protocol.task_id, status, tuple(findings), (), (), ())
+    return TaskEvidenceReport(protocol.task_id, status, tuple(findings), tuple(summaries), (), ())

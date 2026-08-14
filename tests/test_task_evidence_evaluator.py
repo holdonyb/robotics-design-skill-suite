@@ -34,7 +34,8 @@ def nominal(root):
     command = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "speed_m_s": 0.1, "torque_nm": 0.2, "watchdog_healthy": True}]}
     state = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "speed_m_s": 0.1, "torque_nm": 0.2, "watchdog_healthy": True}]}
     task = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "completed": True}]}
-    return {"schema_version": 1, "package_id": "trial-001", "kind": "nominal", "envelope": {"payload": 1.0}, "repetition": 1, "fault_id": None, "fault_record": None, "endurance_record": None, "comparison_record": None, "command_trace": bind(root, "traces/command.json", command), "state_trace": bind(root, "traces/state.json", state), "task_trace": bind(root, "traces/task.json", task), "disposition": "passed"}
+    metrics = {"schema_version": 1, "events": [{"timestamp_ns": 0, "metric_id": "completion-time", "value": 2.0}]}
+    return {"schema_version": 1, "package_id": "trial-001", "kind": "nominal", "envelope": {"payload": 1.0}, "repetition": 1, "fault_id": None, "fault_record": None, "endurance_record": None, "comparison_record": None, "command_trace": bind(root, "traces/command.json", command), "state_trace": bind(root, "traces/state.json", state), "task_trace": bind(root, "traces/task.json", task), "metric_trace": bind(root, "traces/metrics.json", metrics), "disposition": "passed"}
 
 
 def fault(root):
@@ -62,6 +63,7 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             result = evaluate_task_packages(Path(raw), value, [nominal(Path(raw))])
         self.assertEqual("evidence_complete", result.status)
+        self.assertEqual(("completion-time", 1, 2.0, 2.0, 2.0, True), tuple(result.metric_summaries[0].to_dict().values()))
         self.assertFalse(result.task_validated)
 
     def test_nonobject_event_is_rejected_without_traceback(self):
@@ -132,6 +134,22 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
             result = evaluate_task_packages(root, value, [malformed])
             self.assertEqual("rejected", result.status)
             self.assertIn("TASK.PACKAGE_INVALID", {item.code for item in result.findings})
+
+    def test_metric_threshold_and_undefined_metric_are_rejected(self):
+        value, _ = validate_task_protocol(minimal_protocol())
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            over_limit = nominal(root)
+            over_limit["metric_trace"] = bind(root, "traces/metrics.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "metric_id": "completion-time", "value": 31.0}]})
+            result = evaluate_task_packages(root, value, [over_limit])
+            self.assertEqual("rejected", result.status)
+            self.assertIn("TASK.METRIC_THRESHOLD", {item.code for item in result.findings})
+
+            unknown = nominal(root)
+            unknown["metric_trace"] = bind(root, "traces/metrics.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "metric_id": "invented", "value": 1.0}]})
+            result = evaluate_task_packages(root, value, [unknown])
+            self.assertEqual("rejected", result.status)
+            self.assertIn("TASK.METRIC_INVALID", {item.code for item in result.findings})
 
 
 if __name__ == "__main__":
