@@ -10,6 +10,7 @@ from ..hypothesis.canonical import validate_identifier
 
 _SEVERITIES = frozenset({"info", "warning", "error", "indeterminate"})
 _STATUSES = frozenset({"passed", "failed", "awaiting_external_publication"})
+SUPPORTED_RELEASE_IDS = frozenset({"v1.0.0", "v1.1.0"})
 
 
 @dataclass(frozen=True)
@@ -21,7 +22,7 @@ class ReleaseDeliveryFinding:
 
     def __post_init__(self) -> None:
         validate_identifier(self.code, "finding code")
-        if self.severity not in _SEVERITIES:
+        if not isinstance(self.severity, str) or self.severity not in _SEVERITIES:
             raise ValueError("severity must be info, warning, error, or indeterminate")
         if not isinstance(self.path, str) or not self.path.strip():
             raise ValueError("path must be a non-empty string")
@@ -45,9 +46,9 @@ class ReleaseDeliveryReport:
     hardware_claims: bool = False
 
     def __post_init__(self) -> None:
-        if self.release_id != "v1.0.0":
-            raise ValueError("release_id must be v1.0.0")
-        if self.status not in _STATUSES:
+        if not isinstance(self.release_id, str) or self.release_id not in SUPPORTED_RELEASE_IDS:
+            raise ValueError("release_id must be one of: v1.0.0, v1.1.0")
+        if not isinstance(self.status, str) or self.status not in _STATUSES:
             raise ValueError("status must be passed, failed, or awaiting_external_publication")
         if not isinstance(self.findings, tuple) or any(
             not isinstance(item, ReleaseDeliveryFinding) for item in self.findings

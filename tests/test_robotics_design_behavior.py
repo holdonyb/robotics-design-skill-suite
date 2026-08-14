@@ -19,6 +19,9 @@ PHYSICAL_CONTRACT = (
 HYPOTHESIS_CONTRACT = (
     ROOT / "skills" / "robotics-design" / "references" / "hypothesis-engine-contract.md"
 )
+AUTHORITY_CONTRACT = (
+    ROOT / "skills" / "robotics-design" / "references" / "hardware-authority-contract.md"
+)
 
 
 class RoboticsDesignBehaviorTests(unittest.TestCase):
@@ -159,6 +162,19 @@ class RoboticsDesignBehaviorTests(unittest.TestCase):
         self.assertIn("physical contract -> bounded hypothesis search -> simulation", design)
         self.assertIn("Hypothesis exploration", gates)
         self.assertIn("hard counterexample", gates)
+
+    def test_hardware_authority_route_binds_external_scope_without_granting_motion(self):
+        text = SKILL.read_text(encoding="utf-8")
+        self.assertIn("references/hardware-authority-contract.md", text)
+        self.assertTrue(AUTHORITY_CONTRACT.is_file())
+        contract = AUTHORITY_CONTRACT.read_text(encoding="utf-8")
+        for phrase in (
+            "external_human_attestation",
+            "design contract",
+            "reachable emergency stop",
+            "never grants procurement or motion authority",
+        ):
+            self.assertIn(phrase, contract)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
 from assurance.release.model import ReleaseDeliveryFinding, ReleaseDeliveryReport
-from assurance.release.schema import ReleaseSchemaError, load_release_contract
+from assurance.release.schema import ReleaseContract, ReleaseSchemaError, load_release_contract
 
 
 def canonical(value):
@@ -29,6 +29,14 @@ class ReleaseDeliveryModelTests(unittest.TestCase):
             ReleaseDeliveryReport("v1.0.0", "passed", (), hardware_claims=True)
         with self.assertRaisesRegex(ValueError, "derived"):
             ReleaseDeliveryReport("v1.0.0", "passed", (finding,))
+        with self.assertRaisesRegex(ValueError, "release_id"):
+            ReleaseDeliveryReport([], "passed", ())
+        with self.assertRaisesRegex(ValueError, "release_id"):
+            ReleaseContract([], (("README.md", "a" * 64),))
+        with self.assertRaisesRegex(ValueError, "status"):
+            ReleaseDeliveryReport("v1.1.0", [], ())
+        with self.assertRaisesRegex(ValueError, "severity"):
+            ReleaseDeliveryFinding("RELEASE.BOUNDARY", [], "path", "message")
 
     def test_loader_rejects_duplicate_noncanonical_and_unsafe_contracts(self):
         cases = {
@@ -36,6 +44,8 @@ class ReleaseDeliveryModelTests(unittest.TestCase):
             "noncanonical.json": b'{ "release_id":"v1.0.0"}\n',
             "unsafe.json": b'{"artifact_bindings":[{"path":"../escape","sha256":"' + b"0" * 64 + b'"}],"hardware_claims":false,"release_id":"v1.0.0","schema_version":1}\n',
             "bool.json": canonical({"schema_version": True, "release_id": "v1.0.0", "artifact_bindings": [{"path": "README.md", "sha256": "0" * 64}], "hardware_claims": False}),
+            "list_release_id.json": canonical({"schema_version": 1, "release_id": [], "artifact_bindings": [{"path": "README.md", "sha256": "0" * 64}], "hardware_claims": False}),
+            "unknown_release_id.json": canonical({"schema_version": 1, "release_id": "v1.2.0", "artifact_bindings": [{"path": "README.md", "sha256": "0" * 64}], "hardware_claims": False}),
         }
         with tempfile.TemporaryDirectory() as raw:
             directory = Path(raw)
@@ -61,6 +71,19 @@ class ReleaseDeliveryModelTests(unittest.TestCase):
         self.assertEqual((("README.md", "a" * 64),), contract.artifact_bindings)
         with self.assertRaisesRegex(AttributeError, "assign"):
             contract.release_id = "v1.0.1"
+
+    def test_loader_accepts_the_closed_v110_release_identifier(self):
+        payload = {
+            "schema_version": 1,
+            "release_id": "v1.1.0",
+            "artifact_bindings": [{"path": "README.md", "sha256": "a" * 64}],
+            "hardware_claims": False,
+        }
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "contract.json"
+            path.write_bytes(canonical(payload))
+            contract = load_release_contract(path)
+        self.assertEqual("v1.1.0", contract.release_id)
 
 
 if __name__ == "__main__":
