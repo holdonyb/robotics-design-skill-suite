@@ -24,6 +24,20 @@ require_running() {
     return 1
   fi
 }
+wait_for_clock() {
+  local pid="$1"
+  local log="$2"
+  local deadline=$((SECONDS + 30))
+  while (( SECONDS < deadline )); do
+    require_running "$pid" "$log"
+    if timeout 3s ros2 topic echo --once /clock > "$EVIDENCE/clock.txt" 2>> "$log"; then
+      return 0
+    fi
+    sleep 1
+  done
+  cat "$log" >&2 || true
+  return 1
+}
 require_active_controller() {
   local controller="$1"
   if ! grep -Eq "^${controller}[[:space:]].*active" "$EVIDENCE/controllers.txt"; then
@@ -51,10 +65,8 @@ run colcon test-result --test-result-base "$WORKSPACE/build" --verbose
 # Exercise headless Gazebo, ros2_control, MoveIt, and Nav2 as consumers.  All
 # launch processes are bounded and captured; absence of any consumer fails.
 timeout 45s ros2 launch jx_mobile_manipulator_sim sim.launch.py > "$EVIDENCE/sim.log" 2>&1 & pids+=("$!")
-sleep 12
-require_running "${pids[0]}" "$EVIDENCE/sim.log"
+wait_for_clock "${pids[0]}" "$EVIDENCE/sim.log"
 ros2 node list | tee "$EVIDENCE/sim-nodes.txt"
-ros2 topic echo --once /clock | tee "$EVIDENCE/clock.txt"
 ros2 control list_controllers | tee "$EVIDENCE/controllers.txt"
 require_active_controller "joint_state_broadcaster"
 require_active_controller "arm_controller"
