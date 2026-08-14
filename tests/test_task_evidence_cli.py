@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.test_task_evidence_protocol import protocol
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "skills" / "robotics-design" / "scripts" / "validate_task_evidence.py"
@@ -49,6 +51,19 @@ class TaskEvidenceCliTests(unittest.TestCase):
             result = subprocess.run([sys.executable, str(CLI), "--index", str(index)], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=False)
         self.assertEqual(2, result.returncode)
         self.assertIn("task protocol", result.stderr)
+
+    def test_bound_task_packages_are_loaded_after_protocol(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            protocol_path = root / "protocol.json"
+            protocol_path.write_bytes(canonical(protocol()))
+            sha = __import__("hashlib").sha256(protocol_path.read_bytes()).hexdigest()
+            binding = {"path": "protocol.json", "sha256": sha}
+            index = root / "task-evidence-index.json"
+            index.write_bytes(canonical({"schema_version": 1, "task_evidence_id": "task-evidence-reference", "packages": [{"path": "missing-package.json", "sha256": "0" * 64}], "design_contract": binding, "freeze_package": binding, "bench_index": binding, "commissioning_index": binding, "task_protocol": binding}))
+            result = subprocess.run([sys.executable, str(CLI), "--index", str(index)], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=False)
+        self.assertEqual(2, result.returncode)
+        self.assertIn("packages[0].path", result.stderr)
 
 
 if __name__ == "__main__":

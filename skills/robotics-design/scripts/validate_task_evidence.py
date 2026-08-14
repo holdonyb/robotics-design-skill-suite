@@ -12,6 +12,7 @@ from assurance.engineering_freeze.schema import load_canonical_json
 from assurance.hypothesis.canonical import canonical_bytes, validate_sha256
 from assurance.task_evidence.model import TaskEvidenceFinding, TaskEvidenceReport
 from assurance.task_evidence.protocol import validate_task_protocol
+from assurance.task_evidence.evaluator import evaluate_task_packages
 
 
 _EMPTY = frozenset({"schema_version", "task_evidence_id", "packages"})
@@ -56,6 +57,8 @@ def main(argv: list[str] | None = None) -> int:
             protocol, protocol_findings = validate_task_protocol(protocol_data)
             if protocol is None:
                 raise ValueError("task protocol is invalid: " + "; ".join(item.message for item in protocol_findings))
+            packages = [load_canonical_json(_bound_file(args.index.parent, record, f"packages[{position}]")) for position, record in enumerate(index["packages"])]
+            report = evaluate_task_packages(args.index.parent, protocol, packages)
             raise ValueError("populated task evidence intake requires upstream evaluator integration")
         if set(index) != _EMPTY:
             raise ValueError("empty task evidence intake must not carry upstream bindings")
