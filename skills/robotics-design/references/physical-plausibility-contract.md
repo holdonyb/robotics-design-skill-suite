@@ -170,6 +170,12 @@ This conservative steady-state winding screen requires explicit resistance,
 duty, thermal resistance, ambient, and winding-temperature limit. It does not
 replace temperature-dependent resistance, a transient thermal network, gearbox
 and controller losses, hot-spot analysis, cooling degradation, or bench data.
+When the screened drive or actuator has a `verified_part` or
+`qualified_substitute` motor driver, the analysis must additionally declare a
+driver-owned `driver_continuous_current_a` that equals the exact driver catalog
+limit. The gate rejects an on-current above that rating; a catalog current value
+without the matching drive duty, derating, and interface evidence is not a
+continuous-operation claim.
 
 ### `bearing_static_v1`
 

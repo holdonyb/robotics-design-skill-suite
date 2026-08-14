@@ -370,6 +370,25 @@ class AssuranceAnalysisTests(unittest.TestCase):
             )
         )
 
+    def test_thermal_duty_rejects_current_above_driver_continuous_rating(self):
+        result = run_plugin(
+            "thermal_duty_v1",
+            {
+                "ambient_temperature_k": 298.15,
+                "winding_resistance_ohm": 0.1,
+                "on_current_a": 10.0,
+                "driver_continuous_current_a": 6.0,
+                "duty_cycle": 0.1,
+                "thermal_resistance_k_per_w": 1.0,
+                "max_winding_temperature_k": 373.15,
+            },
+        )
+        self.assertFalse(result.passed)
+        self.assertIn(
+            "PHY.THERMAL.DRIVER_CONTINUOUS_CURRENT",
+            {item.code for item in result.diagnostics},
+        )
+
     def test_finite_extremes_fail_closed_without_nonfinite_outputs(self):
         thermal = {
             "ambient_temperature_k": 300.0,
