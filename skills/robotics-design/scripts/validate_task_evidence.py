@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 from assurance.engineering_freeze.schema import load_canonical_json
 from assurance.hypothesis.canonical import canonical_bytes, validate_sha256
 from assurance.task_evidence.model import TaskEvidenceFinding, TaskEvidenceReport
+from assurance.task_evidence.protocol import validate_task_protocol
 
 
 _EMPTY = frozenset({"schema_version", "task_evidence_id", "packages"})
@@ -51,6 +52,10 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("populated task evidence intake requires all upstream bindings")
             for field in ("design_contract", "freeze_package", "bench_index", "commissioning_index", "task_protocol"):
                 _bound_file(args.index.parent, index[field], field)
+            protocol_data = load_canonical_json(_bound_file(args.index.parent, index["task_protocol"], "task_protocol"))
+            protocol, protocol_findings = validate_task_protocol(protocol_data)
+            if protocol is None:
+                raise ValueError("task protocol is invalid: " + "; ".join(item.message for item in protocol_findings))
             raise ValueError("populated task evidence intake requires upstream evaluator integration")
         if set(index) != _EMPTY:
             raise ValueError("empty task evidence intake must not carry upstream bindings")

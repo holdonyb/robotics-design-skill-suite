@@ -37,6 +37,19 @@ class TaskEvidenceCliTests(unittest.TestCase):
         self.assertIn("design_contract.path", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
+    def test_bound_task_protocol_is_parsed_before_package_evaluation(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            protocol = root / "protocol.json"
+            protocol.write_bytes(canonical({"schema_version": 1}))
+            sha = __import__("hashlib").sha256(protocol.read_bytes()).hexdigest()
+            binding = {"path": "protocol.json", "sha256": sha}
+            index = root / "task-evidence-index.json"
+            index.write_bytes(canonical({"schema_version": 1, "task_evidence_id": "task-evidence-reference", "packages": [{"path": "package.json", "sha256": "0" * 64}], "design_contract": binding, "freeze_package": binding, "bench_index": binding, "commissioning_index": binding, "task_protocol": binding}))
+            result = subprocess.run([sys.executable, str(CLI), "--index", str(index)], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=False)
+        self.assertEqual(2, result.returncode)
+        self.assertIn("task protocol", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
