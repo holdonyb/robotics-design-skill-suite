@@ -573,6 +573,65 @@
       "evidence_level": "parsed"
     },
     {
+      "id": "Q-BEARING-PITCH-DIAMETER-J2",
+      "dimension": "length",
+      "value": {
+        "value": 188.6,
+        "unit": "mm"
+      },
+      "owner": "component:CMP-ARM-BEARING-J2",
+      "source": "evidence:EV-THK-RB16025H",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-BEARING-RADIAL-LOAD-J2",
+      "dimension": "force",
+      "value": {
+        "value": 284.39285,
+        "unit": "N"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-BEARING-LOAD-J2",
+      "evidence_level": "assumed",
+      "observation": "artifact:bearing-load-model#loads.radial_load_n"
+    },
+    {
+      "id": "Q-BEARING-AXIAL-LOAD-J2",
+      "dimension": "force",
+      "value": {
+        "value": 0.0,
+        "unit": "N"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-BEARING-LOAD-J2",
+      "evidence_level": "assumed",
+      "observation": "artifact:bearing-load-model#loads.axial_load_n"
+    },
+    {
+      "id": "Q-BEARING-OVERTURNING-MOMENT-J2",
+      "dimension": "torque",
+      "value": {
+        "value": 196.67236575,
+        "unit": "N*m"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-BEARING-LOAD-J2",
+      "evidence_level": "assumed",
+      "observation": "artifact:bearing-load-model#loads.overturning_moment_nm"
+    },
+    {
+      "id": "Q-BEARING-STATIC-SAFETY-FACTOR-J2",
+      "dimension": "dimensionless",
+      "value": {
+        "value": 3.0,
+        "unit": "1"
+      },
+      "owner": "project:system",
+      "source": "evidence:EV-BEARING-LOAD-J2",
+      "evidence_level": "assumed",
+      "observation": "artifact:bearing-load-model#loads.static_safety_factor"
+    },
+    {
       "id": "Q-ARM-SAFETY-FACTOR",
       "dimension": "dimensionless",
       "value": {
@@ -2461,7 +2520,8 @@
       "source_evidence": "evidence:EV-THK-RB16025H",
       "limits": {
         "static_load": "quantity:Q-BEARING-STATIC-LOAD-J2",
-        "dynamic_load": "quantity:Q-BEARING-DYNAMIC-LOAD-J2"
+        "dynamic_load": "quantity:Q-BEARING-DYNAMIC-LOAD-J2",
+        "pitch_diameter": "quantity:Q-BEARING-PITCH-DIAMETER-J2"
       },
       "bindings": [
         "actuator:joint_2"
@@ -2794,6 +2854,12 @@
       "kind": "declared_json",
       "path": "model/load-envelope.json",
       "sha256": "36ef75afbc9539c1c029fb43bb52347af387eb437f1087008546ae81d81068af"
+    },
+    {
+      "id": "bearing-load-model",
+      "kind": "declared_json",
+      "path": "model/bearing-load-j2.json",
+      "sha256": "137c16792c8da03dd0f9d3127feef88d4d666735c50d3b9a5a10771a43233cfc"
     }
   ],
   "analyses": [
@@ -3184,6 +3250,27 @@
       }
     },
     {
+      "id": "AN-BEARING-J2",
+      "plugin": "bearing_static_v1",
+      "covers": [
+        "requirement:REQ-PHYSICAL",
+        "actuator:joint_2"
+      ],
+      "inputs": {
+        "joints": [
+          {
+            "id": "joint_2",
+            "radial_load_n": "quantity:Q-BEARING-RADIAL-LOAD-J2",
+            "axial_load_n": "quantity:Q-BEARING-AXIAL-LOAD-J2",
+            "moment_nm": "quantity:Q-BEARING-OVERTURNING-MOMENT-J2",
+            "pitch_diameter_m": "quantity:Q-BEARING-PITCH-DIAMETER-J2",
+            "static_load_rating_n": "quantity:Q-BEARING-STATIC-LOAD-J2",
+            "safety_factor": "quantity:Q-BEARING-STATIC-SAFETY-FACTOR-J2"
+          }
+        ]
+      }
+    },
+    {
       "id": "AN-THERMAL-DRIVE-L",
       "plugin": "thermal_duty_v1",
       "covers": [
@@ -3484,14 +3571,30 @@
       "level": "parsed",
       "source": {
         "path": "supplier-catalogs/thk-rb16025h-2026-08-14.json",
-        "sha256": "6dc5aa824105cffdec4b0967b25769034fc7ea667de0a6d5262636c9f5fb381b"
+        "sha256": "23badab0dbed010598e7ba84186576eeeac9e368c4cb16dad3f3d6c7a480c961"
       },
       "locator": "https://tech.thk.com/upload/catalog_claim/pdf/l83e_rbhrehruh.pdf",
       "observed_date": "2026-08-14",
       "supports": [
         "component:CMP-ARM-BEARING-J2",
         "quantity:Q-BEARING-STATIC-LOAD-J2",
-        "quantity:Q-BEARING-DYNAMIC-LOAD-J2"
+        "quantity:Q-BEARING-DYNAMIC-LOAD-J2",
+        "quantity:Q-BEARING-PITCH-DIAMETER-J2"
+      ]
+    },
+    {
+      "id": "EV-BEARING-LOAD-J2",
+      "level": "assumed",
+      "source": {
+        "path": "model/bearing-load-j2.json",
+        "sha256": "137c16792c8da03dd0f9d3127feef88d4d666735c50d3b9a5a10771a43233cfc"
+      },
+      "supports": [
+        "artifact:bearing-load-model",
+        "quantity:Q-BEARING-RADIAL-LOAD-J2",
+        "quantity:Q-BEARING-AXIAL-LOAD-J2",
+        "quantity:Q-BEARING-OVERTURNING-MOMENT-J2",
+        "quantity:Q-BEARING-STATIC-SAFETY-FACTOR-J2"
       ]
     },
     {

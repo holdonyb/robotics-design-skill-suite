@@ -1,0 +1,13 @@
+{
+  "id": "bearing-static-overload",
+  "critical": true,
+  "mutation": {
+    "op": "set_quantity_value",
+    "id": "Q-BEARING-RADIAL-LOAD-J2",
+    "value": {
+      "value": 100000,
+      "unit": "N"
+    }
+  },
+  "expected_diagnostic": "PHY.BEARING.STATIC_LOAD"
+}

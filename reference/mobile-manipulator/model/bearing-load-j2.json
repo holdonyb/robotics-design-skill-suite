@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "purpose": "assumed_static_j2_bearing_screen_only",
+  "joint_id": "joint_2",
+  "load_case_id": "LC-HORIZONTAL-REACH",
+  "bearing_axis_xyz": [0.0, 1.0, 0.0],
+  "gravity_xyz_m_s2": [0.0, 0.0, -9.80665],
+  "downstream_mass_kg": {
+    "arm_link_2": 7.0,
+    "arm_link_3": 5.0,
+    "arm_link_4": 4.0,
+    "arm_link_5": 3.0,
+    "arm_link_6": 2.0,
+    "payload_tooling": 8.0
+  },
+  "loads": {
+    "radial_load_n": 284.39285,
+    "axial_load_n": 0.0,
+    "overturning_moment_nm": 196.67236575,
+    "static_safety_factor": 3.0
+  },
+  "derivation": {
+    "radial_load": "sum(downstream mass) * 9.80665 m/s^2; gravity is perpendicular to the declared +Y bearing axis",
+    "axial_load": "zero only for the declared static gravity load case",
+    "overturning_moment": "the worst-case J2 static gravity moment from load-envelope.json; use as a declared bearing-interface moment pending bearing-stack geometry"
+  },
+  "assumptions": [
+    "This is a static gravity screening load model, not a bearing reaction, stiffness, preload, life, shock, or fit calculation.",
+    "The bearing is assumed to transmit the declared J2 joint overturning moment; reducer, housing, and bearing-stack load sharing require controlled geometry and review.",
+    "The 8 kg payload_tooling value includes the load-envelope model's 5 kg mission payload and 3 kg end-effector, cable, and tooling allowance."
+  ]
+}
