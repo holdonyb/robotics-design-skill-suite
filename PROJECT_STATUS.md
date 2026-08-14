@@ -10,6 +10,11 @@ ROS 2, and simulation skills to audited commits.
 
 ## Live State
 
+- v0.9.0 candidate is local-only on `feature/v090-task-evidence`; it adds a
+  hash-bound offline task/fault/endurance/comparison dossier, keeps the shipped
+  reference intake empty, and never authorizes procurement, motion, or task
+  validation. Candidate evidence: 445 tests, distribution validation,
+  installer dry-run, compile check, and diff check passed locally.
 - Public release: `v0.8.0`; pull request `#10` merged as `e6521fd`, annotated
   tag and GitHub Release are published. Main CI `31763218034`, main
   Jazzy/Harmonic consumer gate `31763218001`, and tag CI `31763519145` passed.
