@@ -67,14 +67,17 @@ class SimulationCiTests(unittest.TestCase):
         gate = (ROOT / "scripts/run_live_simulation_gate.sh").read_text(encoding="utf-8")
         for token in (
             'ros2 bag record --storage mcap --output "$EVIDENCE/live-drive"',
-            "/clock", "/joint_states", "/odom", "/diff_drive_controller/cmd_vel",
-            'timeout 2s ros2 topic pub -r 10 /diff_drive_controller/cmd_vel geometry_msgs/msg/TwistStamped',
+            "/clock", "/joint_states", "/diff_drive_controller/odom", "/diff_drive_controller/cmd_vel",
+            'timeout 5s ros2 topic pub -r 10 /diff_drive_controller/cmd_vel geometry_msgs/msg/TwistStamped',
             "x: 0.10", "z: 0.0", "validate_live_simulation_trace.py",
             '"$EVIDENCE/live-trace-bundle"',
         ):
             self.assertIn(token, gate)
         self.assertLess(gate.index("wait_for_active_controllers"), gate.index("ros2 bag record --storage mcap"))
         self.assertLess(gate.index("ros2 bag record --storage mcap"), gate.index("validate_live_simulation_trace.py"))
+        self.assertIn("Subscribed to topic '/diff_drive_controller/odom'", gate)
+        self.assertIn("wait_for_recorded_topics", gate)
+        self.assertLess(gate.index("wait_for_recorded_topics \"$RECORDER_PID\""), gate.index("sleep 2"))
 
 
 if __name__ == "__main__":

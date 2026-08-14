@@ -23,7 +23,7 @@ _MCAP_MAGIC = b"\x89MCAP0\r\n"
 _TOPIC_TYPES = {
     "/clock": "rosgraph_msgs/msg/Clock",
     "/joint_states": "sensor_msgs/msg/JointState",
-    "/odom": "nav_msgs/msg/Odometry",
+    "/diff_drive_controller/odom": "nav_msgs/msg/Odometry",
     "/diff_drive_controller/cmd_vel": "geometry_msgs/msg/TwistStamped",
 }
 
@@ -112,7 +112,7 @@ def normalize_records(records: object) -> dict[str, Any]:
         elif topic == "/joint_states":
             _header(message, "joint state")
             output["joint_samples"].append({"timestamp_ns": stamp, "names": message.get("name"), "positions": message.get("position")})
-        elif topic == "/odom":
+        elif topic == "/diff_drive_controller/odom":
             _header(message, "odometry")
             try:
                 pose = message["pose"]["pose"]

@@ -62,6 +62,23 @@ wait_for_active_controllers() {
   cat "$log" >&2 || true
   return 1
 }
+wait_for_recorded_topics() {
+  local pid="$1"
+  local log="$2"
+  local deadline=$((SECONDS + 15))
+  while (( SECONDS < deadline )); do
+    require_running "$pid" "$log"
+    if grep -q "Subscribed to topic '/clock'" "$log" \
+      && grep -q "Subscribed to topic '/joint_states'" "$log" \
+      && grep -q "Subscribed to topic '/diff_drive_controller/odom'" "$log" \
+      && grep -q "Subscribed to topic '/diff_drive_controller/cmd_vel'" "$log"; then
+      return 0
+    fi
+    sleep 1
+  done
+  cat "$log" >&2 || true
+  return 1
+}
 
 set +u
 source /opt/ros/jazzy/setup.bash
@@ -112,20 +129,15 @@ grep -Eq 'bt_navigator|behavior_server' "$EVIDENCE/consumer-nodes.txt"
 
 # Retain one bounded response from the running Gazebo controller.  This command
 # targets only the Dockerized simulation namespace; its profile limit is 0.4 m/s.
-timeout 30s ros2 bag record --storage mcap --output "$EVIDENCE/live-drive" /clock /joint_states /odom /diff_drive_controller/cmd_vel > "$EVIDENCE/live-record.log" 2>&1 & pids+=("$!")
+timeout 30s ros2 bag record --storage mcap --output "$EVIDENCE/live-drive" /clock /joint_states /diff_drive_controller/odom /diff_drive_controller/cmd_vel > "$EVIDENCE/live-record.log" 2>&1 & pids+=("$!")
 RECORDER_PID="${pids[${#pids[@]}-1]}"
-sleep 1
+timeout 5s ros2 topic pub -r 10 /diff_drive_controller/cmd_vel geometry_msgs/msg/TwistStamped "{twist: {linear: {x: 0.10}, angular: {z: 0.0}}}" > "$EVIDENCE/live-command.log" 2>&1 & pids+=("$!")
+COMMAND_PID="${pids[${#pids[@]}-1]}"
+wait_for_recorded_topics "$RECORDER_PID" "$EVIDENCE/live-record.log"
+sleep 2
 require_running "$RECORDER_PID" "$EVIDENCE/live-record.log"
-set +e
-timeout 2s ros2 topic pub -r 10 /diff_drive_controller/cmd_vel geometry_msgs/msg/TwistStamped "{twist: {linear: {x: 0.10}, angular: {z: 0.0}}}" > "$EVIDENCE/live-command.log" 2>&1
-COMMAND_STATUS=$?
-set -e
-if [ "$COMMAND_STATUS" -ne 124 ]; then
-  cat "$EVIDENCE/live-command.log" >&2 || true
-  exit "$COMMAND_STATUS"
-fi
-sleep 1
-require_running "$RECORDER_PID" "$EVIDENCE/live-record.log"
+kill "$COMMAND_PID" 2>/dev/null || true
+wait "$COMMAND_PID" || true
 kill "$RECORDER_PID"
 wait "$RECORDER_PID" || true
 run python3 "$ROOT/scripts/validate_live_simulation_trace.py" --reference-root "$REFERENCE" --bag "$EVIDENCE/live-drive" --out "$EVIDENCE/live-trace-bundle" > "$EVIDENCE/live-trace-receipt.json"
