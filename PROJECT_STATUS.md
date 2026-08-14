@@ -10,13 +10,14 @@ ROS 2, and simulation skills to audited commits.
 
 ## Live State
 
-- Public release: `v0.6.0`; pull request `#7` merged as `037e61a`, annotated
-  tag, GitHub Release, main CI, and Linux Jazzy/Harmonic consumer gate are
-  complete.
-- Current development baseline: v0.7.0 bench-evidence intake candidate on
-  `feature/v070-bench-evidence-intake`; public release remains `v0.6.0` until
-  candidate CI, merge, tag, and release verification complete.
-- Candidate version: `0.7.0` in `manifest.json`.
+- Public release: `v0.7.0`; pull request `#8` merged as `ffa896d`, annotated
+  tag and GitHub Release are published. Main CI `31760534621`, main
+  Jazzy/Harmonic consumer gate `31760534644`, and tag CI `31760895492` passed.
+- v0.7 accepts future raw bench-evidence packages through a local fail-closed
+  intake; the shipped reference index is intentionally empty and remains
+  `awaiting_authorization`, not bench-tested.
+- Hardware boundaries remain unchanged: every v0.7 result derives
+  `procurement_authorized: false` and `motion_authorized: false`.
 - Third-party source locks are unchanged from v0.3.0.
 
 ## v0.5 Development Checkpoint
