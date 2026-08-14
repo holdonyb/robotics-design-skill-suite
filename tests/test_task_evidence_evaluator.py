@@ -35,7 +35,7 @@ def nominal(root, *, package_id="trial-001", timestamp_ns=0):
     state = {"schema_version": 1, "events": [{"timestamp_ns": timestamp_ns, "phase": "approach", "speed_m_s": 0.11, "torque_nm": 0.2, "watchdog_healthy": True}]}
     task = {"schema_version": 1, "events": [{"timestamp_ns": timestamp_ns, "phase": "approach", "completed": False}, {"timestamp_ns": timestamp_ns + 1, "phase": "grasp", "completed": False}, {"timestamp_ns": timestamp_ns + 2, "phase": "place", "completed": True}]}
     metrics = {"schema_version": 1, "events": [{"timestamp_ns": timestamp_ns, "metric_id": "completion-time", "value": 2.0}]}
-    return {"schema_version": 1, "package_id": package_id, "kind": "nominal", "envelope": {"payload": 1.0}, "repetition": 1, "fault_id": None, "fault_record": None, "endurance_record": None, "comparison_record": None, "command_trace": bind(root, f"traces/{package_id}/command.json", command), "state_trace": bind(root, f"traces/{package_id}/state.json", state), "task_trace": bind(root, f"traces/{package_id}/task.json", task), "metric_trace": bind(root, f"traces/{package_id}/metrics.json", metrics), "disposition": "passed"}
+    return {"schema_version": 1, "package_id": package_id, "kind": "nominal", "envelope": {"payload": 1.0}, "repetition": 1, "fault_id": None, "fault_record": None, "endurance_record": None, "simulation_trace": None, "observation_trace": None, "command_trace": bind(root, f"traces/{package_id}/command.json", command), "state_trace": bind(root, f"traces/{package_id}/state.json", state), "task_trace": bind(root, f"traces/{package_id}/task.json", task), "metric_trace": bind(root, f"traces/{package_id}/metrics.json", metrics), "disposition": "passed"}
 
 
 def fault(root):
@@ -52,7 +52,7 @@ def endurance(root):
 
 def comparison(root):
     value = nominal(root, package_id="comparison-001", timestamp_ns=30)
-    value.update({"kind": "comparison", "comparison_record": bind(root, "traces/comparison-001/comparison.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "quantity_id": "base-speed", "simulated": 0.10, "observed": 0.12}, {"timestamp_ns": 1, "quantity_id": "base-speed", "simulated": 0.20, "observed": 0.18}]})})
+    value.update({"kind": "comparison", "simulation_trace": bind(root, "traces/comparison-001/simulation.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "quantity_id": "base-speed", "value": 0.10}, {"timestamp_ns": 1, "quantity_id": "base-speed", "value": 0.20}]}), "observation_trace": bind(root, "traces/comparison-001/observation.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "quantity_id": "base-speed", "value": 0.12}, {"timestamp_ns": 1, "quantity_id": "base-speed", "value": 0.18}]})})
     return value
 
 
@@ -115,10 +115,20 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
             self.assertAlmostEqual(0.02, residual.maximum_abs_residual)
             self.assertAlmostEqual(0.2, residual.maximum_rel_residual)
             bad = comparison(root)
-            bad["comparison_record"] = bind(root, "traces/comparison.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "quantity_id": "base-speed", "simulated": 0.1, "observed": 0.5}]})
+            bad["observation_trace"] = bind(root, "traces/comparison.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "quantity_id": "base-speed", "value": 0.5}, {"timestamp_ns": 1, "quantity_id": "base-speed", "value": 0.18}]})
             result = evaluate_task_packages(root, value, [nominal(root), bad])
         self.assertEqual("rejected", result.status)
         self.assertIn("TASK.COMPARISON_RESIDUAL", {item.code for item in result.findings})
+
+    def test_comparison_requires_exact_timestamp_and_quantity_alignment(self):
+        value, _ = validate_task_protocol(minimal_protocol())
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            bad = comparison(root)
+            bad["observation_trace"] = bind(root, "traces/misaligned.json", {"schema_version": 1, "events": [{"timestamp_ns": 9, "quantity_id": "base-speed", "value": 0.12}, {"timestamp_ns": 10, "quantity_id": "base-speed", "value": 0.18}]})
+            result = evaluate_task_packages(root, value, [nominal(root), fault(root), bad])
+        self.assertEqual("rejected", result.status)
+        self.assertIn("TASK.COMPARISON_ALIGNMENT", {item.code for item in result.findings})
 
     def test_all_declared_envelope_repetitions_are_required(self):
         value, _ = validate_task_protocol(protocol())

@@ -14,7 +14,7 @@ from .model import ComparisonResidual, FaultDisposition, MetricSummary, TaskEvid
 from .protocol import TaskProtocol
 
 
-_PACKAGE = frozenset({"schema_version", "package_id", "kind", "envelope", "repetition", "fault_id", "fault_record", "endurance_record", "comparison_record", "command_trace", "state_trace", "task_trace", "metric_trace", "disposition"})
+_PACKAGE = frozenset({"schema_version", "package_id", "kind", "envelope", "repetition", "fault_id", "fault_record", "endurance_record", "simulation_trace", "observation_trace", "command_trace", "state_trace", "task_trace", "metric_trace", "disposition"})
 
 
 def _finding(code: str, path: str, message: str) -> TaskEvidenceFinding:
@@ -88,7 +88,7 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object,
             findings.append(_finding("TASK.PACKAGE_INVALID", path, "kind, disposition, and repetition are invalid")); continue
         if package["disposition"] != "passed":
             findings.append(_finding("TASK.TRIAL_NOT_PASSED", f"{path}.disposition", "only a passed trial can satisfy task evidence coverage"))
-        for field in ("fault_record", "endurance_record", "comparison_record", "command_trace", "state_trace", "task_trace", "metric_trace"):
+        for field in ("fault_record", "endurance_record", "simulation_trace", "observation_trace", "command_trace", "state_trace", "task_trace", "metric_trace"):
             record = package.get(field)
             if record is None:
                 continue
@@ -106,8 +106,8 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object,
             findings.append(_finding("TASK.PACKAGE_INVALID", path, "nominal trials must not carry fault evidence"))
         if package["kind"] != "endurance" and package.get("endurance_record") is not None:
             findings.append(_finding("TASK.PACKAGE_INVALID", path, "only endurance trials may carry endurance record"))
-        if package["kind"] != "comparison" and package.get("comparison_record") is not None:
-            findings.append(_finding("TASK.PACKAGE_INVALID", path, "only comparison trials may carry comparison record"))
+        if package["kind"] != "comparison" and (package.get("simulation_trace") is not None or package.get("observation_trace") is not None):
+            findings.append(_finding("TASK.PACKAGE_INVALID", path, "only comparison trials may carry comparison traces"))
         if package["kind"] == "fault":
             fault_id = package.get("fault_id")
             profile = fault_profiles.get(fault_id) if isinstance(fault_id, str) else None
@@ -131,20 +131,23 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object,
                 if any(not _finite(event.get("health")) or type(event.get("terminal")) is not bool for event in record) or [event["terminal"] for event in record].count(True) != 1 or not record[-1]["terminal"]:
                     findings.append(_finding("TASK.ENDURANCE_INVALID", f"{path}.endurance_record", "finite health and one terminal final sample are required"))
         if package["kind"] == "comparison":
-            record = _trace(_bound_json(root, package.get("comparison_record"), f"{path}.comparison_record", findings), frozenset({"timestamp_ns", "quantity_id", "simulated", "observed"}), f"{path}.comparison_record", findings)
+            simulated = _trace(_bound_json(root, package.get("simulation_trace"), f"{path}.simulation_trace", findings), frozenset({"timestamp_ns", "quantity_id", "value"}), f"{path}.simulation_trace", findings)
+            observed = _trace(_bound_json(root, package.get("observation_trace"), f"{path}.observation_trace", findings), frozenset({"timestamp_ns", "quantity_id", "value"}), f"{path}.observation_trace", findings)
             rules = {item.id: item for item in protocol.comparison}
-            if record is not None:
+            if simulated is not None and observed is not None:
                 residuals: dict[str, list[tuple[float, float]]] = {}
-                for event in record:
-                    quantity_id = event.get("quantity_id")
+                if len(simulated) != len(observed) or any(left["timestamp_ns"] != right["timestamp_ns"] or left["quantity_id"] != right["quantity_id"] for left, right in zip(simulated, observed)):
+                    findings.append(_finding("TASK.COMPARISON_ALIGNMENT", path, "simulation and observation traces must have exact timestamp and quantity alignment"))
+                for simulation_event, observation_event in zip(simulated, observed):
+                    quantity_id = simulation_event.get("quantity_id")
                     rule = rules.get(quantity_id) if isinstance(quantity_id, str) else None
-                    if rule is None or not _finite(event.get("simulated")) or not _finite(event.get("observed")):
-                        findings.append(_finding("TASK.COMPARISON_INVALID", f"{path}.comparison_record", "comparison quantity and finite values are required")); continue
-                    absolute = abs(float(event["observed"]) - float(event["simulated"]))
-                    relative = absolute / max(abs(float(event["simulated"])), 1e-12)
+                    if rule is None or not _finite(simulation_event.get("value")) or not _finite(observation_event.get("value")):
+                        findings.append(_finding("TASK.COMPARISON_INVALID", path, "comparison quantity and finite values are required")); continue
+                    absolute = abs(float(observation_event["value"]) - float(simulation_event["value"]))
+                    relative = absolute / max(abs(float(simulation_event["value"])), 1e-12)
                     residuals.setdefault(rule.id, []).append((absolute, relative))
                     if absolute > rule.max_abs_residual or relative > rule.max_rel_residual:
-                        findings.append(_finding("TASK.COMPARISON_RESIDUAL", f"{path}.comparison_record", "comparison residual exceeds declared limit"))
+                        findings.append(_finding("TASK.COMPARISON_RESIDUAL", path, "comparison residual exceeds declared limit"))
                 for quantity_id, values in residuals.items():
                     rule = rules[quantity_id]
                     maximum_abs = max(item[0] for item in values)
