@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
 from assurance.simulation.live_trace import (  # noqa: E402
     LiveTraceError,
+    crosscheck_live_dynamics,
     normalize_records,
     publish_live_trace_bundle,
     validate_live_capture,
@@ -19,7 +20,10 @@ from assurance.simulation.live_trace import (  # noqa: E402
 
 PROFILE = {
     "wheel_radius_m": 0.15,
+    "wheel_separation_m": 0.68,
     "wheel_speed_limit_rad_s": 0.4 / 0.15,
+    "mass_kg": 140.2,
+    "brake_deceleration_m_s2": 0.8,
     "workspace_manifest_sha256": "a" * 64,
     "sources": [{"path": "profile.yaml", "sha256": "b" * 64}],
 }
@@ -51,7 +55,36 @@ def capture():
     }
 
 
+def dynamics_capture():
+    result = capture()
+    result["joint_samples"] = [
+        {"timestamp_ns": 0, "names": ["left_wheel_joint", "right_wheel_joint", "joint_1"], "positions": [0.0, 0.0, 0.0]},
+        {"timestamp_ns": 1_000_000_000, "names": ["left_wheel_joint", "right_wheel_joint", "joint_1"], "positions": [1.0, 1.0, 0.0]},
+        {"timestamp_ns": 2_000_000_000, "names": ["left_wheel_joint", "right_wheel_joint", "joint_1"], "positions": [2.0, 2.0, 0.0]},
+    ]
+    result["odom_samples"] = [
+        {"timestamp_ns": 0, "x_m": 0.0, "y_m": 0.0, "yaw_rad": 0.0},
+        {"timestamp_ns": 1_000_000_000, "x_m": 0.15, "y_m": 0.0, "yaw_rad": 0.0},
+        {"timestamp_ns": 2_000_000_000, "x_m": 0.30, "y_m": 0.0, "yaw_rad": 0.0},
+    ]
+    return result
+
+
 class LiveTraceTests(unittest.TestCase):
+    def test_live_wheel_trace_crosschecks_bound_profile_against_odometry(self):
+        result = crosscheck_live_dynamics(dynamics_capture(), PROFILE)
+        self.assertEqual("passed", result["status"])
+        self.assertAlmostEqual(0.30, result["observed"]["base_distance_m"])
+        self.assertEqual("a" * 64, result["model_sha256"])
+
+        mismatch = dynamics_capture()
+        mismatch["odom_samples"][-1]["x_m"] = 0.60
+        self.assertEqual("failed", crosscheck_live_dynamics(mismatch, PROFILE)["status"])
+        missing = dynamics_capture()
+        missing["joint_samples"][1]["names"] = ["right_wheel_joint", "joint_1"]
+        missing["joint_samples"][1]["positions"] = [1.0, 0.0]
+        with self.assertRaisesRegex(LiveTraceError, "drive joints"):
+            crosscheck_live_dynamics(missing, PROFILE)
     def test_normalizer_accepts_only_the_live_gate_ros_topics(self):
         records = [
             {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "timestamp_ns": 0, "message": {"clock": {"sec": 0, "nanosec": 0}}},

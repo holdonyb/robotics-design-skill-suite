@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from ..hypothesis.bundle import BundleError, BundleReceipt, validate_bundle, write_bundle_with_receipt
-from ..hypothesis.canonical import canonical_value, validate_sha256
+from ..hypothesis.canonical import canonical_bytes, canonical_value, validate_sha256
+from .backend import BackendError, compare_backends, evaluate_independent_dynamics, evaluate_trace_kinematics
 
 
 class LiveTraceError(ValueError):
@@ -211,6 +212,70 @@ def validate_live_capture(capture: object, profile: object) -> dict[str, Any]:
             "odom": len(odom),
             "commands": len(commands),
         },
+    }
+
+
+def crosscheck_live_dynamics(capture: object, profile: object) -> dict[str, Any]:
+    """Cross-check wheel-integrated motion against retained Gazebo odometry."""
+    validate_live_capture(capture, profile)
+    radius, speed_limit, workspace, _ = _profile(profile)
+    assert isinstance(capture, dict) and isinstance(profile, dict)
+    try:
+        separation = _finite(profile["wheel_separation_m"], "profile wheel_separation_m")
+        mass = _finite(profile["mass_kg"], "profile mass_kg")
+        brake = _finite(profile["brake_deceleration_m_s2"], "profile brake_deceleration_m_s2")
+    except KeyError as exc:
+        raise LiveTraceError(f"profile lacks dynamics field: {exc.args[0]}") from None
+    if separation <= 0 or mass <= 0 or brake <= 0:
+        raise LiveTraceError("profile dynamics fields must be positive")
+    stamps, left_positions, right_positions = [], [], []
+    for index, sample in enumerate(capture["joint_samples"]):
+        names, positions = sample["names"], sample["positions"]
+        if not isinstance(names, list) or not isinstance(positions, list) or len(names) != len(positions) or not _DRIVE_JOINTS.issubset(names):
+            raise LiveTraceError(f"joint_samples[{index}] must include both drive joints")
+        try:
+            left_positions.append(_finite(positions[names.index("left_wheel_joint")], "left wheel position"))
+            right_positions.append(_finite(positions[names.index("right_wheel_joint")], "right wheel position"))
+        except (ValueError, IndexError) as exc:
+            raise LiveTraceError(f"joint_samples[{index}] drive joints are invalid: {exc}") from None
+        stamps.append(sample["timestamp_ns"])
+    rates_left, rates_right = [], []
+    for index in range(1, len(stamps)):
+        dt = (stamps[index] - stamps[index - 1]) / 1_000_000_000
+        if not math.isfinite(dt) or dt <= 0:
+            raise LiveTraceError("wheel sample period is invalid")
+        rates_left.append((left_positions[index] - left_positions[index - 1]) / dt)
+        rates_right.append((right_positions[index] - right_positions[index - 1]) / dt)
+    rates_left.append(rates_left[-1]); rates_right.append(rates_right[-1])
+    trajectory_sha = hashlib.sha256(canonical_bytes(capture["command_samples"])).hexdigest()
+    backend_input = {
+        "model_sha256": workspace, "trajectory_sha256": trajectory_sha, "units": "si",
+        "timestamps_ns": stamps, "left_wheel_rad_s": rates_left, "right_wheel_rad_s": rates_right,
+        "wheel_radius_m": radius, "wheel_separation_m": separation, "wheel_speed_limit_rad_s": speed_limit,
+        "mass_kg": mass, "slope_rad": 0.0, "brake_deceleration_m_s2": brake,
+        "joint_final_rad": [0.0], "joint_target_rad": [0.0], "joint_error_limit_rad": 0.01,
+    }
+    try:
+        primary = evaluate_trace_kinematics(backend_input)
+        independent = evaluate_independent_dynamics(backend_input)
+        comparison = compare_backends(primary, independent, {metric.name: 1e-9 for metric in primary.metrics})
+    except BackendError as exc:
+        raise LiveTraceError(f"live dynamics backend failed: {exc}") from None
+    primary_metrics = {metric.name: metric.value for metric in primary.metrics}
+    odom = capture["odom_samples"]
+    observed_distance = math.hypot(float(odom[-1]["x_m"]) - float(odom[0]["x_m"]), float(odom[-1]["y_m"]) - float(odom[0]["y_m"]))
+    observed_yaw = float(odom[-1]["yaw_rad"]) - float(odom[0]["yaw_rad"])
+    distance_error = abs(primary_metrics["base_distance_m"] - observed_distance)
+    yaw_error = abs(primary_metrics["base_yaw_rad"] - observed_yaw)
+    distance_tolerance, yaw_tolerance = 0.05 + 0.10 * abs(observed_distance), 0.10
+    passed = comparison.status == "passed" and distance_error <= distance_tolerance and yaw_error <= yaw_tolerance
+    return {
+        "status": "passed" if passed else "failed", "model_sha256": workspace, "trajectory_sha256": trajectory_sha,
+        "observed": {"base_distance_m": observed_distance, "base_yaw_rad": observed_yaw},
+        "tolerances": {"base_distance_m": distance_tolerance, "base_yaw_rad": yaw_tolerance},
+        "errors": {"base_distance_m": distance_error, "base_yaw_rad": yaw_error},
+        "primary": {"status": primary.status, "metrics": primary_metrics},
+        "independent": {"status": independent.status}, "comparison": {"status": comparison.status},
     }
 
 
