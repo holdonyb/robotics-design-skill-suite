@@ -41,7 +41,7 @@ class BenchmarkError(ValueError):
 
 
 _EXPECTED_BLOCKER = "BOM.PLACEHOLDER_BLOCKS_CLAIM"
-_ROS_WORKSPACE_RECEIPT = "09a754c3253be4f799a8a7ea0bdea526db04c6741f81abdf5b765803b3bb3fb7"
+_ROS_WORKSPACE_RECEIPT = "fe325213ea6081a8bb35a5c7651b7183678bb62d8a2baf26cf267a896aba4db1"
 _PROFILE_SOURCES = (
     "ros2_ws/src/jx_mobile_manipulator_description/urdf/reference_mobile_manipulator.urdf.xacro",
     "ros2_ws/src/jx_mobile_manipulator_sim/config/controllers.yaml",

@@ -68,7 +68,7 @@ Expected: PASS.
 report = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")
 record = report["backend_crosschecks"][0]
 self.assertEqual("parsed", record["profile"]["evidence_level"])
-self.assertEqual("09a754c3253be4f799a8a7ea0bdea526db04c6741f81abdf5b765803b3bb3fb7", record["profile"]["workspace_manifest_sha256"])
+self.assertEqual("fe325213ea6081a8bb35a5c7651b7183678bb62d8a2baf26cf267a896aba4db1", record["profile"]["workspace_manifest_sha256"])
 self.assertEqual(0.15, record["profile"]["wheel_radius_m"])
 ```
 

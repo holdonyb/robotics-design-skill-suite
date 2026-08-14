@@ -77,7 +77,7 @@ class ReferenceSimulationTests(unittest.TestCase):
         profile = report["backend_crosschecks"][0]["profile"]
         self.assertEqual("parsed", profile["evidence_level"])
         self.assertEqual(
-            "09a754c3253be4f799a8a7ea0bdea526db04c6741f81abdf5b765803b3bb3fb7",
+            "fe325213ea6081a8bb35a5c7651b7183678bb62d8a2baf26cf267a896aba4db1",
             profile["workspace_manifest_sha256"],
         )
         self.assertEqual(0.15, profile["wheel_radius_m"])

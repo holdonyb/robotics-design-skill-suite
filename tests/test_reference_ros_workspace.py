@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 WORKSPACE = ROOT / "reference" / "mobile-manipulator" / "ros2_ws"
 SRC = WORKSPACE / "src"
 ROS_MANIFEST = ROOT / "reference" / "mobile-manipulator" / "simulation" / "ros-workspace-manifest.json"
-ROS_MANIFEST_RECEIPT = "09a754c3253be4f799a8a7ea0bdea526db04c6741f81abdf5b765803b3bb3fb7"
+ROS_MANIFEST_RECEIPT = "fe325213ea6081a8bb35a5c7651b7183678bb62d8a2baf26cf267a896aba4db1"
 
 PACKAGES = {
     "jx_mobile_manipulator_description": {
@@ -163,6 +163,11 @@ class ReferenceRosWorkspaceTests(unittest.TestCase):
             self.assertTrue(any(item[0] == filename for item in plugins), filename)
         self.assertIsNotNone(owner.find("physics/max_step_size"))
         self.assertNotIn("fuel.gazebosim.org", text(package / "worlds" / "reference_world.sdf"))
+
+        bridge = text(package / "config" / "bridge.yaml")
+        self.assertIn("qos_profile: CLOCK", bridge)
+        self.assertIn("subscriber_queue: 1", bridge)
+        self.assertIn("publisher_queue: 1", bridge)
 
         launch = text(package / "launch" / "sim.launch.py")
         for token in (
