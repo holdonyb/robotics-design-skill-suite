@@ -116,6 +116,8 @@ class LiveTraceTests(unittest.TestCase):
         self.assertIn('topic == "/diff_drive_controller/odom"', source)
         self.assertNotIn('topic == "/odom"', source)
         self.assertIn("crosscheck_live_dynamics", source)
+        self.assertIn("_raw_inventory(args.bag)", source)
+        self.assertLess(source.index("_raw_inventory(args.bag)"), source.index("_decode_mcap(args.bag)"))
 
     def test_valid_capture_is_simulated_and_hardware_firewalled(self):
         result = validate_live_capture(capture(), PROFILE)

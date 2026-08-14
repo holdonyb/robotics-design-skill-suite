@@ -14,6 +14,7 @@ from assurance.hypothesis.canonical import canonical_bytes
 from assurance.simulation.live_trace import (
     LiveTraceError,
     _TOPIC_TYPES,
+    _raw_inventory,
     crosscheck_live_dynamics,
     normalize_records,
     publish_live_trace_bundle,
@@ -69,6 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
+        _raw_inventory(args.bag)
         capture = normalize_records(_decode_mcap(args.bag))
         profile = _load_backend_profile(args.reference_root)
         validation = validate_live_capture(capture, profile)

@@ -24,4 +24,3 @@ Files: modify scripts/validate_live_simulation_trace.py, tests/test_simulation_l
 ## Plan self-review
 
 This joins evidence already derived from one MCAP; it does not claim simulator fidelity or hardware behavior. Missing or disagreeing data blocks evidence rather than weakening the check.
-

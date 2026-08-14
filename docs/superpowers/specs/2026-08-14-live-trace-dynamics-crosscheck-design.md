@@ -17,4 +17,3 @@ The record stores profile sources, command identity, backend outputs, observed o
 ## Verification
 
 Portable tests cover matching straight motion, missing/reordered wheels, speed violations, odometry disagreement, and receipt tampering. Isolated Jazzy/Harmonic CI must retain a passed crosscheck beside raw MCAP. The existing no-network container, ROS domain 139, and localhost-only boundary remain mandatory.
-
