@@ -80,12 +80,19 @@ def _profile(profile: object) -> tuple[float, float, str, list[dict[str, str]]]:
     return radius, speed, workspace, sorted(normalized, key=lambda item: item["path"])
 
 
-def _header(message: object, name: str) -> None:
+def _header(message: object, name: str) -> int:
     if not isinstance(message, dict) or not isinstance(message.get("header"), dict):
         raise LiveTraceError(f"{name} message must contain a header")
     stamp = message["header"].get("stamp")
-    if not isinstance(stamp, dict) or type(stamp.get("sec")) is not int or type(stamp.get("nanosec")) is not int:
+    if (
+        not isinstance(stamp, dict)
+        or type(stamp.get("sec")) is not int
+        or type(stamp.get("nanosec")) is not int
+        or stamp["sec"] < 0
+        or not 0 <= stamp["nanosec"] < 1_000_000_000
+    ):
         raise LiveTraceError(f"{name} header stamp is invalid")
+    return stamp["sec"] * 1_000_000_000 + stamp["nanosec"]
 
 
 def normalize_records(records: object) -> dict[str, Any]:
@@ -111,16 +118,16 @@ def normalize_records(records: object) -> dict[str, Any]:
                 raise LiveTraceError("clock message is invalid")
             output["clock_ns"].append(stamp)
         elif topic == "/joint_states":
-            _header(message, "joint state")
-            output["joint_samples"].append({"timestamp_ns": stamp, "names": message.get("name"), "positions": message.get("position")})
+            state_stamp = _header(message, "joint state")
+            output["joint_samples"].append({"timestamp_ns": state_stamp, "names": message.get("name"), "positions": message.get("position")})
         elif topic == "/diff_drive_controller/odom":
-            _header(message, "odometry")
+            state_stamp = _header(message, "odometry")
             try:
                 pose = message["pose"]["pose"]
                 position, orientation = pose["position"], pose["orientation"]
                 z, w = _finite(orientation["z"], "odometry orientation.z"), _finite(orientation["w"], "odometry orientation.w")
                 yaw = math.atan2(2.0 * z * w, 1.0 - 2.0 * z * z)
-                output["odom_samples"].append({"timestamp_ns": stamp, "x_m": position["x"], "y_m": position["y"], "yaw_rad": yaw})
+                output["odom_samples"].append({"timestamp_ns": state_stamp, "x_m": position["x"], "y_m": position["y"], "yaw_rad": yaw})
             except (KeyError, TypeError, LiveTraceError) as exc:
                 raise LiveTraceError(f"odometry message is invalid: {exc}") from None
         else:

@@ -100,6 +100,9 @@ class LiveTraceTests(unittest.TestCase):
         ]
         normalized = normalize_records(records)
         self.assertEqual(capture(), normalized)
+        delayed_joint_state = list(records)
+        delayed_joint_state[3] = dict(delayed_joint_state[3], timestamp_ns=123_456_789)
+        self.assertEqual(0, normalize_records(delayed_joint_state)["joint_samples"][0]["timestamp_ns"])
         invalid = list(records)
         invalid[0] = dict(invalid[0], topic="/rogue")
         with self.assertRaisesRegex(LiveTraceError, "unknown topic"):
