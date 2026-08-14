@@ -30,6 +30,11 @@ and retains its directory unchanged.  This affects only the Dockerized Gazebo
 robot.  The command is below the receipt-bound Nav2 linear limit and is never
 sent to a physical topic or device.
 
+The live container has `--network=none`, `ROS_DOMAIN_ID=139`, and
+`ROS_LOCALHOST_ONLY=1`; the gate verifies both ROS isolation variables before
+starting any simulator process.  Thus DDS discovery cannot reach a host or
+physical controller even if the workflow runner is reused outside GitHub.
+
 A runtime adapter opens the MCAP with `rosbag2_py`, deserializes the four exact
 ROS message types, and converts them to primitive records.  A pure-Python
 validator then checks bounded topic closure, monotonic timestamps, required

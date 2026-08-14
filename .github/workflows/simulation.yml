@@ -22,9 +22,11 @@ jobs:
             --file reference/mobile-manipulator/simulation/Dockerfile.jazzy-harmonic .
       - name: Run headless consumer gate
         run: |
-          docker run --rm --network=host \
+          docker run --rm --network=none \
             --name robotics-design-live-gate \
             -e SIMULATION_IMAGE_REF=robotics-design-jazzy-harmonic:${{ github.sha }} \
+            -e ROS_DOMAIN_ID=139 \
+            -e ROS_LOCALHOST_ONLY=1 \
             -v "$PWD:/workspace" -w /workspace \
             robotics-design-jazzy-harmonic:${{ github.sha }} \
             bash scripts/run_live_simulation_gate.sh

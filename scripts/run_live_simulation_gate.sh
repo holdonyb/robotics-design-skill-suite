@@ -67,6 +67,8 @@ set +u
 source /opt/ros/jazzy/setup.bash
 set -u
 test "${ROS_DISTRO:-}" = "jazzy"
+test "${ROS_DOMAIN_ID:-}" = "139"
+test "${ROS_LOCALHOST_ONLY:-}" = "1"
 gz sim --versions > "$EVIDENCE/gazebo-versions.txt"
 dpkg-query -W > "$EVIDENCE/dpkg-inventory.txt"
 docker image inspect "${SIMULATION_IMAGE_REF:-unavailable}" > "$EVIDENCE/image-inspect.json" 2>/dev/null || true

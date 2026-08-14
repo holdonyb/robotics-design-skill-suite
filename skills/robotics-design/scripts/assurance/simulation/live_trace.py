@@ -19,6 +19,7 @@ _CAPTURE_FIELDS = {"clock_ns", "joint_samples", "odom_samples", "command_samples
 _MAX_SAMPLES = 10_000
 _MAX_RAW_BYTES = 64 * 1024 * 1024
 _DRIVE_JOINTS = {"left_wheel_joint", "right_wheel_joint"}
+_MCAP_MAGIC = b"\x89MCAP0\r\n"
 _TOPIC_TYPES = {
     "/clock": "rosgraph_msgs/msg/Clock",
     "/joint_states": "sensor_msgs/msg/JointState",
@@ -237,6 +238,8 @@ def _raw_inventory(raw_bag: str | Path) -> list[dict[str, Any]]:
             raise LiveTraceError(f"cannot read raw bag file: {exc}") from None
         if not payload or len(payload) > _MAX_RAW_BYTES:
             raise LiveTraceError("raw bag file size is invalid")
+        if path.endswith(".mcap") and (not payload.startswith(_MCAP_MAGIC) or not payload.endswith(_MCAP_MAGIC)):
+            raise LiveTraceError("raw bag MCAP signature is invalid")
         result.append({"path": path, "bytes": len(payload), "sha256": hashlib.sha256(payload).hexdigest()})
     return result
 

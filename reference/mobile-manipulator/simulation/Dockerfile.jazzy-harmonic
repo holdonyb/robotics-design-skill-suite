@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update && apt-get install -y --no-install-recommends \
        ros-jazzy-desktop ros-jazzy-ros-gz ros-jazzy-ros2-control \
        ros-jazzy-gz-ros2-control ros-jazzy-joint-trajectory-controller \
-       ros-jazzy-moveit ros-jazzy-nav2-bringup \
+       ros-jazzy-moveit ros-jazzy-nav2-bringup ros-jazzy-rosbag2-storage-mcap \
        ros-jazzy-xacro python3-colcon-common-extensions \
     && rm -rf /var/lib/apt/lists/*
 

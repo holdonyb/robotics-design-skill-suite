@@ -43,6 +43,7 @@ V110_RUNTIME_PATHS = frozenset(
         "scripts/validate_live_simulation_trace.py",
         "reference/mobile-manipulator/component-mass-closure.json",
         "reference/mobile-manipulator/design-contract.json",
+        "reference/mobile-manipulator/simulation/Dockerfile.jazzy-harmonic",
         "skills/robotics-design/references/hardware-authority-contract.md",
         "skills/robotics-design/scripts/generate_release_delivery_contract.py",
         "skills/robotics-design/scripts/validate_release_delivery.py",

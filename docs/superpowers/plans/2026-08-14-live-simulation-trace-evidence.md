@@ -66,4 +66,3 @@
 - Task 1 binds raw files to canonical output, Task 2 proves runtime decoding instead of trusting a stored verdict, and Task 3 makes live CI the producer.
 - The only motion command targets the existing Dockerized Gazebo controller and remains within the parsed ROS profile; every output stays simulation-only.
 - Portable adversarial tests, release checks, and the independent live CI job cover distinct failure boundaries.
-

@@ -112,16 +112,25 @@ class LiveTraceTests(unittest.TestCase):
             bag = root / "live-drive"
             bag.mkdir()
             (bag / "metadata.yaml").write_text("rosbag2_bagfile_information: {}\n", encoding="utf-8")
-            (bag / "live-drive_0.mcap").write_bytes(b"MCAP0")
+            (bag / "live-drive_0.mcap").write_bytes(b"\x89MCAP0\r\ntrace\x89MCAP0\r\n")
             receipt = publish_live_trace_bundle(root / "bundle", capture(), PROFILE, bag)
             self.assertEqual([], validate_retained_live_trace_bundle(root / "bundle", receipt.manifest_sha256, bag))
-            (bag / "live-drive_0.mcap").write_bytes(b"MCAP1")
+            (bag / "live-drive_0.mcap").write_bytes(b"\x89MCAP0\r\nchanged\x89MCAP0\r\n")
             self.assertIn("raw bag SHA-256 mismatch", validate_retained_live_trace_bundle(root / "bundle", receipt.manifest_sha256, bag))
 
             tampered = root / "tampered"
             shutil.copytree(bag, tampered)
-            (tampered / "extra.mcap").write_bytes(b"MCAP")
+            (tampered / "extra.mcap").write_bytes(b"\x89MCAP0\r\nextra\x89MCAP0\r\n")
             self.assertIn("raw bag files are not closed", validate_retained_live_trace_bundle(root / "bundle", receipt.manifest_sha256, tampered))
+
+    def test_raw_bag_rejects_a_non_mcap_payload_even_with_a_valid_suffix(self):
+        with tempfile.TemporaryDirectory() as raw:
+            bag = Path(raw) / "live-drive"
+            bag.mkdir()
+            (bag / "metadata.yaml").write_text("rosbag2_bagfile_information: {}\n", encoding="utf-8")
+            (bag / "live-drive_0.mcap").write_bytes(b"not an mcap")
+            with self.assertRaisesRegex(LiveTraceError, "MCAP signature"):
+                publish_live_trace_bundle(Path(raw) / "bundle", capture(), PROFILE, bag)
 
 
 if __name__ == "__main__":

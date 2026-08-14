@@ -65,6 +65,7 @@ class ReleaseDeliveryEvaluatorTests(unittest.TestCase):
         for path in (
             "scripts/run_live_simulation_gate.sh",
             "scripts/validate_live_simulation_trace.py",
+            "reference/mobile-manipulator/simulation/Dockerfile.jazzy-harmonic",
             "skills/robotics-design/scripts/assurance/simulation/__init__.py",
             "skills/robotics-design/scripts/assurance/simulation/live_trace.py",
         ):
