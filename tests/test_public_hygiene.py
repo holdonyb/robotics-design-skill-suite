@@ -269,6 +269,13 @@ class PublicHygieneTests(unittest.TestCase):
         self.assertIn("motion_authorized: false", audit)
         self.assertIn("does not assemble", audit)
 
+    def test_v100_candidate_audit_preserves_reproducibility_and_hardware_boundary(self):
+        audit = (ROOT / "docs/releases/v1.0-completion-audit.md").read_text(encoding="utf-8")
+        self.assertIn("v1.0 candidate", audit)
+        self.assertIn("hardware_claims: false", audit)
+        self.assertIn("not a hardware-validation claim", audit)
+        self.assertNotIn("tag CI passed", audit)
+
     def test_ci_compiles_local_skill_runtime_before_tests(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         self.assertIn(
