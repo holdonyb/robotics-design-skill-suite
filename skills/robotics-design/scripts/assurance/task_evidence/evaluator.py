@@ -13,7 +13,7 @@ from .model import TaskEvidenceFinding, TaskEvidenceReport
 from .protocol import TaskProtocol
 
 
-_PACKAGE = frozenset({"schema_version", "package_id", "kind", "envelope", "repetition", "fault_id", "command_trace", "state_trace", "task_trace", "disposition"})
+_PACKAGE = frozenset({"schema_version", "package_id", "kind", "envelope", "repetition", "fault_id", "fault_record", "command_trace", "state_trace", "task_trace", "disposition"})
 
 
 def _finding(code: str, path: str, message: str) -> TaskEvidenceFinding:
@@ -75,8 +75,23 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
         if package["package_id"] in package_ids:
             findings.append(_finding("TASK.PACKAGE_INVALID", f"{path}.package_id", "package ids must be unique")); continue
         package_ids.add(package["package_id"])
-        if package.get("kind") != "nominal" or package.get("fault_id") is not None or package.get("disposition") not in {"passed", "aborted", "failed"} or type(package.get("repetition")) is not int or not 1 <= package["repetition"] <= protocol.repetitions:
-            findings.append(_finding("TASK.PACKAGE_INVALID", path, "only bounded nominal trial records are accepted at this stage")); continue
+        if package.get("kind") not in {"nominal", "fault"} or package.get("disposition") not in {"passed", "aborted", "failed"} or type(package.get("repetition")) is not int or not 1 <= package["repetition"] <= protocol.repetitions:
+            findings.append(_finding("TASK.PACKAGE_INVALID", path, "kind, disposition, and repetition are invalid")); continue
+        fault_profiles = {item.id: item for item in protocol.faults}
+        if package["kind"] == "nominal" and (package.get("fault_id") is not None or package.get("fault_record") is not None):
+            findings.append(_finding("TASK.PACKAGE_INVALID", path, "nominal trials must not carry fault evidence"))
+        if package["kind"] == "fault":
+            fault_id = package.get("fault_id")
+            profile = fault_profiles.get(fault_id) if isinstance(fault_id, str) else None
+            fault = _trace(_bound_json(root, package.get("fault_record"), f"{path}.fault_record", findings), frozenset({"timestamp_ns", "fault_id", "detected", "safe_state", "recovery"}), f"{path}.fault_record", findings)
+            if profile is None:
+                findings.append(_finding("TASK.FAULT_UNKNOWN", f"{path}.fault_id", "fault must be declared by protocol"))
+            elif fault is not None:
+                for event in fault:
+                    if event.get("fault_id") != profile.id or type(event.get("detected")) is not bool or not event["detected"] or event.get("safe_state") != profile.safe_state:
+                        findings.append(_finding("TASK.FAULT_SAFE_STATE", f"{path}.fault_record", "fault must be detected and reach declared safe state"))
+                    if event.get("recovery") != profile.recovery:
+                        findings.append(_finding("TASK.FAULT_RECOVERY", f"{path}.fault_record", "fault recovery must match protocol"))
         envelope = package.get("envelope")
         if not isinstance(envelope, dict) or set(envelope) != set(expected_envelope) or any(not _finite(value) or float(value) not in expected_envelope[name] for name, value in envelope.items()):
             findings.append(_finding("TASK.ENVELOPE_INVALID", f"{path}.envelope", "envelope must match declared protocol values"))
