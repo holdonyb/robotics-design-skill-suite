@@ -202,6 +202,15 @@ def valid_load_envelope_inputs():
         "brake_holding_torque_nm": [
             {"id": "joint_1", "value": "quantity:Q-TORQUE"}
         ],
+        "motor_continuous_torque_nm": [
+            {"id": "joint_1", "value": "quantity:Q-TORQUE"}
+        ],
+        "reducer_gear_ratio": [
+            {"id": "joint_1", "value": "quantity:Q-FACTOR"}
+        ],
+        "reducer_efficiency": [
+            {"id": "joint_1", "value": "quantity:Q-FACTOR"}
+        ],
     }
 
 
@@ -225,12 +234,20 @@ class AssuranceContractTests(unittest.TestCase):
                 {"id": "Q-B1", "owner": "component:CMP-B1"},
                 {"id": "Q-M2", "owner": "component:CMP-R2"},
                 {"id": "Q-B2", "owner": "component:CMP-B2"},
+                {"id": "Q-MOTOR1", "owner": "component:CMP-M1"},
+                {"id": "Q-MOTOR2", "owner": "component:CMP-M2"},
+                {"id": "Q-RATIO1", "owner": "component:CMP-R1"},
+                {"id": "Q-RATIO2", "owner": "component:CMP-R2"},
+                {"id": "Q-EFF1", "owner": "component:CMP-R1"},
+                {"id": "Q-EFF2", "owner": "component:CMP-R2"},
             ],
             "components": [
                 {"id": "CMP-R1", "role": "reducer", "state": "engineering_placeholder", "bindings": ["actuator:joint_1"]},
                 {"id": "CMP-B1", "role": "brake", "state": "engineering_placeholder", "bindings": ["actuator:joint_1"]},
                 {"id": "CMP-R2", "role": "reducer", "state": "engineering_placeholder", "bindings": ["actuator:joint_2"]},
                 {"id": "CMP-B2", "role": "brake", "state": "engineering_placeholder", "bindings": ["actuator:joint_2"]},
+                {"id": "CMP-M1", "role": "motor", "state": "engineering_placeholder", "bindings": ["actuator:joint_1"]},
+                {"id": "CMP-M2", "role": "motor", "state": "engineering_placeholder", "bindings": ["actuator:joint_2"]},
             ],
             "analyses": [
                 {
@@ -245,12 +262,30 @@ class AssuranceContractTests(unittest.TestCase):
                             {"id": "joint_1", "value": "quantity:Q-B1"},
                             {"id": "joint_2", "value": "quantity:Q-B2"},
                         ],
+                        "motor_continuous_torque_nm": [
+                            {"id": "joint_1", "value": "quantity:Q-MOTOR1"},
+                            {"id": "joint_2", "value": "quantity:Q-MOTOR2"},
+                        ],
+                        "reducer_gear_ratio": [
+                            {"id": "joint_1", "value": "quantity:Q-RATIO1"},
+                            {"id": "joint_2", "value": "quantity:Q-RATIO2"},
+                        ],
+                        "reducer_efficiency": [
+                            {"id": "joint_1", "value": "quantity:Q-EFF1"},
+                            {"id": "joint_2", "value": "quantity:Q-EFF2"},
+                        ],
                     },
                 }
             ],
         }
         self.assertEqual(_analysis_rating_owner_diagnostics(data), [])
         data["analyses"][0]["inputs"]["rated_continuous_torque_nm"][1]["value"] = "quantity:Q-M1"
+        self.assertIn(
+            "PHY.ANALYSIS.RATING_OWNER",
+            {item.code for item in _analysis_rating_owner_diagnostics(data)},
+        )
+        data["analyses"][0]["inputs"]["rated_continuous_torque_nm"][1]["value"] = "quantity:Q-M2"
+        data["analyses"][0]["inputs"]["motor_continuous_torque_nm"][1]["value"] = "quantity:Q-MOTOR1"
         self.assertIn(
             "PHY.ANALYSIS.RATING_OWNER",
             {item.code for item in _analysis_rating_owner_diagnostics(data)},
@@ -266,6 +301,37 @@ class AssuranceContractTests(unittest.TestCase):
             ),
             [],
         )
+
+    def test_arm_load_envelope_requires_closed_motor_transmission_records(self):
+        value = valid_load_envelope_inputs()
+        value.update(
+            {
+                "motor_continuous_torque_nm": [
+                    {"id": "joint_1", "value": "quantity:Q-TORQUE"}
+                ],
+                "reducer_gear_ratio": [
+                    {"id": "joint_1", "value": "quantity:Q-FACTOR"}
+                ],
+                "reducer_efficiency": [
+                    {"id": "joint_1", "value": "quantity:Q-FACTOR"}
+                ],
+            }
+        )
+        quantities = load_envelope_quantities()
+        self.assertEqual(
+            [],
+            validate_plugin_inputs("arm_load_envelope_v1", value, quantities, "inputs"),
+        )
+
+        value["reducer_efficiency"] = []
+        errors = validate_plugin_inputs("arm_load_envelope_v1", value, quantities, "inputs")
+        self.assertTrue(any("reducer_efficiency" in error for error in errors))
+
+        value["reducer_efficiency"] = [
+            {"id": "joint_1", "value": "quantity:Q-MASS"}
+        ]
+        errors = validate_plugin_inputs("arm_load_envelope_v1", value, quantities, "inputs")
+        self.assertTrue(any("expects dimension dimensionless" in error for error in errors))
 
     def test_arm_load_envelope_rejects_shape_identity_and_dimension_errors(self):
         quantities = load_envelope_quantities()

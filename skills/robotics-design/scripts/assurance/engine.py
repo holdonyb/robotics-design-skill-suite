@@ -252,6 +252,7 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
         role: str,
         limit_name: str,
         nested_path: str = "",
+        require_component_limit: bool = True,
     ) -> None:
         reference = inputs.get(field)
         if not isinstance(reference, str) or not reference.startswith("quantity:"):
@@ -271,7 +272,7 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
                 )
             )
             return
-        if component is not None and component.get("state") in {
+        if require_component_limit and component is not None and component.get("state") in {
             "verified_part",
             "qualified_substitute",
         }:
@@ -357,9 +358,12 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
                     nested,
                 )
         elif plugin == "arm_load_envelope_v1":
-            for field, role, limit_name in (
-                ("rated_continuous_torque_nm", "reducer", "continuous_output_torque"),
-                ("brake_holding_torque_nm", "brake", "holding_torque"),
+            for field, role, limit_name, require_component_limit in (
+                ("rated_continuous_torque_nm", "reducer", "continuous_output_torque", True),
+                ("brake_holding_torque_nm", "brake", "holding_torque", True),
+                ("motor_continuous_torque_nm", "motor", "continuous_torque", True),
+                ("reducer_gear_ratio", "reducer", "gear_ratio", True),
+                ("reducer_efficiency", "reducer", "efficiency", False),
             ):
                 records = inputs.get(field, [])
                 if not isinstance(records, list):
@@ -376,6 +380,7 @@ def _analysis_rating_owner_diagnostics(data: dict[str, Any]) -> list[Diagnostic]
                         role,
                         limit_name,
                         f".{field}[{record_index}]",
+                        require_component_limit,
                     )
         elif plugin == "bearing_static_v1":
             records = inputs.get("joints", [])
