@@ -206,6 +206,17 @@ def valid_load_envelope_inputs():
 
 
 class AssuranceContractTests(unittest.TestCase):
+    def test_bearing_static_inputs_are_closed_and_dimensioned(self):
+        quantities = {
+            "Q-R": {"dimension": "force"}, "Q-A": {"dimension": "force"},
+            "Q-M": {"dimension": "torque"}, "Q-D": {"dimension": "length"},
+            "Q-C0": {"dimension": "force"}, "Q-SF": {"dimension": "dimensionless"},
+        }
+        valid = {"joints": [{"id": "joint_2", "radial_load_n": "quantity:Q-R", "axial_load_n": "quantity:Q-A", "moment_nm": "quantity:Q-M", "pitch_diameter_m": "quantity:Q-D", "static_load_rating_n": "quantity:Q-C0", "safety_factor": "quantity:Q-SF"}]}
+        self.assertEqual([], validate_plugin_inputs("bearing_static_v1", valid, quantities, "inputs"))
+        invalid = {"joints": [{**valid["joints"][0], "moment_nm": "quantity:Q-R"}]}
+        self.assertTrue(validate_plugin_inputs("bearing_static_v1", invalid, quantities, "inputs"))
+
     def test_arm_load_envelope_ratings_bind_to_the_named_actuator_components(self):
         data = {
             "architecture": {"actuators": ["joint_1", "joint_2"], "drive_units": []},

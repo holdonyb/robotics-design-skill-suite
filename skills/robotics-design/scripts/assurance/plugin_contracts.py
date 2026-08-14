@@ -86,7 +86,7 @@ ARM_LOAD_ENVELOPE_FIELDS = frozenset(
 )
 
 KNOWN_PLUGINS = frozenset(
-    (*FLAT_PLUGIN_DIMENSIONS, "arm_gravity_v1", "arm_load_envelope_v1")
+    (*FLAT_PLUGIN_DIMENSIONS, "arm_gravity_v1", "arm_load_envelope_v1", "bearing_static_v1")
 )
 
 
@@ -310,6 +310,22 @@ def validate_plugin_inputs(
 
     if plugin == "arm_load_envelope_v1":
         return _validate_arm_load_envelope_inputs(inputs, quantities, path)
+
+    if plugin == "bearing_static_v1":
+        if not _closed_object(inputs, {"joints"}, path, errors):
+            return errors
+        joints = inputs["joints"]
+        if not isinstance(joints, list) or not joints:
+            return [*errors, f"{path}.joints must be a non-empty list"]
+        dimensions = {"radial_load_n": "force", "axial_load_n": "force", "moment_nm": "torque", "pitch_diameter_m": "length", "static_load_rating_n": "force", "safety_factor": "dimensionless"}
+        for index, joint in enumerate(joints):
+            joint_path = f"{path}.joints[{index}]"
+            if not _closed_object(joint, {"id", *dimensions}, joint_path, errors):
+                continue
+            _identifier(joint["id"], f"{joint_path}.id", errors)
+            for field, dimension in dimensions.items():
+                _quantity_reference(joint[field], dimension, f"{joint_path}.{field}", quantities, errors)
+        return errors
 
     if not _closed_object(inputs, {"joints"}, path, errors):
         return errors
