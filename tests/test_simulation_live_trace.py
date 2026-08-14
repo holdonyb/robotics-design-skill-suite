@@ -1,3 +1,4 @@
+import json
 import shutil
 import sys
 import tempfile
@@ -10,6 +11,7 @@ sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
 from assurance.simulation.live_trace import (  # noqa: E402
     LiveTraceError,
+    crosscheck_live_dynamics,
     normalize_records,
     publish_live_trace_bundle,
     validate_live_capture,
@@ -19,7 +21,10 @@ from assurance.simulation.live_trace import (  # noqa: E402
 
 PROFILE = {
     "wheel_radius_m": 0.15,
+    "wheel_separation_m": 0.68,
     "wheel_speed_limit_rad_s": 0.4 / 0.15,
+    "mass_kg": 140.2,
+    "brake_deceleration_m_s2": 0.8,
     "workspace_manifest_sha256": "a" * 64,
     "sources": [{"path": "profile.yaml", "sha256": "b" * 64}],
 }
@@ -51,7 +56,40 @@ def capture():
     }
 
 
+def dynamics_capture():
+    result = capture()
+    result["joint_samples"] = [
+        {"timestamp_ns": 0, "names": ["left_wheel_joint", "right_wheel_joint", "joint_1"], "positions": [0.0, 0.0, 0.0]},
+        {"timestamp_ns": 1_000_000_000, "names": ["left_wheel_joint", "right_wheel_joint", "joint_1"], "positions": [1.0, 1.0, 0.0]},
+        {"timestamp_ns": 2_000_000_000, "names": ["left_wheel_joint", "right_wheel_joint", "joint_1"], "positions": [2.0, 2.0, 0.0]},
+    ]
+    result["odom_samples"] = [
+        {"timestamp_ns": 0, "x_m": 0.0, "y_m": 0.0, "yaw_rad": 0.0},
+        {"timestamp_ns": 1_000_000_000, "x_m": 0.15, "y_m": 0.0, "yaw_rad": 0.0},
+        {"timestamp_ns": 2_000_000_000, "x_m": 0.30, "y_m": 0.0, "yaw_rad": 0.0},
+    ]
+    return result
+
+
 class LiveTraceTests(unittest.TestCase):
+    def test_live_wheel_trace_crosschecks_bound_profile_against_odometry(self):
+        result = crosscheck_live_dynamics(dynamics_capture(), PROFILE)
+        self.assertEqual("passed", result["status"])
+        self.assertAlmostEqual(0.30, result["observed"]["base_distance_m"])
+        self.assertEqual("a" * 64, result["model_sha256"])
+
+        mismatch = dynamics_capture()
+        mismatch["odom_samples"][-1]["x_m"] = 0.60
+        self.assertEqual("failed", crosscheck_live_dynamics(mismatch, PROFILE)["status"])
+
+        accelerating = dynamics_capture()
+        accelerating["joint_samples"][1]["positions"] = [0.5, 0.5, 0.0]
+        self.assertEqual("passed", crosscheck_live_dynamics(accelerating, PROFILE)["status"])
+        missing = dynamics_capture()
+        missing["joint_samples"][1]["names"] = ["right_wheel_joint", "joint_1"]
+        missing["joint_samples"][1]["positions"] = [1.0, 0.0]
+        with self.assertRaisesRegex(LiveTraceError, "drive joints"):
+            crosscheck_live_dynamics(missing, PROFILE)
     def test_normalizer_accepts_only_the_live_gate_ros_topics(self):
         records = [
             {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "timestamp_ns": 0, "message": {"clock": {"sec": 0, "nanosec": 0}}},
@@ -66,6 +104,9 @@ class LiveTraceTests(unittest.TestCase):
         ]
         normalized = normalize_records(records)
         self.assertEqual(capture(), normalized)
+        delayed_joint_state = list(records)
+        delayed_joint_state[3] = dict(delayed_joint_state[3], timestamp_ns=123_456_789)
+        self.assertEqual(0, normalize_records(delayed_joint_state)["joint_samples"][0]["timestamp_ns"])
         invalid = list(records)
         invalid[0] = dict(invalid[0], topic="/rogue")
         with self.assertRaisesRegex(LiveTraceError, "unknown topic"):
@@ -81,6 +122,9 @@ class LiveTraceTests(unittest.TestCase):
             self.assertIn(token, source)
         self.assertIn('topic == "/diff_drive_controller/odom"', source)
         self.assertNotIn('topic == "/odom"', source)
+        self.assertIn("require_live_dynamics_crosscheck", source)
+        self.assertIn("_raw_inventory(args.bag)", source)
+        self.assertLess(source.index("_raw_inventory(args.bag)"), source.index("_decode_mcap(args.bag)"))
 
     def test_valid_capture_is_simulated_and_hardware_firewalled(self):
         result = validate_live_capture(capture(), PROFILE)
@@ -115,8 +159,10 @@ class LiveTraceTests(unittest.TestCase):
             bag.mkdir()
             (bag / "metadata.yaml").write_text("rosbag2_bagfile_information: {}\n", encoding="utf-8")
             (bag / "live-drive_0.mcap").write_bytes(b"\x89MCAP0\r\ntrace\x89MCAP0\r\n")
-            receipt = publish_live_trace_bundle(root / "bundle", capture(), PROFILE, bag)
+            receipt = publish_live_trace_bundle(root / "bundle", dynamics_capture(), PROFILE, bag)
             self.assertEqual([], validate_retained_live_trace_bundle(root / "bundle", receipt.manifest_sha256, bag))
+            validation = json.loads((root / "bundle" / "validation.json").read_text(encoding="utf-8"))
+            self.assertEqual("passed", validation["dynamics_crosscheck"]["status"])
             (bag / "live-drive_0.mcap").write_bytes(b"\x89MCAP0\r\nchanged\x89MCAP0\r\n")
             self.assertIn("raw bag SHA-256 mismatch", validate_retained_live_trace_bundle(root / "bundle", receipt.manifest_sha256, bag))
 
@@ -124,6 +170,18 @@ class LiveTraceTests(unittest.TestCase):
             shutil.copytree(bag, tampered)
             (tampered / "extra.mcap").write_bytes(b"\x89MCAP0\r\nextra\x89MCAP0\r\n")
             self.assertIn("raw bag files are not closed", validate_retained_live_trace_bundle(root / "bundle", receipt.manifest_sha256, tampered))
+
+    def test_publisher_reports_structured_dynamics_disagreement(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            bag = root / "live-drive"
+            bag.mkdir()
+            (bag / "metadata.yaml").write_text("rosbag2_bagfile_information: {}\n", encoding="utf-8")
+            (bag / "live-drive_0.mcap").write_bytes(b"\x89MCAP0\r\ntrace\x89MCAP0\r\n")
+            mismatch = dynamics_capture()
+            mismatch["odom_samples"][-1]["x_m"] = 0.60
+            with self.assertRaisesRegex(LiveTraceError, "base_distance_m"):
+                publish_live_trace_bundle(root / "bundle", mismatch, PROFILE, bag)
 
     def test_raw_bag_rejects_a_non_mcap_payload_even_with_a_valid_suffix(self):
         with tempfile.TemporaryDirectory() as raw:

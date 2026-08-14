@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from ..hypothesis.bundle import BundleError, BundleReceipt, validate_bundle, write_bundle_with_receipt
-from ..hypothesis.canonical import canonical_value, validate_sha256
+from ..hypothesis.canonical import canonical_bytes, canonical_value, validate_sha256
+from .backend import BackendError, compare_backends, evaluate_independent_dynamics, evaluate_trace_kinematics
 
 
 class LiveTraceError(ValueError):
@@ -79,12 +80,19 @@ def _profile(profile: object) -> tuple[float, float, str, list[dict[str, str]]]:
     return radius, speed, workspace, sorted(normalized, key=lambda item: item["path"])
 
 
-def _header(message: object, name: str) -> None:
+def _header(message: object, name: str) -> int:
     if not isinstance(message, dict) or not isinstance(message.get("header"), dict):
         raise LiveTraceError(f"{name} message must contain a header")
     stamp = message["header"].get("stamp")
-    if not isinstance(stamp, dict) or type(stamp.get("sec")) is not int or type(stamp.get("nanosec")) is not int:
+    if (
+        not isinstance(stamp, dict)
+        or type(stamp.get("sec")) is not int
+        or type(stamp.get("nanosec")) is not int
+        or stamp["sec"] < 0
+        or not 0 <= stamp["nanosec"] < 1_000_000_000
+    ):
         raise LiveTraceError(f"{name} header stamp is invalid")
+    return stamp["sec"] * 1_000_000_000 + stamp["nanosec"]
 
 
 def normalize_records(records: object) -> dict[str, Any]:
@@ -110,16 +118,16 @@ def normalize_records(records: object) -> dict[str, Any]:
                 raise LiveTraceError("clock message is invalid")
             output["clock_ns"].append(stamp)
         elif topic == "/joint_states":
-            _header(message, "joint state")
-            output["joint_samples"].append({"timestamp_ns": stamp, "names": message.get("name"), "positions": message.get("position")})
+            state_stamp = _header(message, "joint state")
+            output["joint_samples"].append({"timestamp_ns": state_stamp, "names": message.get("name"), "positions": message.get("position")})
         elif topic == "/diff_drive_controller/odom":
-            _header(message, "odometry")
+            state_stamp = _header(message, "odometry")
             try:
                 pose = message["pose"]["pose"]
                 position, orientation = pose["position"], pose["orientation"]
                 z, w = _finite(orientation["z"], "odometry orientation.z"), _finite(orientation["w"], "odometry orientation.w")
                 yaw = math.atan2(2.0 * z * w, 1.0 - 2.0 * z * z)
-                output["odom_samples"].append({"timestamp_ns": stamp, "x_m": position["x"], "y_m": position["y"], "yaw_rad": yaw})
+                output["odom_samples"].append({"timestamp_ns": state_stamp, "x_m": position["x"], "y_m": position["y"], "yaw_rad": yaw})
             except (KeyError, TypeError, LiveTraceError) as exc:
                 raise LiveTraceError(f"odometry message is invalid: {exc}") from None
         else:
@@ -214,6 +222,110 @@ def validate_live_capture(capture: object, profile: object) -> dict[str, Any]:
     }
 
 
+def crosscheck_live_dynamics(capture: object, profile: object) -> dict[str, Any]:
+    """Cross-check wheel-integrated motion against retained Gazebo odometry."""
+    validate_live_capture(capture, profile)
+    radius, speed_limit, workspace, _ = _profile(profile)
+    assert isinstance(capture, dict) and isinstance(profile, dict)
+    try:
+        separation = _finite(profile["wheel_separation_m"], "profile wheel_separation_m")
+        mass = _finite(profile["mass_kg"], "profile mass_kg")
+        brake = _finite(profile["brake_deceleration_m_s2"], "profile brake_deceleration_m_s2")
+    except KeyError as exc:
+        raise LiveTraceError(f"profile lacks dynamics field: {exc.args[0]}") from None
+    if separation <= 0 or mass <= 0 or brake <= 0:
+        raise LiveTraceError("profile dynamics fields must be positive")
+    stamps, left_positions, right_positions = [], [], []
+    for index, sample in enumerate(capture["joint_samples"]):
+        names, positions = sample["names"], sample["positions"]
+        if not isinstance(names, list) or not isinstance(positions, list) or len(names) != len(positions) or not _DRIVE_JOINTS.issubset(names):
+            raise LiveTraceError(f"joint_samples[{index}] must include both drive joints")
+        try:
+            left_positions.append(_finite(positions[names.index("left_wheel_joint")], "left wheel position"))
+            right_positions.append(_finite(positions[names.index("right_wheel_joint")], "right wheel position"))
+        except (ValueError, IndexError) as exc:
+            raise LiveTraceError(f"joint_samples[{index}] drive joints are invalid: {exc}") from None
+        stamps.append(sample["timestamp_ns"])
+    rates_left, rates_right = [], []
+    for index in range(1, len(stamps)):
+        dt = (stamps[index] - stamps[index - 1]) / 1_000_000_000
+        if not math.isfinite(dt) or dt <= 0:
+            raise LiveTraceError("wheel sample period is invalid")
+        rates_left.append((left_positions[index] - left_positions[index - 1]) / dt)
+        rates_right.append((right_positions[index] - right_positions[index - 1]) / dt)
+    rates_left.append(rates_left[-1]); rates_right.append(rates_right[-1])
+    trajectory_sha = hashlib.sha256(canonical_bytes(capture["command_samples"])).hexdigest()
+    backend_input = {
+        "model_sha256": workspace, "trajectory_sha256": trajectory_sha, "units": "si",
+        "timestamps_ns": stamps, "left_wheel_rad_s": rates_left, "right_wheel_rad_s": rates_right,
+        "wheel_radius_m": radius, "wheel_separation_m": separation, "wheel_speed_limit_rad_s": speed_limit,
+        "mass_kg": mass, "slope_rad": 0.0, "brake_deceleration_m_s2": brake,
+        "joint_final_rad": [0.0], "joint_target_rad": [0.0], "joint_error_limit_rad": 0.01,
+    }
+    comparison_tolerances = {metric: 1e-9 for metric in (
+        "base_distance_m", "base_yaw_rad", "braking_distance_m", "slope_force_n",
+        "wheel_speed_rad_s", "final_joint_error_rad",
+    )}
+    for index in range(1, len(stamps)):
+        dt = (stamps[index] - stamps[index - 1]) / 1_000_000_000
+        # The primary adapter uses a trapezoid while the independent adapter
+        # uses left-constant samples.  This is the bounded discretization gap
+        # for the exact wheel-rate trace, not an arbitrary relaxed threshold.
+        comparison_tolerances["base_distance_m"] += abs(
+            radius * (rates_left[index] + rates_right[index] - rates_left[index - 1] - rates_right[index - 1]) * dt / 4
+        )
+        comparison_tolerances["base_yaw_rad"] += abs(
+            radius * ((rates_right[index] - rates_left[index]) - (rates_right[index - 1] - rates_left[index - 1])) * dt / (2 * separation)
+        )
+    try:
+        primary = evaluate_trace_kinematics(backend_input)
+        independent = evaluate_independent_dynamics(backend_input)
+        comparison = compare_backends(primary, independent, comparison_tolerances)
+    except BackendError as exc:
+        raise LiveTraceError(f"live dynamics backend failed: {exc}") from None
+    primary_metrics = {metric.name: metric.value for metric in primary.metrics}
+    independent_metrics = {metric.name: metric.value for metric in independent.metrics}
+    odom = capture["odom_samples"]
+    observed_distance = math.hypot(float(odom[-1]["x_m"]) - float(odom[0]["x_m"]), float(odom[-1]["y_m"]) - float(odom[0]["y_m"]))
+    observed_yaw = float(odom[-1]["yaw_rad"]) - float(odom[0]["yaw_rad"])
+    errors = {
+        "primary": {
+            "base_distance_m": abs(primary_metrics["base_distance_m"] - observed_distance),
+            "base_yaw_rad": abs(primary_metrics["base_yaw_rad"] - observed_yaw),
+        },
+        "independent": {
+            "base_distance_m": abs(independent_metrics["base_distance_m"] - observed_distance),
+            "base_yaw_rad": abs(independent_metrics["base_yaw_rad"] - observed_yaw),
+        },
+    }
+    distance_tolerance, yaw_tolerance = 0.05 + 0.10 * abs(observed_distance), 0.10
+    passed = comparison.status == "passed" and all(
+        values["base_distance_m"] <= distance_tolerance and values["base_yaw_rad"] <= yaw_tolerance
+        for values in errors.values()
+    )
+    return {
+        "status": "passed" if passed else "failed", "model_sha256": workspace, "trajectory_sha256": trajectory_sha,
+        "observed": {"base_distance_m": observed_distance, "base_yaw_rad": observed_yaw},
+        "tolerances": {"base_distance_m": distance_tolerance, "base_yaw_rad": yaw_tolerance},
+        "errors": errors,
+        "primary": {"status": primary.status, "metrics": primary_metrics},
+        "independent": {"status": independent.status, "metrics": independent_metrics},
+        "comparison": {
+            "status": comparison.status,
+            "tolerances": comparison_tolerances,
+            "metrics": {metric.name: metric.value for metric in comparison.metrics},
+        },
+    }
+
+
+def require_live_dynamics_crosscheck(capture: object, profile: object) -> dict[str, Any]:
+    """Return the crosscheck or reject it with the exact retained diagnostics."""
+    crosscheck = crosscheck_live_dynamics(capture, profile)
+    if crosscheck["status"] != "passed":
+        raise LiveTraceError("live dynamics crosscheck did not pass: " + canonical_bytes(crosscheck).decode("utf-8"))
+    return crosscheck
+
+
 def _raw_inventory(raw_bag: str | Path) -> list[dict[str, Any]]:
     root = Path(raw_bag)
     if root.is_symlink() or not root.is_dir():
@@ -247,8 +359,12 @@ def _raw_inventory(raw_bag: str | Path) -> list[dict[str, Any]]:
 def publish_live_trace_bundle(output: str | Path, capture: object, profile: object, raw_bag: str | Path) -> BundleReceipt:
     """Publish canonical trace evidence and bind it to a retained raw MCAP bag."""
     result = validate_live_capture(capture, profile)
-    _, _, workspace, sources = _profile(profile)
+    # Authenticate raw evidence before deriving any secondary result so malformed
+    # bags fail at their owning evidence boundary with an actionable diagnostic.
     inventory = _raw_inventory(raw_bag)
+    crosscheck = require_live_dynamics_crosscheck(capture, profile)
+    result["dynamics_crosscheck"] = crosscheck
+    _, _, workspace, sources = _profile(profile)
     files = {
         "index.json": {"schema_version": 1, "kind": "live_simulation_trace"},
         "provenance.json": {
@@ -300,6 +416,15 @@ def validate_retained_live_trace_bundle(bundle: str | Path, receipt: str, raw_ba
         inventory = _raw_inventory(raw_bag)
         if provenance["raw_bag_files"] != inventory:
             return ["raw bag SHA-256 mismatch"]
+        validation = _load_object(root / "validation.json")
+        if (
+            validation.get("kind") != "live_simulation_trace"
+            or validation.get("evidence_level") != "simulated"
+            or validation.get("hardware_promotable") is not False
+            or not isinstance(validation.get("dynamics_crosscheck"), dict)
+            or validation["dynamics_crosscheck"].get("status") != "passed"
+        ):
+            return ["retained live dynamics crosscheck is invalid"]
     except LiveTraceError as exc:
         return [str(exc)]
     return []
