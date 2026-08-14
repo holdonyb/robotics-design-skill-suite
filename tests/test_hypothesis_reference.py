@@ -36,6 +36,9 @@ class ReferenceHypothesisTests(unittest.TestCase):
             REFERENCE / "model" / "load-envelope.json",
             root / "model" / "load-envelope.json",
         )
+        shutil.copytree(
+            REFERENCE / "supplier-catalogs", root / "supplier-catalogs", dirs_exist_ok=True
+        )
         shutil.copy2(REFERENCE / "hypothesis-space.json", root / "hypothesis-space.json")
         output = root / name
         result = run_space(root / "hypothesis-space.json", output, seed=20260813)
