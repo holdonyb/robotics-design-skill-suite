@@ -18,15 +18,15 @@ strictly increasing timestamps, finite numeric cells, and must match its
 declared summary.
 
 An intake report returns `accepted`, `rejected`, or `awaiting_authorization`.
-Only an accepted, hash-bound package earns the `bench-tested` evidence label;
+Only an accepted, hash-bound non-fixture package earns the `bench-tested` evidence label;
 that label supports only its explicit component and measurement claim. It is
 not a purchasing approval, integrated hardware result, task result,
 certification, energization, or motion authorization.
 
 ## Authorization boundary
 
-Test cards in an intake package must be `approved_for_recording`, signed by a
-named authority, and state that physical execution still requires per-run site
+Test cards in an intake package must be `approved_for_recording`, name an
+authority, and state that physical execution still requires per-run site
 authority, reachable E-stop, operators, energy bound and abort criterion. The
 validator confirms a record exists; it does not satisfy these real-world
 preconditions and has no device/control interface.

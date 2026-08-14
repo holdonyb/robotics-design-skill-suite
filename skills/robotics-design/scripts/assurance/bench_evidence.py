@@ -18,6 +18,8 @@ _ROOT = frozenset({"schema_version", "package_id", "fixture_only", "component_id
 _TEST_CARD = frozenset({"id", "status", "authority", "reachable_estop", "energy_limit", "abort_criteria"})
 _INSTRUMENT = frozenset({"id", "calibration_path", "calibration_sha256"})
 _RAW = frozenset({"path", "sha256", "columns", "sample_count", "start_timestamp_ns", "end_timestamp_ns"})
+_MAX_RAW_BYTES = 1024 * 1024
+_MAX_RAW_SAMPLES = 10_000
 
 
 @dataclass(frozen=True)
@@ -49,8 +51,12 @@ def _safe_file(root: Path, value: object, prefix: str | None = None) -> Path | N
     parsed = PurePosixPath(value)
     if not value or parsed.is_absolute() or ".." in parsed.parts or (prefix and (not parsed.parts or parsed.parts[0] != prefix)):
         return None
-    target = root / Path(*parsed.parts)
-    return target if target.is_file() and not target.is_symlink() else None
+    target = root
+    for part in parsed.parts:
+        target = target / part
+        if target.is_symlink():
+            return None
+    return target if target.is_file() else None
 
 
 def _sha(target: Path, expected: object) -> bool:
@@ -98,7 +104,8 @@ def validate_bench_package(root: Path, data: object, component_ids: set[str], re
             try:
                 calibration = load_canonical_json(calibration_path)
                 valid_from, valid_to = _date(calibration.get("valid_from")), _date(calibration.get("valid_to"))
-                if set(calibration) != {"certificate_id", "instrument_id", "valid_from", "valid_to", "measured_columns"} or calibration.get("instrument_id") != instrument.get("id") or observed is None or valid_from is None or valid_to is None or not valid_from <= observed <= valid_to:
+                measured_columns = calibration.get("measured_columns")
+                if set(calibration) != {"certificate_id", "instrument_id", "valid_from", "valid_to", "measured_columns"} or calibration.get("instrument_id") != instrument.get("id") or not isinstance(measured_columns, list) or set(measured_columns) != {"observed_m_s"} or observed is None or valid_from is None or valid_to is None or not valid_from <= observed <= valid_to:
                     findings.append(_finding("BENCH.CALIBRATION_EXPIRED", "instrument", "calibration identity/window does not cover observation"))
             except FreezeSchemaError as exc:
                 findings.append(_finding("BENCH.CALIBRATION_INVALID", "instrument.calibration_path", str(exc)))
@@ -113,10 +120,14 @@ def validate_bench_package(root: Path, data: object, component_ids: set[str], re
             findings.append(_finding("BENCH.RAW_HASH_MISMATCH", "raw_data.sha256", "raw CSV hash does not match"))
         else:
             try:
+                if target.stat().st_size > _MAX_RAW_BYTES:
+                    raise ValueError(f"raw CSV exceeds {_MAX_RAW_BYTES} bytes")
                 with target.open("r", encoding="utf-8", newline="") as handle:
                     rows = list(csv.DictReader(handle))
                 columns = raw.get("columns")
-                if not isinstance(columns, dict) or columns != {"timestamp_ns": "ns", "command_m_s": "m/s", "observed_m_s": "m/s"} or not rows or any(set(row) != set(columns) for row in rows):
+                if len(rows) > _MAX_RAW_SAMPLES:
+                    findings.append(_finding("BENCH.RAW_BOUNDS", "raw_data", f"raw CSV must contain at most {_MAX_RAW_SAMPLES} samples"))
+                elif not isinstance(columns, dict) or columns != {"timestamp_ns": "ns", "command_m_s": "m/s", "observed_m_s": "m/s"} or not rows or any(set(row) != set(columns) for row in rows):
                     findings.append(_finding("BENCH.RAW_COLUMNS", "raw_data", "raw CSV must use exact declared columns and units"))
                 else:
                     timestamps = []
@@ -132,4 +143,5 @@ def validate_bench_package(root: Path, data: object, component_ids: set[str], re
             except (OSError, UnicodeDecodeError, ValueError, csv.Error) as exc:
                 findings.append(_finding("BENCH.RAW_INVALID", "raw_data", f"cannot parse bounded CSV: {exc}"))
     findings.sort(key=lambda item: (item["code"], item["path"], item["message"]))
-    return BenchEvidenceResult("accepted" if not findings else "rejected", "bench-tested" if not findings else None, bool(fixture_only), tuple(findings))
+    evidence_level = "bench-tested" if not findings and fixture_only is False else None
+    return BenchEvidenceResult("accepted" if not findings else "rejected", evidence_level, bool(fixture_only), tuple(findings))
