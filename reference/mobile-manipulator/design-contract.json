@@ -551,6 +551,28 @@
       "evidence_level": "assumed"
     },
     {
+      "id": "Q-BEARING-STATIC-LOAD-J2",
+      "dimension": "force",
+      "value": {
+        "value": 152000,
+        "unit": "N"
+      },
+      "owner": "component:CMP-ARM-BEARING-J2",
+      "source": "evidence:EV-THK-RB16025H",
+      "evidence_level": "parsed"
+    },
+    {
+      "id": "Q-BEARING-DYNAMIC-LOAD-J2",
+      "dimension": "force",
+      "value": {
+        "value": 89400,
+        "unit": "N"
+      },
+      "owner": "component:CMP-ARM-BEARING-J2",
+      "source": "evidence:EV-THK-RB16025H",
+      "evidence_level": "parsed"
+    },
+    {
       "id": "Q-ARM-SAFETY-FACTOR",
       "dimension": "dimensionless",
       "value": {
@@ -2428,10 +2450,19 @@
     {
       "id": "CMP-ARM-BEARING-J2",
       "role": "bearing",
-      "state": "engineering_placeholder",
+      "state": "verified_part",
       "interfaces": [
         "IF-ARM-BEARING-J2"
       ],
+      "manufacturer": "THK",
+      "part_number": "RB16025H",
+      "source_url": "https://tech.thk.com/upload/catalog_claim/pdf/l83e_rbhrehruh.pdf",
+      "source_date": "2026-08-14",
+      "source_evidence": "evidence:EV-THK-RB16025H",
+      "limits": {
+        "static_load": "quantity:Q-BEARING-STATIC-LOAD-J2",
+        "dynamic_load": "quantity:Q-BEARING-DYNAMIC-LOAD-J2"
+      },
       "bindings": [
         "actuator:joint_2"
       ],
@@ -3445,6 +3476,22 @@
         "quantity:Q-THERMAL-ON-CURRENT-J6",
         "quantity:Q-THERMAL-RESISTANCE-J6",
         "quantity:Q-MAX-WINDING-TEMPERATURE-J6"
+      ]
+    },
+    {
+      "id": "EV-THK-RB16025H",
+      "kind": "component_catalog_v1",
+      "level": "parsed",
+      "source": {
+        "path": "supplier-catalogs/thk-rb16025h-2026-08-14.json",
+        "sha256": "6dc5aa824105cffdec4b0967b25769034fc7ea667de0a6d5262636c9f5fb381b"
+      },
+      "locator": "https://tech.thk.com/upload/catalog_claim/pdf/l83e_rbhrehruh.pdf",
+      "observed_date": "2026-08-14",
+      "supports": [
+        "component:CMP-ARM-BEARING-J2",
+        "quantity:Q-BEARING-STATIC-LOAD-J2",
+        "quantity:Q-BEARING-DYNAMIC-LOAD-J2"
       ]
     },
     {

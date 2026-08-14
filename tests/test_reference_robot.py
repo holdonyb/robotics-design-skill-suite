@@ -1,5 +1,6 @@
 import copy
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -90,6 +91,58 @@ class ReferenceRobotTests(unittest.TestCase):
             },
         )
         self.assertTrue(all(item["passed"] for item in report.analyses))
+
+    def test_joint_two_bearing_candidate_is_hash_bound_to_vendor_catalog(self):
+        data = json.loads(
+            (REFERENCE / "design-contract.json").read_text(encoding="utf-8")
+        )
+        bearing = next(item for item in data["components"] if item["id"] == "CMP-ARM-BEARING-J2")
+        self.assertEqual("verified_part", bearing["state"])
+        self.assertEqual("THK", bearing["manufacturer"])
+        self.assertEqual("RB16025H", bearing["part_number"])
+        self.assertEqual(
+            "https://tech.thk.com/upload/catalog_claim/pdf/l83e_rbhrehruh.pdf",
+            bearing["source_url"],
+        )
+        self.assertEqual(
+            {
+                "static_load": "quantity:Q-BEARING-STATIC-LOAD-J2",
+                "dynamic_load": "quantity:Q-BEARING-DYNAMIC-LOAD-J2",
+            },
+            bearing["limits"],
+        )
+        catalog_evidence = next(item for item in data["evidence"] if item["id"] == "EV-THK-RB16025H")
+        self.assertEqual("component_catalog_v1", catalog_evidence["kind"])
+        self.assertEqual("parsed", catalog_evidence["level"])
+        catalog_path = REFERENCE / catalog_evidence["source"]["path"]
+        self.assertEqual(
+            catalog_evidence["source"]["sha256"],
+            __import__("hashlib").sha256(catalog_path.read_bytes()).hexdigest(),
+        )
+        snapshot = json.loads(catalog_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            {"dynamic_load": {"unit": "N", "value": 89400}, "static_load": {"unit": "N", "value": 152000}},
+            snapshot["components"][0]["limits"],
+        )
+        report, errors = evaluate_contract(REFERENCE / "design-contract.json")
+        self.assertEqual([], errors)
+        self.assertFalse(report.promotable)
+
+    def test_tampered_joint_two_bearing_catalog_invalidates_physical_report(self):
+        with tempfile.TemporaryDirectory() as raw:
+            copied = Path(raw) / "reference"
+            shutil.copytree(REFERENCE, copied)
+            catalog = copied / "supplier-catalogs" / "thk-rb16025h-2026-08-14.json"
+            payload = json.loads(catalog.read_text(encoding="utf-8"))
+            payload["components"][0]["limits"]["static_load"]["value"] = 1
+            catalog.write_text(json.dumps(payload), encoding="utf-8")
+            report, errors = evaluate_contract(copied / "design-contract.json")
+        self.assertEqual([], errors)
+        self.assertIsNotNone(report)
+        self.assertIn(
+            "EVIDENCE.STALE_ARTIFACT",
+            {item.code for item in report.diagnostics},
+        )
 
     def test_load_envelope_is_hash_bound_and_downstream_mass_is_monotone(self):
         data = json.loads(
