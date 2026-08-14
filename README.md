@@ -180,7 +180,7 @@ false and is not an integrated-hardware-tested claim.
 
 ## Task and robustness evidence intake
 
-The upcoming v0.9 gate accepts future hash-bound task, fault, endurance, and
+Published v0.9 accepts future hash-bound task, fault, endurance, and
 simulation-to-observation dossiers only after re-running the contract, freeze,
 bench, and commissioning gates. It derives metric summaries, fault
 dispositions, and residual summaries locally; it never marks a task validated.
@@ -193,6 +193,19 @@ python skills/robotics-design/scripts/validate_task_evidence.py \
 The shipped reference index is intentionally empty and exits `1` with
 `awaiting_authorization`. Local evidence validation never authorizes
 procurement, energization, motion, or an empirical task-performance claim.
+
+## v1.0 reproducible public delivery
+
+Version 1.0 binds the published software and evidence surface to a canonical
+release contract. Verify that delivery and the intentionally empty reference
+hardware intakes with:
+
+```bash
+python skills/robotics-design/scripts/validate_release_delivery.py --root . --contract release/v1-release-contract.json
+```
+
+This command verifies public software and evidence delivery; it does not
+validate physical robot performance or authorize hardware.
 
 ## Structure-preserving robot renders
 

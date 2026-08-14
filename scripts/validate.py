@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -105,6 +106,21 @@ def validate() -> list[str]:
     )
     if missing_workflows:
         errors.append("robotics-design workflow gates missing: " + ", ".join(missing_workflows))
+    release_validator = router / "scripts" / "validate_release_delivery.py"
+    release_contract = ROOT / "release" / "v1-release-contract.json"
+    if not release_validator.is_file() or not release_contract.is_file():
+        errors.append("v1 release delivery gate is missing")
+    else:
+        result = subprocess.run(
+            [sys.executable, str(release_validator), "--root", str(ROOT), "--contract", str(release_contract)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        if result.returncode != 0:
+            errors.append("v1 release delivery gate failed: " + (result.stderr or result.stdout).strip())
     return errors
 
 
