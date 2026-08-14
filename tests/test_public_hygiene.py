@@ -142,6 +142,20 @@ class PublicHygieneTests(unittest.TestCase):
         ):
             self.assertIn(phrase, validator)
 
+    def test_distribution_validator_requires_v1_release_delivery_gate(self):
+        validator = (ROOT / "scripts" / "validate.py").read_text(encoding="utf-8")
+        self.assertIn("validate_release_delivery.py", validator)
+        self.assertIn("v1-release-contract.json", validator)
+
+    def test_bilingual_docs_describe_published_v09_and_v1_nonhardware_verification(self):
+        english = (ROOT / "README.md").read_text(encoding="utf-8")
+        chinese = (ROOT / "README.zh-CN.md").read_text(encoding="utf-8")
+        self.assertNotIn("upcoming v0.9", english.lower())
+        self.assertNotIn("即将到来的 v0.9", chinese)
+        for text in (english, chinese):
+            self.assertIn("validate_release_delivery.py", text)
+            self.assertIn("v1.0", text)
+
     def test_tracked_distribution_excludes_generated_bytecode(self):
         completed = subprocess.run(
             ["git", "ls-files", "-z"],

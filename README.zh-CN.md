@@ -139,7 +139,7 @@ python skills/robotics-design/scripts/validate_commissioning_evidence.py \
 
 ## 任务与鲁棒性证据接收
 
-即将到来的 v0.9 门禁只接收未来的、哈希绑定的任务、故障、耐久和仿真对观测 dossier，并会重跑设计契约、工程冻结、台架和 commissioning 门禁。它只在本地汇总 metric、故障处置和残差，绝不会把任务标记为已验证。
+已发布的 v0.9 门禁只接收未来的、哈希绑定的任务、故障、耐久和仿真对观测 dossier，并会重跑设计契约、工程冻结、台架和 commissioning 门禁。它只在本地汇总 metric、故障处置和残差，绝不会把任务标记为已验证。
 
 ```bash
 python skills/robotics-design/scripts/validate_task_evidence.py \
@@ -147,6 +147,16 @@ python skills/robotics-design/scripts/validate_task_evidence.py \
 ```
 
 随附参考索引刻意为空，会以 `awaiting_authorization` 返回退出码 `1`。本地证据验证不授权采购、通电、运动或任何经验性任务性能结论。
+
+## v1.0 可复现公开交付
+
+1.0 版把公开的软件与证据表面绑定到规范的发布合同。可用以下命令验证该交付以及刻意为空的参考硬件 evidence intake：
+
+```bash
+python skills/robotics-design/scripts/validate_release_delivery.py --root . --contract release/v1-release-contract.json
+```
+
+此命令验证公开的软件与证据交付，不验证实体机器人性能，也不授权硬件操作。
 
 ## 结构保真的机器人效果图
 

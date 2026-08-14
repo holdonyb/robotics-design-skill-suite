@@ -118,11 +118,12 @@ def _verify_semantics(root: Path) -> list[ReleaseDeliveryFinding]:
     english = _read_text(root, "README.md", findings)
     chinese = _read_text(root, "README.zh-CN.md", findings)
     if english is not None:
+        normalized_english = " ".join(english.split())
         for phrase in _README_VALIDATORS:
             if phrase not in english:
                 findings.append(_finding("RELEASE.PUBLIC_BOUNDARY", "README.md", f"missing public validator reference: {phrase}"))
         for phrase in ("This command verifies public software and evidence delivery", "does not validate physical robot performance", "authorize hardware"):
-            if phrase not in english:
+            if phrase not in normalized_english:
                 findings.append(_finding("RELEASE.PUBLIC_BOUNDARY", "README.md", f"missing v1 evidence boundary: {phrase}"))
         if "upcoming v0.9" in english.lower():
             findings.append(_finding("RELEASE.PUBLIC_BOUNDARY", "README.md", "published v0.9 must not be described as upcoming"))
