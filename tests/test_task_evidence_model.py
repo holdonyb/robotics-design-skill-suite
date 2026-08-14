@@ -27,6 +27,8 @@ class TaskEvidenceModelTests(unittest.TestCase):
             TaskEvidenceReport("task-evidence-reference", "evidence_complete", [], (), (), ())
         with self.assertRaisesRegex(ValueError, "task_validated"):
             TaskEvidenceReport("task-evidence-reference", "evidence_complete", (), (), (), (), task_validated=True)
+        with self.assertRaisesRegex(ValueError, "metric_summaries"):
+            TaskEvidenceReport("task-evidence-reference", "evidence_complete", (), ({},), (), ())
 
 
 if __name__ == "__main__":
