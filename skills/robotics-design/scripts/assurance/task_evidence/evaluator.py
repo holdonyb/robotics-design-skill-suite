@@ -64,6 +64,8 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
     if not isinstance(packages, list) or not packages:
         findings.append(TaskEvidenceFinding("TASK.AUTHORIZATION_REQUIRED", "indeterminate", "packages", "no task package is supplied")); packages = []
     package_ids: set[str] = set()
+    raw_hashes: set[str] = set()
+    trial_identities: set[tuple[str, tuple[tuple[str, float], ...], int, str | None]] = set()
     nominal_coverage: set[tuple[tuple[tuple[str, float], ...], int]] = set()
     fault_coverage: set[tuple[tuple[tuple[str, float], ...], int, str]] = set()
     expected_envelope = {axis.id: set(axis.values) for axis in protocol.envelope}
@@ -86,6 +88,19 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
             findings.append(_finding("TASK.PACKAGE_INVALID", path, "kind, disposition, and repetition are invalid")); continue
         if package["disposition"] != "passed":
             findings.append(_finding("TASK.TRIAL_NOT_PASSED", f"{path}.disposition", "only a passed trial can satisfy task evidence coverage"))
+        for field in ("fault_record", "endurance_record", "comparison_record", "command_trace", "state_trace", "task_trace", "metric_trace"):
+            record = package.get(field)
+            if record is None:
+                continue
+            if not isinstance(record, dict):
+                continue
+            try:
+                raw_hash = validate_sha256(record.get("sha256"), f"{path}.{field}.sha256")
+            except ValueError:
+                continue
+            if raw_hash in raw_hashes:
+                findings.append(_finding("TASK.RAW_HASH_DUPLICATE", f"{path}.{field}", "raw trace hashes must be globally unique"))
+            raw_hashes.add(raw_hash)
         fault_profiles = {item.id: item for item in protocol.faults}
         if package["kind"] == "nominal" and (package.get("fault_id") is not None or package.get("fault_record") is not None):
             findings.append(_finding("TASK.PACKAGE_INVALID", path, "nominal trials must not carry fault evidence"))
@@ -139,7 +154,13 @@ def evaluate_task_packages(root: Path, protocol: TaskProtocol, packages: object)
         envelope_valid = isinstance(envelope, dict) and set(envelope) == set(expected_envelope) and not any(not _finite(value) or float(value) not in expected_envelope[name] for name, value in envelope.items())
         if not envelope_valid:
             findings.append(_finding("TASK.ENVELOPE_INVALID", f"{path}.envelope", "envelope must match declared protocol values"))
-        elif package["disposition"] == "passed":
+        else:
+            point = tuple(sorted((name, float(value)) for name, value in envelope.items()))
+            identity = (package["kind"], point, package["repetition"], package.get("fault_id"))
+            if identity in trial_identities:
+                findings.append(_finding("TASK.TRIAL_IDENTITY_DUPLICATE", path, "kind, envelope, repetition, and fault identity must be globally unique"))
+            trial_identities.add(identity)
+        if envelope_valid and package["disposition"] == "passed":
             point = tuple(sorted((name, float(value)) for name, value in envelope.items()))
             if package["kind"] == "nominal":
                 nominal_coverage.add((point, package["repetition"]))

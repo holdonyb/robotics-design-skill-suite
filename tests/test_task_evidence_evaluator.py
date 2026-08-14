@@ -30,29 +30,29 @@ def bind(root, name, value):
     return {"path": name, "sha256": hashlib.sha256(payload).hexdigest()}
 
 
-def nominal(root):
-    command = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "speed_m_s": 0.1, "torque_nm": 0.2, "watchdog_healthy": True}]}
-    state = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "speed_m_s": 0.1, "torque_nm": 0.2, "watchdog_healthy": True}]}
-    task = {"schema_version": 1, "events": [{"timestamp_ns": 0, "phase": "approach", "completed": False}, {"timestamp_ns": 1, "phase": "grasp", "completed": False}, {"timestamp_ns": 2, "phase": "place", "completed": True}]}
-    metrics = {"schema_version": 1, "events": [{"timestamp_ns": 0, "metric_id": "completion-time", "value": 2.0}]}
-    return {"schema_version": 1, "package_id": "trial-001", "kind": "nominal", "envelope": {"payload": 1.0}, "repetition": 1, "fault_id": None, "fault_record": None, "endurance_record": None, "comparison_record": None, "command_trace": bind(root, "traces/command.json", command), "state_trace": bind(root, "traces/state.json", state), "task_trace": bind(root, "traces/task.json", task), "metric_trace": bind(root, "traces/metrics.json", metrics), "disposition": "passed"}
+def nominal(root, *, package_id="trial-001", timestamp_ns=0):
+    command = {"schema_version": 1, "events": [{"timestamp_ns": timestamp_ns, "phase": "approach", "speed_m_s": 0.1, "torque_nm": 0.2, "watchdog_healthy": True}]}
+    state = {"schema_version": 1, "events": [{"timestamp_ns": timestamp_ns, "phase": "approach", "speed_m_s": 0.11, "torque_nm": 0.2, "watchdog_healthy": True}]}
+    task = {"schema_version": 1, "events": [{"timestamp_ns": timestamp_ns, "phase": "approach", "completed": False}, {"timestamp_ns": timestamp_ns + 1, "phase": "grasp", "completed": False}, {"timestamp_ns": timestamp_ns + 2, "phase": "place", "completed": True}]}
+    metrics = {"schema_version": 1, "events": [{"timestamp_ns": timestamp_ns, "metric_id": "completion-time", "value": 2.0}]}
+    return {"schema_version": 1, "package_id": package_id, "kind": "nominal", "envelope": {"payload": 1.0}, "repetition": 1, "fault_id": None, "fault_record": None, "endurance_record": None, "comparison_record": None, "command_trace": bind(root, f"traces/{package_id}/command.json", command), "state_trace": bind(root, f"traces/{package_id}/state.json", state), "task_trace": bind(root, f"traces/{package_id}/task.json", task), "metric_trace": bind(root, f"traces/{package_id}/metrics.json", metrics), "disposition": "passed"}
 
 
 def fault(root):
-    value = nominal(root)
-    value.update({"package_id": "fault-001", "kind": "fault", "fault_id": "timeout-fault", "fault_record": bind(root, "traces/fault.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "fault_id": "timeout-fault", "detected": True, "safe_state": "motion_inhibited", "recovery": "manual-inspection"}]})})
+    value = nominal(root, package_id="fault-001", timestamp_ns=10)
+    value.update({"kind": "fault", "fault_id": "timeout-fault", "fault_record": bind(root, "traces/fault-001/fault.json", {"schema_version": 1, "events": [{"timestamp_ns": 10, "fault_id": "timeout-fault", "detected": True, "safe_state": "motion_inhibited", "recovery": "manual-inspection"}]})})
     return value
 
 
 def endurance(root):
-    value = nominal(root)
-    value.update({"package_id": "endurance-001", "kind": "endurance", "endurance_record": bind(root, "traces/endurance.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "health": 1.0, "terminal": False}, {"timestamp_ns": 1_000_000_000, "health": 0.99, "terminal": True}]})})
+    value = nominal(root, package_id="endurance-001", timestamp_ns=20)
+    value.update({"kind": "endurance", "endurance_record": bind(root, "traces/endurance-001/endurance.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "health": 1.0, "terminal": False}, {"timestamp_ns": 1_000_000_000, "health": 0.99, "terminal": True}]})})
     return value
 
 
 def comparison(root):
-    value = nominal(root)
-    value.update({"package_id": "comparison-001", "kind": "comparison", "comparison_record": bind(root, "traces/comparison.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "quantity_id": "base-speed", "simulated": 0.10, "observed": 0.12}, {"timestamp_ns": 1, "quantity_id": "base-speed", "simulated": 0.20, "observed": 0.18}]})})
+    value = nominal(root, package_id="comparison-001", timestamp_ns=30)
+    value.update({"kind": "comparison", "comparison_record": bind(root, "traces/comparison-001/comparison.json", {"schema_version": 1, "events": [{"timestamp_ns": 0, "quantity_id": "base-speed", "simulated": 0.10, "observed": 0.12}, {"timestamp_ns": 1, "quantity_id": "base-speed", "simulated": 0.20, "observed": 0.18}]})})
     return value
 
 
@@ -174,6 +174,19 @@ class TaskEvidenceEvaluatorTests(unittest.TestCase):
             result = evaluate_task_packages(root, value, [nominal(root)])
         self.assertEqual("rejected", result.status)
         self.assertIn("TASK.FAULT_MISSING", {item.code for item in result.findings})
+
+    def test_duplicate_raw_hash_and_trial_identity_are_rejected(self):
+        value, _ = validate_task_protocol(minimal_protocol())
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            first = nominal(root)
+            duplicate = nominal(root, package_id="trial-002", timestamp_ns=100)
+            duplicate["command_trace"] = first["command_trace"]
+            result = evaluate_task_packages(root, value, [first, duplicate, fault(root)])
+        self.assertEqual("rejected", result.status)
+        codes = {item.code for item in result.findings}
+        self.assertIn("TASK.RAW_HASH_DUPLICATE", codes)
+        self.assertIn("TASK.TRIAL_IDENTITY_DUPLICATE", codes)
 
 
 if __name__ == "__main__":
