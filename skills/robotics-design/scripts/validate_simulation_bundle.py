@@ -31,10 +31,14 @@ from assurance.simulation.backend import (
 from assurance.simulation.calibration import fit_calibration, load_calibration_dataset
 from assurance.simulation.artifacts import validate_ros_workspace_manifest
 from assurance.simulation.model import TraceSample
-from assurance.simulation.scenario import CompiledScenario, compile_scenarios, load_scenario_registry
+from assurance.simulation.scenario import CompiledScenario
 from assurance.simulation.trace import TraceError, publish_trace_bundle, replay_trace_bundle
 from assurance.simulation.training import evaluate_policy, validate_training_contract
 from assurance.simulation.replay_features import ReplayFeatureError, extract_replay_features
+from assurance.simulation.trusted_registry import (
+    TrustedRegistryError,
+    load_reference_trusted_scenario_registry,
+)
 
 
 class BenchmarkError(ValueError):
@@ -463,8 +467,11 @@ def run_reference_benchmark(
     if admission["status"] != "simulation_admitted" or admission["hardware_promotable"] is not False:
         raise BenchmarkError("reference candidate is not simulation-admitted with hardware disabled")
 
-    registry = load_scenario_registry(root / "simulation" / "scenarios.json")
-    scenarios = compile_scenarios(registry)
+    try:
+        trusted_registry = load_reference_trusted_scenario_registry(root)
+    except TrustedRegistryError as exc:
+        raise BenchmarkError("reference scenario registry receipt validation failed: " + str(exc)) from None
+    scenarios = trusted_registry.scenarios
     if len(scenarios) != 10:
         raise BenchmarkError("reference registry must compile exactly ten scenarios")
     replayed: list[tuple[CompiledScenario, Path, str]] = []

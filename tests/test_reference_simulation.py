@@ -19,6 +19,15 @@ from validate_simulation_bundle import (  # noqa: E402
 
 
 class ReferenceSimulationTests(unittest.TestCase):
+    def test_reference_benchmark_rejects_scenario_registry_not_matching_owner_receipt(self):
+        with tempfile.TemporaryDirectory() as raw:
+            copied = Path(raw) / "reference"
+            shutil.copytree(ROOT / "reference" / "mobile-manipulator", copied)
+            path = copied / "simulation" / "scenarios.json"
+            path.write_bytes(path.read_bytes() + b"\n")
+            with self.assertRaisesRegex(BenchmarkError, "external receipt"):
+                run_reference_benchmark(copied)
+
     def test_backend_profile_is_extracted_from_bound_ros_workspace(self):
         profile = _load_backend_profile(ROOT / "reference" / "mobile-manipulator")
         self.assertEqual(0.15, profile["wheel_radius_m"])

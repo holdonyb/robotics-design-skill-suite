@@ -15,6 +15,13 @@ from .admission import evaluate_simulation_admission
 from .artifacts import validate_artifact_manifest
 from .schema import load_simulation_contract, validate_simulation_contract
 from .scenario import CompiledScenario, ScenarioError, compile_scenarios, load_scenario_registry
+from .trusted_registry import (
+    REFERENCE_SCENARIO_REGISTRY_RECEIPT,
+    TrustedRegistryError,
+    TrustedScenarioRegistry,
+    load_reference_trusted_scenario_registry,
+    load_trusted_scenario_registry,
+)
 from .trace import TraceError, publish_trace_bundle, replay_trace_bundle
 from .backend import BackendError, BackendMetric, BackendResult, compare_backends, evaluate_independent_dynamics, evaluate_trace_kinematics
 from .calibration import CalibrationError, CalibrationResult, fit_calibration, load_calibration_dataset
@@ -39,6 +46,11 @@ __all__ = [
     "ScenarioError",
     "compile_scenarios",
     "load_scenario_registry",
+    "TrustedRegistryError",
+    "TrustedScenarioRegistry",
+    "REFERENCE_SCENARIO_REGISTRY_RECEIPT",
+    "load_reference_trusted_scenario_registry",
+    "load_trusted_scenario_registry",
     "TraceError",
     "publish_trace_bundle",
     "replay_trace_bundle",
