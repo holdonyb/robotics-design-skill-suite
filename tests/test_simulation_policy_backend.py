@@ -80,6 +80,13 @@ class PolicyBackendTests(unittest.TestCase):
                 execute_policy(forged, self.observation)
             self.assertFalse(launch.called)
 
+    def test_rejects_oversized_integer_observation_before_launching_worker(self):
+        observation = {"joint-1": 1 << 10_000, "wheel-rate": -0.2}
+        with mock.patch.object(policy_backend, "_run_worker") as launch:
+            with self.assertRaisesRegex(PolicyBackendError, "observation.joint-1"):
+                execute_policy(self.artifact, observation)
+            self.assertFalse(launch.called)
+
     def test_worker_computes_closed_scalar_math(self):
         request = canonical_bytes(
             {"artifact": self.artifact.payload, "observation": self.observation}
@@ -218,6 +225,12 @@ class PolicyBackendTests(unittest.TestCase):
             with self.subTest(timeout=timeout):
                 with self.assertRaisesRegex(PolicyBackendError, "timeout"):
                     execute_policy(self.artifact, self.observation, timeout_s=timeout)
+
+    def test_rejects_oversized_integer_timeout_before_launching_worker(self):
+        with mock.patch.object(policy_backend, "_run_worker") as launch:
+            with self.assertRaisesRegex(PolicyBackendError, "timeout"):
+                execute_policy(self.artifact, self.observation, timeout_s=1 << 10_000)
+            self.assertFalse(launch.called)
 
     def test_bounded_pipe_reader_marks_overflow_without_retaining_full_output(self):
         reader = policy_backend._BoundedPipeReader(io.BytesIO(b"x" * 64), 16)

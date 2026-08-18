@@ -167,7 +167,10 @@ def _worker_environment() -> dict[str, str]:
 def _timeout(value: object) -> float:
     if type(value) not in (int, float):
         raise PolicyBackendError("timeout must be a finite number")
-    result = float(value)
+    try:
+        result = float(value)
+    except (OverflowError, TypeError, ValueError):
+        raise PolicyBackendError("timeout must be a finite number") from None
     if not math.isfinite(result) or result <= 0 or result > MAX_TIMEOUT_S:
         raise PolicyBackendError(
             f"timeout must be greater than zero and at most {MAX_TIMEOUT_S:g} seconds"
@@ -178,7 +181,10 @@ def _timeout(value: object) -> float:
 def _finite_observation(value: object, path: str) -> float:
     if type(value) not in (int, float):
         raise PolicyBackendError(f"{path} must be a finite number")
-    result = float(value)
+    try:
+        result = float(value)
+    except (OverflowError, TypeError, ValueError):
+        raise PolicyBackendError(f"{path} must be a finite number") from None
     if not math.isfinite(result):
         raise PolicyBackendError(f"{path} must be a finite number")
     if abs(result) > _MAX_ABSOLUTE_OBSERVATION:
