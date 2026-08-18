@@ -90,6 +90,9 @@ class TrainingTests(unittest.TestCase):
             (lambda value: value["samples"][1]["state"].__setitem__("right_wheel_rad_s", float("inf")), "finite"),
             (lambda value: value["metrics"].append(value["metrics"][0].copy()), "duplicate"),
             (lambda value: value.__setitem__("status", "failed"), "passed"),
+            (lambda value: value.__setitem__("evidence_level", "claimed_hardware"), "evidence"),
+            (lambda value: value.__setitem__("environment_sha256", "not-a-sha"), "environment"),
+            (lambda value: value["metrics"][1].__setitem__("value", -0.01), "final_joint_error"),
         )
         for mutate, expected in attacks:
             with self.subTest(expected=expected):

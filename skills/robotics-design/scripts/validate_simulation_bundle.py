@@ -34,6 +34,7 @@ from assurance.simulation.model import TraceSample
 from assurance.simulation.scenario import compile_scenarios, load_scenario_registry
 from assurance.simulation.trace import publish_trace_bundle, replay_trace_bundle
 from assurance.simulation.training import evaluate_policy, validate_training_contract
+from assurance.simulation.replay_features import ReplayFeatureError, extract_replay_features
 
 
 class BenchmarkError(ValueError):
@@ -318,46 +319,31 @@ def _load_backend_profile(root: Path) -> dict[str, Any]:
 def _backend_input(replay: dict[str, Any], profile: dict[str, Any]) -> dict[str, object]:
     """Use receipt-validated replay samples as the backend-consumer input."""
     try:
-        identity = {
-            "scenario_id": replay["scenario_id"],
-            "trace_sha256": replay["trace_sha256"],
-            "model_sha256": replay["model_sha256"],
-            "trajectory_sha256": replay["trajectory_sha256"],
-        }
-    except (KeyError, TypeError) as exc:
-        raise BenchmarkError(f"replayed trace lacks required provenance: {exc}") from None
-    if not isinstance(identity["scenario_id"], str) or not identity["scenario_id"]:
-        raise BenchmarkError("replayed trace scenario provenance is invalid")
-    try:
-        for field in ("trace_sha256", "model_sha256", "trajectory_sha256"):
-            validate_sha256(identity[field], f"replay.{field}")
-    except ValueError as exc:
-        raise BenchmarkError(f"replayed trace provenance is invalid: {exc}") from None
-    samples = replay["samples"]
-    try:
-        timestamps = [item["timestamp_ns"] for item in samples]
-        left = [item["state"]["left_wheel_rad_s"] for item in samples]
-        right = [item["state"]["right_wheel_rad_s"] for item in samples]
-    except (KeyError, TypeError) as exc:
-        raise BenchmarkError(f"replayed trace lacks required wheel state: {exc}") from None
-    for name, values in (("left_wheel_rad_s", left), ("right_wheel_rad_s", right)):
-        if any(type(value) not in (int, float) or not math.isfinite(float(value)) for value in values):
-            raise BenchmarkError(f"replayed trace wheel state {name} must contain finite numbers")
+        features = extract_replay_features(replay, require_passed=False)
+    except ReplayFeatureError as exc:
+        message = str(exc)
+        if "state." in message:
+            message = "replayed trace wheel state is invalid: " + message
+        elif message == "replay fields are not closed":
+            message = "replayed trace provenance is invalid: " + message
+        else:
+            message = "replayed trace cannot produce backend input: " + message
+        raise BenchmarkError(message) from None
     return {
-        "model_sha256": identity["model_sha256"],
-        "trajectory_sha256": identity["trajectory_sha256"],
+        "model_sha256": features.model_sha256,
+        "trajectory_sha256": features.trajectory_sha256,
         "units": "si",
-        "timestamps_ns": timestamps,
-        "left_wheel_rad_s": left,
-        "right_wheel_rad_s": right,
+        "timestamps_ns": list(features.timestamps_ns),
+        "left_wheel_rad_s": list(features.left_wheel_rad_s),
+        "right_wheel_rad_s": list(features.right_wheel_rad_s),
         "wheel_radius_m": profile["wheel_radius_m"],
         "wheel_separation_m": profile["wheel_separation_m"],
         "wheel_speed_limit_rad_s": profile["wheel_speed_limit_rad_s"],
         "mass_kg": profile["mass_kg"],
         "slope_rad": 0.0,
         "brake_deceleration_m_s2": profile["brake_deceleration_m_s2"],
-        "joint_final_rad": replay["samples"][-1]["positions"],
-        "joint_target_rad": [0.0] * len(replay["joint_order"]),
+        "joint_final_rad": list(features.positions[-1]),
+        "joint_target_rad": [0.0] * len(features.joint_order),
         "joint_error_limit_rad": 0.01,
     }
 
@@ -398,18 +384,47 @@ def _crosscheck_record(replay: dict[str, Any], profile: dict[str, Any]) -> dict[
     }
 
 
-def _training_result(root: Path) -> dict[str, Any]:
+def _training_result(root: Path, replayed: list[dict[str, Any]]) -> dict[str, Any]:
     contract = _load_json(root / "simulation" / "training-contract.json")
     errors = validate_training_contract(contract)
     if errors:
         raise BenchmarkError("training contract is invalid: " + "; ".join(errors))
+    by_scenario = {item.get("scenario_id"): item for item in replayed}
+    passed_replays = [item for item in replayed if item.get("status") == "passed"]
+    expected_cases = [
+        ("train", seed, None) for seed in contract["train_seeds"]
+    ] + [
+        ("evaluation", seed, None) for seed in contract["evaluation_seeds"]
+    ] + [
+        ("held_out", seed, fault)
+        for fault in contract["held_out_faults"]
+        for seed in contract["evaluation_seeds"]
+    ]
+    ordinary_cases = [case for case in expected_cases if case[0] != "held_out"]
+    if len(passed_replays) < len(ordinary_cases):
+        raise BenchmarkError("training has too few passed replay traces for required cases")
+    held_replay = by_scenario.get("scenario-10")
+    if not isinstance(held_replay, dict) or held_replay.get("status") != "passed":
+        raise BenchmarkError("training trace assignment requires passed fault scenario-10")
+    assignments = []
+    ordinary_index = 0
+    for phase, seed, fault_id in expected_cases:
+        if phase == "held_out":
+            replay = held_replay
+        else:
+            replay = passed_replays[ordinary_index]
+            ordinary_index += 1
+        assignments.append(
+            {"phase": phase, "seed": seed, "fault_id": fault_id, "replay": replay}
+        )
     result = evaluate_policy(
         contract,
-        lambda _: {"linear_m_s": 0.2, "angular_rad_s": 0.0, "final_joint_error_rad": 0.0},
+        lambda _: {"linear_m_s": 0.2, "angular_rad_s": 0.0},
         {
             "remaining_blockers": list(contract["physical_blockers"]),
             "hardware_promotable": False,
         },
+        assignments,
     ).to_dict()
     if result["evidence_level"] != "simulated" or result["status"] != "not_justified":
         raise BenchmarkError("training firewall did not retain simulated/not_justified evidence")
@@ -458,7 +473,7 @@ def run_reference_benchmark(
     calibration = fit_calibration(
         load_calibration_dataset(root / "simulation" / "calibration-synthetic.json")
     )
-    training = _training_result(root)
+    training = _training_result(root, replayed)
     return {
         "schema_version": 1,
         "kind": "portable_reference_simulation",

@@ -35,18 +35,22 @@ def _finite(value: object, name: str) -> float:
     return float(value)
 
 
-def _metric_value(metrics: object, name: str, unit: str) -> float:
+def _metric_value(metrics: object, name: str, unit: str, *, require_passed: bool) -> float:
     if not isinstance(metrics, list):
         raise ReplayFeatureError("replay metrics must be a list")
     values: dict[str, float] = {}
+    metric_names: set[str] = set()
     for index, metric in enumerate(metrics):
         if not isinstance(metric, dict) or set(metric) != _METRIC_FIELDS:
             raise ReplayFeatureError(f"replay metrics[{index}] fields are invalid")
         metric_name = metric.get("name")
-        if not isinstance(metric_name, str) or metric_name in values:
+        if not isinstance(metric_name, str) or metric_name in metric_names:
             raise ReplayFeatureError("replay metrics contains duplicate or invalid names")
-        if metric.get("status") != "passed":
+        metric_names.add(metric_name)
+        if require_passed and metric.get("status") != "passed":
             raise ReplayFeatureError(f"replay metric {metric_name} is not passed")
+        if not require_passed and metric.get("status") not in {"passed", "failed"}:
+            raise ReplayFeatureError(f"replay metric {metric_name} has invalid status")
         if metric_name == name:
             if metric.get("unit") != unit:
                 raise ReplayFeatureError(f"replay metric {name} unit is invalid")
@@ -104,17 +108,26 @@ class ReplayFeatures:
         }
 
 
-def extract_replay_features(value: object) -> ReplayFeatures:
+def extract_replay_features(value: object, *, require_passed: bool = True) -> ReplayFeatures:
     """Decode a successful replay without accepting caller-reported outcomes."""
 
+    if type(require_passed) is not bool:
+        raise ReplayFeatureError("require_passed must be boolean")
     if not isinstance(value, dict) or set(value) != _REPLAY_FIELDS:
         raise ReplayFeatureError("replay fields are not closed")
-    if value.get("status") != "passed":
+    if require_passed and value.get("status") != "passed":
         raise ReplayFeatureError("replay status must be passed")
+    if not require_passed and value.get("status") not in {"passed", "failed"}:
+        raise ReplayFeatureError("replay status must be passed or failed")
+    if value.get("evidence_level") not in {"simulated", "calibrated_simulation"}:
+        raise ReplayFeatureError("replay evidence_level is invalid")
+    if not isinstance(value.get("diagnostics"), list):
+        raise ReplayFeatureError("replay diagnostics must be a list")
     try:
         scenario_id = validate_identifier(value["scenario_id"], "replay.scenario_id")
         model_sha256 = validate_sha256(value["model_sha256"], "replay.model_sha256")
         trajectory_sha256 = validate_sha256(value["trajectory_sha256"], "replay.trajectory_sha256")
+        validate_sha256(value["environment_sha256"], "replay.environment_sha256")
         trace_sha256 = validate_sha256(value["trace_sha256"], "replay.trace_sha256")
     except (KeyError, ValueError) as exc:
         raise ReplayFeatureError(f"replay provenance is invalid: {exc}") from None
@@ -162,10 +175,12 @@ def extract_replay_features(value: object) -> ReplayFeatures:
         timestamps.append(timestamp)
 
     elapsed = (timestamps[-1] - timestamps[0]) / 1_000_000_000
-    metric_elapsed = _metric_value(value.get("metrics"), "elapsed_time", "s")
+    metric_elapsed = _metric_value(value.get("metrics"), "elapsed_time", "s", require_passed=require_passed)
     if not math.isclose(metric_elapsed, elapsed, rel_tol=0.0, abs_tol=1e-12):
         raise ReplayFeatureError("replay elapsed_time metric disagrees with samples")
-    final_error = _metric_value(value.get("metrics"), "final_joint_error", "rad")
+    final_error = _metric_value(value.get("metrics"), "final_joint_error", "rad", require_passed=require_passed)
+    if final_error < 0:
+        raise ReplayFeatureError("replay final_joint_error must be non-negative")
     left_travel = right_travel = progress = effort = 0.0
     for index in range(1, len(timestamps)):
         dt = (timestamps[index] - timestamps[index - 1]) / 1_000_000_000

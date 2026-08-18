@@ -10,6 +10,12 @@ ROS 2, and simulation skills to audited commits.
 
 ## Live State
 
+- Current post-v0.9 checkpoint: `cf3b8c7` is the latest merged main revision.
+  It retains a Jazzy/Harmonic turn-and-yaw live trace with stable physics-time
+  MCAP stamps. The next portable change makes training reward/joint checks and
+  cross-backend inputs derive from the same receipt-validated replay features;
+  it remains simulated-only and has not changed procurement or motion authority.
+
 - Public release: `v0.9.0`; pull request `#12` merged as `ffb22ab`, annotated
   tag `v0.9.0` and [GitHub Release](https://github.com/holdonyb/robotics-design-skill-suite/releases/tag/v0.9.0)
   are published. Reviewed-head CI `31767007295`, reviewed-head live gate

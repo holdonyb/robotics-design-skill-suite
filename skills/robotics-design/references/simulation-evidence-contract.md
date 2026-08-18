@@ -35,10 +35,13 @@ does not authorize hardware motion.
 Training contracts close observation/action schemas, SI frames and rates,
 reward/constraints, episode/step/time/memory caps, distinct train/evaluation
 seeds, uncertainty-owned randomization, held-out faults, baseline reward, and
-physical blockers. The callback receives only copied synthetic observations.
-It is exercised across train, evaluation, and held-out cases, but the returned
-record is always `simulated` and `not_justified`; it has no hardware-promotion
-field.
+physical blockers. Each case binds one receipt-validated replay. The callback
+receives only the trace-native final joint/wheel observation and may return only
+the bounded base action; it cannot report reward, displacement, or joint error.
+Visible `wheel_progress` and `wheel_effort` weights and the hard joint-error
+gate are recomputed from replay samples. The returned record binds consumed
+trace hashes, is always `simulated` and `not_justified`, and has no
+hardware-promotion field.
 
 ## Live consumer and hardware boundary
 

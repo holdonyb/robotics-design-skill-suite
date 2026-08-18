@@ -47,6 +47,16 @@ class ReferenceSimulationTests(unittest.TestCase):
         self.assertEqual("not_justified", report["training"]["status"])
         self.assertNotIn("hardware_promotable", report["training"])
 
+    def test_training_and_backend_consume_receipt_bound_replay_hashes(self):
+        report = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")
+        replay_hashes = {item["trace_sha256"] for item in report["replays"]}
+        self.assertEqual(6, len(report["training"]["trace_sha256s"]))
+        self.assertTrue(set(report["training"]["trace_sha256s"]).issubset(replay_hashes))
+        self.assertEqual(
+            [item["trace_sha256"] for item in report["replays"]],
+            [item["trace_sha256"] for item in report["backend_crosschecks"]],
+        )
+
     def test_reference_failure_is_a_valid_nonzero_result_not_an_invalid_bundle(self):
         report = run_reference_benchmark(
             ROOT / "reference" / "mobile-manipulator", force_failed_scenario=True
