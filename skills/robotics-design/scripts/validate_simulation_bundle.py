@@ -30,9 +30,9 @@ from assurance.simulation.backend import (
 )
 from assurance.simulation.calibration import fit_calibration, load_calibration_dataset
 from assurance.simulation.artifacts import validate_ros_workspace_manifest
-from assurance.simulation.model import SimulationResult, TraceSample
+from assurance.simulation.model import TraceSample
 from assurance.simulation.scenario import CompiledScenario, compile_scenarios, load_scenario_registry
-from assurance.simulation.trace import publish_trace_bundle, replay_trace_bundle
+from assurance.simulation.trace import TraceError, publish_trace_bundle, replay_trace_bundle
 from assurance.simulation.training import evaluate_policy, validate_training_contract
 from assurance.simulation.replay_features import ReplayFeatureError, extract_replay_features
 
@@ -316,11 +316,12 @@ def _load_backend_profile(root: Path) -> dict[str, Any]:
     }
 
 
-def _backend_input(replay: SimulationResult, profile: dict[str, Any]) -> dict[str, object]:
+def _backend_input(bundle_root: str | Path, manifest_sha256: str, profile: dict[str, Any]) -> dict[str, object]:
     """Use receipt-validated replay samples as the backend-consumer input."""
     try:
+        replay = replay_trace_bundle(bundle_root, manifest_sha256)
         features = extract_replay_features(replay, require_passed=False)
-    except ReplayFeatureError as exc:
+    except (ReplayFeatureError, TraceError, TypeError, ValueError, OSError) as exc:
         raise BenchmarkError("receipt-validated replay cannot produce backend input: " + str(exc)) from None
     return {
         "model_sha256": features.model_sha256,
@@ -358,8 +359,12 @@ def _backend_result(result: Any) -> dict[str, Any]:
     }
 
 
-def _crosscheck_record(replay: SimulationResult, profile: dict[str, Any]) -> dict[str, Any]:
-    backend_trace = _backend_input(replay, profile)
+def _crosscheck_record(bundle_root: str | Path, manifest_sha256: str, profile: dict[str, Any]) -> dict[str, Any]:
+    try:
+        replay = replay_trace_bundle(bundle_root, manifest_sha256)
+    except (TraceError, TypeError, ValueError, OSError) as exc:
+        raise BenchmarkError("receipt-validated replay cannot produce a crosscheck: " + str(exc)) from None
+    backend_trace = _backend_input(bundle_root, manifest_sha256, profile)
     primary = evaluate_trace_kinematics(backend_trace)
     independent = evaluate_independent_dynamics(backend_trace)
     tolerances = {metric.name: 1e-9 for metric in primary.metrics}
@@ -377,7 +382,9 @@ def _crosscheck_record(replay: SimulationResult, profile: dict[str, Any]) -> dic
     }
 
 
-def _training_result(root: Path, replayed: list[tuple[CompiledScenario, SimulationResult]]) -> dict[str, Any]:
+def _training_result(
+    root: Path, replayed: list[tuple[CompiledScenario, Path, str]]
+) -> dict[str, Any]:
     contract = _load_json(root / "simulation" / "training-contract.json")
     errors = validate_training_contract(contract)
     if errors:
@@ -395,14 +402,18 @@ def _training_result(root: Path, replayed: list[tuple[CompiledScenario, Simulati
     for phase, seed, fault_id in expected_cases:
         expected_faults = () if fault_id is None else (fault_id,)
         matches = [
-            (scenario, replay)
-            for scenario, replay in replayed
+            (scenario, bundle_root, manifest_sha256)
+            for scenario, bundle_root, manifest_sha256 in replayed
             if scenario.seed == seed
             and tuple(item["fault_id"] for item in scenario.faults) == expected_faults
         ]
         if len(matches) != 1:
             raise BenchmarkError("training trace assignment requires exactly one matching scenario case")
-        scenario, replay = matches[0]
+        scenario, bundle_root, manifest_sha256 = matches[0]
+        try:
+            replay = replay_trace_bundle(bundle_root, manifest_sha256)
+        except (TraceError, TypeError, ValueError, OSError) as exc:
+            raise BenchmarkError("training receipt revalidation failed: " + str(exc)) from None
         if replay.status != "passed":
             return {
                 "status": "not_justified",
@@ -415,7 +426,14 @@ def _training_result(root: Path, replayed: list[tuple[CompiledScenario, Simulati
                 "reason": "not_evaluated",
             }
         assignments.append(
-            {"phase": phase, "seed": seed, "fault_id": fault_id, "scenario": scenario, "replay": replay}
+            {
+                "phase": phase,
+                "seed": seed,
+                "fault_id": fault_id,
+                "scenario": scenario,
+                "bundle_root": str(bundle_root),
+                "manifest_sha256": manifest_sha256,
+            }
         )
     result = evaluate_policy(
         contract,
@@ -449,7 +467,7 @@ def run_reference_benchmark(
     scenarios = compile_scenarios(registry)
     if len(scenarios) != 10:
         raise BenchmarkError("reference registry must compile exactly ten scenarios")
-    replayed: list[tuple[CompiledScenario, SimulationResult]] = []
+    replayed: list[tuple[CompiledScenario, Path, str]] = []
     with tempfile.TemporaryDirectory(prefix="robotics-design-reference-") as raw:
         temporary = Path(raw)
         for index, scenario in enumerate(scenarios):
@@ -458,23 +476,27 @@ def run_reference_benchmark(
                 scenario,
                 _samples_for(scenario, failed=force_failed_scenario and index == 0),
             )
-            replayed.append((
-                scenario,
-                replay_trace_bundle(temporary / scenario.scenario_id, receipt.manifest_sha256),
-            ))
-    replayed.sort(key=lambda item: item[0].scenario_id)
-    replay_dicts = [item.to_dict() for _, item in replayed]
-    passed = sum(item.status == "passed" for _, item in replayed)
-    failed = len(replayed) - passed
+            replayed.append((scenario, temporary / scenario.scenario_id, receipt.manifest_sha256))
+        replayed.sort(key=lambda item: item[0].scenario_id)
+        replay_results = [
+            (scenario, replay_trace_bundle(bundle_root, manifest_sha256))
+            for scenario, bundle_root, manifest_sha256 in replayed
+        ]
+        replay_dicts = [item.to_dict() for _, item in replay_results]
+        passed = sum(item.status == "passed" for _, item in replay_results)
+        failed = len(replayed) - passed
 
-    profile = _load_backend_profile(root)
-    crosschecks = [_crosscheck_record(replay, profile) for _, replay in replayed]
-    crosschecks.sort(key=lambda item: item["scenario_id"])
-    comparison = "passed" if all(item["status"] == "passed" for item in crosschecks) else "failed"
-    calibration = fit_calibration(
-        load_calibration_dataset(root / "simulation" / "calibration-synthetic.json")
-    )
-    training = _training_result(root, replayed)
+        profile = _load_backend_profile(root)
+        crosschecks = [
+            _crosscheck_record(bundle_root, manifest_sha256, profile)
+            for _, bundle_root, manifest_sha256 in replayed
+        ]
+        crosschecks.sort(key=lambda item: item["scenario_id"])
+        comparison = "passed" if all(item["status"] == "passed" for item in crosschecks) else "failed"
+        calibration = fit_calibration(
+            load_calibration_dataset(root / "simulation" / "calibration-synthetic.json")
+        )
+        training = _training_result(root, replayed)
     return {
         "schema_version": 1,
         "kind": "portable_reference_simulation",

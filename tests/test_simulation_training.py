@@ -1,6 +1,9 @@
 import copy
+import hashlib
 import sys
+import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
 
@@ -12,7 +15,9 @@ from assurance.simulation.replay_features import (  # noqa: E402
     extract_replay_features,
 )
 from assurance.simulation.model import MetricResult, ScenarioSpec, SimulationResult, TraceSample  # noqa: E402
+from assurance.hypothesis.canonical import canonical_bytes  # noqa: E402
 from assurance.simulation.scenario import CompiledScenario  # noqa: E402
+from assurance.simulation.trace import publish_trace_bundle  # noqa: E402
 from assurance.simulation.training import TrainingError, evaluate_policy, validate_training_contract  # noqa: E402
 
 
@@ -47,14 +52,13 @@ def scenario(*, scenario_id="scenario-01", seed=1, fault_id=None):
         scenario_id, "v1", "a" * 64, "b" * 64, "c" * 64, seed,
         1_000_000_000, ("joint-1", "joint-2"), {}, faults,
     )
-    return CompiledScenario(
-        spec,
-        (
-            MappingProxyType({"name": "elapsed_time", "unit": "s", "direction": "max", "limit": 1.0}),
-            MappingProxyType({"name": "final_joint_error", "unit": "rad", "direction": "max", "limit": 0.01}),
-        ),
-        MappingProxyType({"reason": "duration_elapsed", "at_ns": 1_000_000_000}), "e" * 64,
+    metrics = (
+        MappingProxyType({"name": "elapsed_time", "unit": "s", "direction": "max", "limit": 1.0}),
+        MappingProxyType({"name": "final_joint_error", "unit": "rad", "direction": "max", "limit": 0.01}),
     )
+    stop = MappingProxyType({"reason": "duration_elapsed", "at_ns": 1_000_000_000})
+    normal = {**spec.to_dict(), "metrics": sorted((dict(item) for item in metrics), key=lambda item: item["name"]), "stop": dict(stop)}
+    return CompiledScenario(spec, metrics, stop, hashlib.sha256(canonical_bytes(normal)).hexdigest())
 
 
 def replay(*, scenario_value=None, trace_sha256="d" * 64, status="passed", final_error=0.001, metric_error=None):
@@ -93,7 +97,53 @@ def assignments(*, final_error=0.001):
     ]
 
 
+def receipt_assignments(output, *, final_error=0.001):
+    cases = [
+        ("train", 1, None), ("train", 2, None), ("evaluation", 3, None),
+        ("evaluation", 4, None), ("held_out", 3, "fault-stop"), ("held_out", 4, "fault-stop"),
+    ]
+    values = []
+    bundle_base = Path(tempfile.mkdtemp(dir=output))
+    for index, (phase, seed, fault_id) in enumerate(cases, start=1):
+        compiled = scenario(scenario_id=f"scenario-{index:02d}", seed=seed, fault_id=fault_id)
+        bundle = bundle_base / compiled.scenario_id
+        receipt = publish_trace_bundle(bundle, compiled, replay(scenario_value=compiled, final_error=final_error).samples)
+        values.append({
+            "phase": phase,
+            "seed": seed,
+            "fault_id": fault_id,
+            "scenario": compiled,
+            "bundle_root": str(bundle),
+            "manifest_sha256": receipt.manifest_sha256,
+        })
+    return values
+
+
 class TrainingTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+
+    def receipt_assignments(self, *, final_error=0.001):
+        return receipt_assignments(self.temporary.name, final_error=final_error)
+
+    def test_rejects_forged_simulation_result_instead_of_a_revalidated_bundle(self):
+        value = assignments()
+        value[0]["replay"] = replace(value[0]["replay"], trace_sha256="f" * 64)
+        with self.assertRaisesRegex(TrainingError, "fields"):
+            evaluate_policy(
+                contract(), lambda _: {"linear_m_s": 0.0, "angular_rad_s": 0.0},
+                physical_receipt(), value,
+            )
+
+    def test_accepts_each_assignment_only_after_bundle_receipt_revalidation(self):
+        result = evaluate_policy(
+            contract(), lambda _: {"linear_m_s": 0.0, "angular_rad_s": 0.0},
+            physical_receipt(), self.receipt_assignments(),
+        )
+        self.assertEqual(6, result.evaluation_count)
+        self.assertEqual(6, len(result.trace_sha256s))
+
     def test_extracts_features_only_from_validated_result_and_recomputes_joint_error(self):
         features = extract_replay_features(replay())
         self.assertEqual("d" * 64, features.trace_sha256)
@@ -119,7 +169,7 @@ class TrainingTests(unittest.TestCase):
         def policy(observation):
             observation["joint_rad"][0] = 999
             return {"linear_m_s": 0.2, "angular_rad_s": 0.1}
-        result = evaluate_policy(contract(), policy, physical, assignments())
+        result = evaluate_policy(contract(), policy, physical, self.receipt_assignments())
         self.assertEqual("simulated", result.evidence_level)
         self.assertEqual("not_justified", result.status)
         self.assertEqual(("BOM.PLACEHOLDER_BLOCKS_CLAIM",), result.physical_blockers)
@@ -148,7 +198,7 @@ class TrainingTests(unittest.TestCase):
         ):
             with self.subTest(expected=expected):
                 with self.assertRaisesRegex(TrainingError, expected):
-                    evaluate_policy(contract(), callback, physical_receipt(), assignments())
+                    evaluate_policy(contract(), callback, physical_receipt(), self.receipt_assignments())
 
     def test_physical_blocker_receipt_is_required_and_can_never_authorize_hardware(self):
         callback = lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0}
@@ -159,7 +209,7 @@ class TrainingTests(unittest.TestCase):
         ):
             with self.subTest(expected=expected):
                 with self.assertRaisesRegex(TrainingError, expected):
-                    evaluate_policy(contract(), callback, physical, assignments())
+                    evaluate_policy(contract(), callback, physical, self.receipt_assignments())
 
     def test_rejects_unbounded_or_ambiguous_contract_collections(self):
         attacks = (
@@ -177,8 +227,8 @@ class TrainingTests(unittest.TestCase):
 
     def test_policy_identity_and_blocker_order_are_stable(self):
         callback = lambda x: {"linear_m_s": 0.2, "angular_rad_s": -0.1}
-        first = evaluate_policy(contract(), callback, physical_receipt(), assignments())
-        second = evaluate_policy(contract(), callback, physical_receipt(), assignments())
+        first = evaluate_policy(contract(), callback, physical_receipt(), self.receipt_assignments())
+        second = evaluate_policy(contract(), callback, physical_receipt(), self.receipt_assignments())
         self.assertEqual(first.policy_id, second.policy_id)
         self.assertEqual(("BOM.PLACEHOLDER_BLOCKS_CLAIM",), first.physical_blockers)
 
@@ -189,7 +239,7 @@ class TrainingTests(unittest.TestCase):
             seen.append((observation["phase"], observation["seed"], observation["fault_id"]))
             return {"linear_m_s": 0.2, "angular_rad_s": 0.0}
 
-        result = evaluate_policy(contract(), callback, physical_receipt(), assignments())
+        result = evaluate_policy(contract(), callback, physical_receipt(), self.receipt_assignments())
         self.assertEqual(
             [
                 ("train", 1, None),
@@ -208,36 +258,39 @@ class TrainingTests(unittest.TestCase):
         baseline = contract()
         baseline["baseline_mean_reward"] = 1.0
         with self.assertRaisesRegex(TrainingError, "baseline"):
-            evaluate_policy(baseline, lambda x: {"linear_m_s": -0.1, "angular_rad_s": 0.0}, physical_receipt(), assignments())
+            evaluate_policy(baseline, lambda x: {"linear_m_s": -0.1, "angular_rad_s": 0.0}, physical_receipt(), self.receipt_assignments())
         with self.assertRaisesRegex(TrainingError, "fields"):
-            evaluate_policy(contract(), lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0, "mean_reward": 9999}, physical_receipt(), assignments())
+            evaluate_policy(contract(), lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0, "mean_reward": 9999}, physical_receipt(), self.receipt_assignments())
         value = contract()
         value["budgets"]["episodes"] = 5
         with self.assertRaisesRegex(TrainingError, "episodes"):
-            evaluate_policy(value, lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0}, physical_receipt(), assignments())
+            evaluate_policy(value, lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0}, physical_receipt(), self.receipt_assignments())
 
         with self.assertRaisesRegex(TrainingError, "constraint"):
-            evaluate_policy(contract(), lambda x: {"linear_m_s": 1.0, "angular_rad_s": 0.0}, physical_receipt(), assignments())
+            evaluate_policy(contract(), lambda x: {"linear_m_s": 1.0, "angular_rad_s": 0.0}, physical_receipt(), self.receipt_assignments())
 
     def test_trace_derived_joint_error_and_case_assignments_are_hard_gates(self):
         callback = lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0}
+        constrained = contract()
+        constrained["hard_constraints"]["max_joint_error_rad"] = 0.0005
         with self.assertRaisesRegex(TrainingError, "joint"):
-            evaluate_policy(contract(), callback, physical_receipt(), assignments(final_error=0.1))
-        missing = assignments()[:-1]
+            evaluate_policy(constrained, callback, physical_receipt(), self.receipt_assignments())
+        missing = self.receipt_assignments()[:-1]
         with self.assertRaisesRegex(TrainingError, "assignments"):
             evaluate_policy(contract(), callback, physical_receipt(), missing)
-        duplicate = assignments()
+        duplicate = self.receipt_assignments()
         duplicate[-1]["seed"] = 3
         with self.assertRaisesRegex(TrainingError, "assignments"):
             evaluate_policy(contract(), callback, physical_receipt(), duplicate)
 
     def test_rejects_reused_trace_and_case_without_matching_scenario_provenance(self):
         callback = lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0}
-        duplicate = assignments()
-        object.__setattr__(duplicate[-1]["replay"], "trace_sha256", duplicate[-2]["replay"].trace_sha256)
-        with self.assertRaisesRegex(TrainingError, "unique"):
+        duplicate = self.receipt_assignments()
+        duplicate[-1]["bundle_root"] = duplicate[-2]["bundle_root"]
+        duplicate[-1]["manifest_sha256"] = duplicate[-2]["manifest_sha256"]
+        with self.assertRaisesRegex(TrainingError, "provenance"):
             evaluate_policy(contract(), callback, physical_receipt(), duplicate)
-        wrong_scenario = assignments()
+        wrong_scenario = self.receipt_assignments()
         wrong_scenario[-1]["scenario"] = scenario(scenario_id="scenario-other", seed=4, fault_id="fault-stop")
         with self.assertRaisesRegex(TrainingError, "scenario"):
             evaluate_policy(contract(), callback, physical_receipt(), wrong_scenario)

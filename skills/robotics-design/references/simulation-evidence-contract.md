@@ -17,6 +17,12 @@ receipt. Replay verifies the receipt, source closure, timestamps, sample count,
 joint width, fixed sample period, stop time, and recomputes metrics without
 trusting a stored verdict.
 
+The portable reference fixture currently uses a zero-joint target convention.
+Its trace schema does not carry a target vector, so `final_joint_error` means
+the maximum absolute final joint position, not a general nonzero-trajectory
+tracking-error claim. A future nonzero-target scenario must add a target-vector
+evidence field before using this metric for tracking conclusions.
+
 ## Backend and calibration boundary
 
 A trace-primary kinematics calculation is compared to an independent planar

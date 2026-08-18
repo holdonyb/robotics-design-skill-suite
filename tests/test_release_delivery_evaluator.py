@@ -68,15 +68,19 @@ class ReleaseDeliveryEvaluatorTests(unittest.TestCase):
             "reference/mobile-manipulator/simulation/Dockerfile.jazzy-harmonic",
             "skills/robotics-design/scripts/assurance/simulation/__init__.py",
             "skills/robotics-design/scripts/assurance/simulation/live_trace.py",
+            "skills/robotics-design/scripts/assurance/simulation/backend.py",
+            "skills/robotics-design/scripts/assurance/simulation/model.py",
             "skills/robotics-design/scripts/assurance/simulation/replay_features.py",
+            "skills/robotics-design/scripts/assurance/simulation/scenario.py",
+            "skills/robotics-design/scripts/assurance/simulation/trace.py",
             "skills/robotics-design/scripts/assurance/simulation/training.py",
         ):
             self.assertIn(path, required)
         root = self.copy_candidate_tree("v1.1.0")
         contract = self.write_contract(root, "v1.1.0")
         self.assertTrue(evaluate_release_delivery(root, contract).passed)
-        authority = root / "skills/robotics-design/scripts/assurance/commissioning/authority.py"
-        authority.write_text("tampered", encoding="utf-8")
+        scenario = root / "skills/robotics-design/scripts/assurance/simulation/scenario.py"
+        scenario.write_text("tampered", encoding="utf-8")
         report = evaluate_release_delivery(root, contract)
         self.assertFalse(report.passed)
         self.assertIn("RELEASE.STALE_ARTIFACT", {item.code for item in report.findings})

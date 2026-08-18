@@ -13,6 +13,7 @@ import math
 import time
 import tracemalloc
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
 from ..hypothesis.canonical import (
@@ -22,8 +23,8 @@ from ..hypothesis.canonical import (
     validate_sha256,
 )
 from .replay_features import ReplayFeatureError, ReplayFeatures, extract_replay_features
-from .model import SimulationResult
 from .scenario import CompiledScenario
+from .trace import TraceError, replay_trace_bundle
 
 
 class TrainingError(ValueError):
@@ -57,7 +58,7 @@ _REWARD_FIELDS = {"wheel_progress", "wheel_effort"}
 _OBSERVATION_FIELDS = ["joint_rad", "left_wheel_rad_s", "right_wheel_rad_s"]
 _ACTION_FIELDS = ["linear_m_s", "angular_rad_s"]
 _MAX_COLLECTION_ITEMS = 64
-_ASSIGNMENT_FIELDS = {"phase", "seed", "fault_id", "scenario", "replay"}
+_ASSIGNMENT_FIELDS = {"phase", "seed", "fault_id", "scenario", "bundle_root", "manifest_sha256"}
 
 
 def _finite(value: object, name: str) -> float:
@@ -251,11 +252,17 @@ def _validated_assignments(
         if key not in expected_set or key in assignments:
             raise TrainingError("trace assignments do not match required cases")
         scenario = raw["scenario"]
-        replay = raw["replay"]
         if not isinstance(scenario, CompiledScenario):
             raise TrainingError(f"trace assignments[{index}] scenario must be a compiled scenario")
-        if not isinstance(replay, SimulationResult):
-            raise TrainingError(f"trace assignments[{index}] replay must be receipt-validated")
+        bundle_root, manifest_sha256 = raw["bundle_root"], raw["manifest_sha256"]
+        if not isinstance(bundle_root, str) or not bundle_root:
+            raise TrainingError(f"trace assignments[{index}] bundle_root is invalid")
+        if not isinstance(manifest_sha256, str):
+            raise TrainingError(f"trace assignments[{index}] manifest_sha256 is invalid")
+        try:
+            replay = replay_trace_bundle(Path(bundle_root), manifest_sha256)
+        except (TraceError, TypeError, ValueError, OSError) as exc:
+            raise TrainingError(f"trace assignments[{index}] receipt revalidation failed: {exc}") from None
         if scenario.seed != seed:
             raise TrainingError(f"trace assignments[{index}] scenario seed does not match case")
         scenario_faults = tuple(item["fault_id"] for item in scenario.faults)

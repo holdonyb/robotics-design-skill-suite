@@ -190,7 +190,7 @@ class ReferenceSimulationTests(unittest.TestCase):
         profile = _load_backend_profile(ROOT / "reference" / "mobile-manipulator")
         replay = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")["replays"][0]
         with self.assertRaisesRegex(BenchmarkError, "receipt-validated"):
-            _backend_input(replay, profile)
+            _backend_input(replay, "f" * 64, profile)
 
 
 if __name__ == "__main__":
