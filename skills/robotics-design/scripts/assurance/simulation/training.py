@@ -12,8 +12,8 @@ import hashlib
 import math
 import time
 import tracemalloc
-from dataclasses import dataclass
-from pathlib import Path
+from dataclasses import dataclass, replace
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Callable
 
 from ..hypothesis.canonical import (
@@ -33,6 +33,8 @@ from .policy_trace import (
 )
 from .trusted_registry import TrustedRegistryError, load_reference_trusted_scenario_registry
 from .reference_profile import ReferenceProfileError, load_reference_runner_profile
+from .policy_artifact import PolicyArtifactError, load_policy_artifact
+from .policy_backend import PolicyBackendError, execute_policy
 
 
 class TrainingError(ValueError):
@@ -42,6 +44,9 @@ class TrainingError(ValueError):
 _FIELDS = {
     "schema_version",
     "contract_id",
+    "artifact_path",
+    "artifact_policy_id",
+    "artifact_observation_order",
     "artifact_sha256",
     "observation",
     "action",
@@ -105,6 +110,18 @@ def _validate_contract_or_raise(value: object) -> dict[str, Any]:
     if type(data["schema_version"]) is not int or data["schema_version"] != 1:
         raise TrainingError("schema_version must be integer 1")
     validate_identifier(data["contract_id"], "contract_id")
+    _safe_artifact_path(data["artifact_path"])
+    validate_identifier(data["artifact_policy_id"], "artifact_policy_id")
+    artifact_observation_order = data["artifact_observation_order"]
+    if (
+        not isinstance(artifact_observation_order, list)
+        or not artifact_observation_order
+        or len(artifact_observation_order) > _MAX_COLLECTION_ITEMS
+        or len(set(artifact_observation_order)) != len(artifact_observation_order)
+    ):
+        raise TrainingError("artifact_observation_order must be a non-empty unique bounded list")
+    for index, field in enumerate(artifact_observation_order):
+        validate_identifier(field, f"artifact_observation_order[{index}]")
     validate_sha256(data["artifact_sha256"], "artifact_sha256")
 
     _validate_io(data["observation"], "observation", _OBSERVATION_FIELDS)
@@ -171,6 +188,19 @@ def _validate_contract_or_raise(value: object) -> dict[str, Any]:
     return data
 
 
+def _safe_artifact_path(value: object) -> PurePosixPath:
+    """Return a closed reference-root-relative policy location."""
+
+    if not isinstance(value, str) or not value or "\\" in value:
+        raise TrainingError("artifact_path must be a non-empty POSIX relative path")
+    path = PurePosixPath(value)
+    if path.is_absolute() or PureWindowsPath(value).is_absolute() or any(
+        part in {"", ".", ".."} for part in path.parts
+    ):
+        raise TrainingError("artifact_path must stay safely relative to the reference root")
+    return path
+
+
 def validate_training_contract(value: object) -> list[str]:
     """Return deterministic, actionable validation errors without raising."""
 
@@ -211,9 +241,10 @@ class PolicyResult:
     evaluation_count: int
     held_out_evaluation_count: int
     trace_sha256s: tuple[str, ...]
+    artifact_sha256: str | None = None
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        value: dict[str, object] = {
             "policy_id": self.policy_id,
             "status": self.status,
             "evidence_level": self.evidence_level,
@@ -223,6 +254,10 @@ class PolicyResult:
             "held_out_evaluation_count": self.held_out_evaluation_count,
             "trace_sha256s": list(self.trace_sha256s),
         }
+        if self.artifact_sha256 is not None:
+            value["artifact_sha256"] = self.artifact_sha256
+            value["policy_artifact_sha256"] = self.artifact_sha256
+        return value
 
 
 def _expected_cases(contract: dict[str, Any]) -> list[tuple[str, int, str | None]]:
@@ -327,6 +362,8 @@ def evaluate_policy(
     callback: Callable[[dict[str, Any]], dict[str, Any]],
     physical_report: object,
     trace_context: object,
+    *,
+    artifact_sha256: str | None = None,
 ) -> PolicyResult:
     """Run one bounded synthetic policy callback and retain physical blockers.
 
@@ -336,6 +373,13 @@ def evaluate_policy(
     """
 
     checked_contract = _validate_contract_or_raise(contract)
+    if artifact_sha256 is not None:
+        try:
+            artifact_sha256 = validate_sha256(artifact_sha256, "artifact_sha256")
+        except ValueError as exc:
+            raise TrainingError(str(exc)) from None
+        if artifact_sha256 != checked_contract["artifact_sha256"]:
+            raise TrainingError("artifact_sha256 does not match the training contract")
     if not callable(callback):
         raise TrainingError("callback must be callable")
     blockers = _validated_physical_receipt(physical_report, checked_contract)
@@ -424,11 +468,13 @@ def evaluate_policy(
                 trace_context.output_root / f"{case[0]}-{case[1]}-{safe_fault}",
                 wheel_radius_m=wheel_radius_m,
                 wheel_separation_m=wheel_separation_m,
+                artifact_sha256=artifact_sha256,
             )
             replay = replay_policy_trace_bundle(
                 assignment.bundle_root, assignment.manifest_sha256,
                 registry, policy_sha256,
                 expected_actions=actions,
+                expected_artifact_sha256=artifact_sha256,
             )
         except PolicyTraceError as exc:
             raise TrainingError("trusted policy trace failed: " + str(exc)) from None
@@ -461,4 +507,130 @@ def evaluate_policy(
         evaluation_count=len(cases),
         held_out_evaluation_count=sum(phase == "held_out" for phase, _, _ in cases),
         trace_sha256s=tuple(sorted(features.trace_sha256 for _, features in assigned)),
+    )
+
+
+def _bound_artifact_path(
+    artifact_path: object, contract_path: PurePosixPath, reference_root: Path
+) -> Path:
+    """Require the caller-selected path to be exactly the contract-bound file."""
+
+    if reference_root.is_symlink() or not reference_root.is_dir():
+        raise TrainingError("reference root is missing, not a directory, or a symlink")
+    root = reference_root.resolve(strict=True)
+    expected = root.joinpath(*contract_path.parts)
+    current = root
+    for part in contract_path.parts:
+        current = current / part
+        try:
+            metadata = current.lstat()
+        except OSError as exc:
+            raise TrainingError("artifact_path cannot be inspected") from exc
+        if current.is_symlink():
+            raise TrainingError("artifact_path must not traverse a symlink")
+        if part != contract_path.parts[-1] and not current.is_dir():
+            raise TrainingError("artifact_path parent must be a directory")
+    try:
+        supplied = Path(artifact_path)
+    except (TypeError, ValueError):
+        raise TrainingError("artifact_path is invalid") from None
+    if not supplied.is_absolute():
+        supplied = root / supplied
+    try:
+        supplied_resolved = supplied.resolve(strict=True)
+    except OSError as exc:
+        raise TrainingError("artifact_path cannot be resolved") from exc
+    if supplied_resolved != expected.resolve(strict=True):
+        raise TrainingError("artifact_path does not match the training contract")
+    return expected
+
+
+def evaluate_policy_artifact(
+    contract: object,
+    artifact_path: str | Path,
+    physical_report: object,
+    trace_context: object,
+) -> PolicyResult:
+    """Evaluate only the exact declarative artifact named by a trusted contract.
+
+    This public path intentionally accepts no caller callback.  It verifies all
+    contract, root, artifact, registry, and profile bindings before the first
+    worker request, then delegates each strictly constructed observation to the
+    isolated affine-tanh worker.
+    """
+
+    checked_contract = _validate_contract_or_raise(contract)
+    blockers = _validated_physical_receipt(physical_report, checked_contract)
+    if not isinstance(trace_context, TrustedPolicyTraceContext):
+        raise TrainingError("trace context must be a TrustedPolicyTraceContext")
+    try:
+        registry = load_reference_trusted_scenario_registry(trace_context.reference_root)
+    except TrustedRegistryError as exc:
+        raise TrainingError("trace context registry is not the benchmark owner receipt: " + str(exc)) from None
+    try:
+        profile = load_reference_runner_profile(trace_context.reference_root)
+    except ReferenceProfileError as exc:
+        raise TrainingError("trace context runner profile is invalid: " + str(exc)) from None
+    contract_path = _safe_artifact_path(checked_contract["artifact_path"])
+    target = _bound_artifact_path(artifact_path, contract_path, trace_context.reference_root)
+    try:
+        artifact = load_policy_artifact(target)
+    except PolicyArtifactError as exc:
+        raise TrainingError("policy artifact is invalid: " + str(exc)) from None
+    if artifact.sha256 != checked_contract["artifact_sha256"]:
+        raise TrainingError("training contract artifact_sha256 does not match policy artifact")
+    if artifact.policy_id != checked_contract["artifact_policy_id"]:
+        raise TrainingError("training contract artifact_policy_id does not match policy artifact")
+    contract_order = tuple(checked_contract["artifact_observation_order"])
+    if artifact.observation_order != contract_order:
+        raise TrainingError("training contract artifact_observation_order does not match policy artifact")
+    if not registry.scenarios:
+        raise TrainingError("trusted registry must contain scenarios")
+    expected_order = tuple(registry.scenarios[0].joint_order) + (
+        "left_wheel_rad_s", "right_wheel_rad_s",
+    )
+    if (
+        any(tuple(scenario.joint_order) != tuple(registry.scenarios[0].joint_order) for scenario in registry.scenarios)
+        or artifact.observation_order != expected_order
+    ):
+        raise TrainingError("artifact_observation_order does not match trusted runner state")
+
+    started = time.monotonic()
+
+    def artifact_action(observation: dict[str, Any]) -> dict[str, float]:
+        joints = observation.get("joint_rad")
+        if not isinstance(joints, list) or len(joints) != len(registry.scenarios[0].joint_order):
+            raise TrainingError("trusted runner observation is invalid")
+        worker_observation = {
+            **{
+                joint_name: joints[index]
+                for index, joint_name in enumerate(registry.scenarios[0].joint_order)
+            },
+            "left_wheel_rad_s": observation["left_wheel_rad_s"],
+            "right_wheel_rad_s": observation["right_wheel_rad_s"],
+        }
+        remaining = checked_contract["budgets"]["wall_time_s"] - (time.monotonic() - started)
+        if remaining <= 0:
+            raise TrainingError("policy worker exceeds wall-time budget")
+        try:
+            return execute_policy(artifact, worker_observation, timeout_s=min(1.0, remaining))
+        except PolicyBackendError as exc:
+            raise TrainingError("policy worker failed: " + str(exc)) from None
+
+    # `evaluate_policy` owns the trusted runner, receipt replay, reward and
+    # hardware firewall.  The only callback supplied here is this closed
+    # adapter around the already verified artifact worker, never caller code.
+    result = evaluate_policy(
+        checked_contract,
+        artifact_action,
+        physical_report,
+        trace_context,
+        artifact_sha256=artifact.sha256,
+    )
+    if result.physical_blockers != blockers:
+        raise TrainingError("physical report blockers changed during evaluation")
+    return replace(
+        result,
+        policy_id=artifact.policy_id,
+        artifact_sha256=artifact.sha256,
     )

@@ -63,9 +63,22 @@ class ReferenceSimulationTests(unittest.TestCase):
         self.assertEqual(6, len(set(report["training"]["trace_sha256s"])))
         self.assertTrue(set(report["training"]["trace_sha256s"]).isdisjoint(replay_hashes))
         self.assertEqual(
+            report["training"]["artifact_sha256"],
+            report["training"]["policy_artifact_sha256"],
+        )
+        self.assertEqual(
             [item["trace_sha256"] for item in report["replays"]],
             [item["trace_sha256"] for item in report["backend_crosschecks"]],
         )
+
+    def test_public_reference_training_is_bound_to_the_retained_artifact(self):
+        report = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")
+        training = report["training"]
+        artifact = ROOT / "reference" / "mobile-manipulator" / "simulation" / "policies" / "baseline-affine.json"
+        import hashlib
+
+        self.assertEqual("policy-reference-baseline", training["policy_id"])
+        self.assertEqual(hashlib.sha256(artifact.read_bytes()).hexdigest(), training["artifact_sha256"])
 
     def test_reference_failure_is_a_valid_nonzero_result_not_an_invalid_bundle(self):
         report = run_reference_benchmark(

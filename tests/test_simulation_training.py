@@ -1,12 +1,15 @@
 import copy
 import hashlib
 import json
+import os
+import shutil
 import sys
 import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
@@ -19,13 +22,19 @@ from assurance.simulation.model import MetricResult, ScenarioSpec, SimulationRes
 from assurance.hypothesis.canonical import canonical_bytes  # noqa: E402
 from assurance.simulation.scenario import CompiledScenario  # noqa: E402
 from assurance.simulation.trace import publish_trace_bundle  # noqa: E402
-from assurance.simulation.training import TrainingError, evaluate_policy, validate_training_contract  # noqa: E402
+from assurance.simulation.training import (  # noqa: E402
+    TrainingError,
+    evaluate_policy,
+    evaluate_policy_artifact,
+    validate_training_contract,
+)
 from assurance.simulation.policy_trace import TrustedPolicyTraceContext  # noqa: E402
 from assurance.simulation.trusted_registry import (  # noqa: E402
     load_reference_trusted_scenario_registry,
     load_trusted_scenario_registry,
 )
 from assurance.simulation import policy_trace  # noqa: E402
+from assurance.simulation.policy_backend import execute_policy  # noqa: E402
 
 
 SHA_A = "a" * 64
@@ -34,6 +43,12 @@ SHA_A = "a" * 64
 def contract():
     return {
         "schema_version": 1, "contract_id": "training-reference-v1", "artifact_sha256": SHA_A,
+        "artifact_path": "simulation/policies/baseline-affine.json",
+        "artifact_policy_id": "policy-reference-baseline",
+        "artifact_observation_order": [
+            "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6",
+            "left_wheel_rad_s", "right_wheel_rad_s",
+        ],
         "observation": {"frame": "base_link", "unit": "si", "rate_hz": 20, "fields": ["joint_rad", "left_wheel_rad_s", "right_wheel_rad_s"]},
         "action": {"frame": "base_link", "unit": "si", "rate_hz": 20, "fields": ["linear_m_s", "angular_rad_s"]},
         "reward_weights": {"wheel_progress": 1.0, "wheel_effort": -0.1}, "baseline_mean_reward": 0.0,
@@ -326,6 +341,96 @@ class TrainingTests(unittest.TestCase):
         )
         self.assertEqual(6, len(result.trace_sha256s))
         self.assertEqual(6, len(set(result.trace_sha256s)))
+
+    def test_artifact_evaluator_runs_bound_reference_artifact_without_callback(self):
+        reference_root = ROOT / "reference" / "mobile-manipulator"
+        contract_value = json.loads(
+            (reference_root / "simulation" / "training-contract.json").read_text(encoding="utf-8")
+        )
+        result = evaluate_policy_artifact(
+            contract_value,
+            reference_root / contract_value["artifact_path"],
+            {
+                "remaining_blockers": list(contract_value["physical_blockers"]),
+                "hardware_promotable": False,
+            },
+            TrustedPolicyTraceContext(reference_root, Path(self.temporary.name) / "artifact-traces"),
+        )
+        self.assertEqual("policy-reference-baseline", result.policy_id)
+        self.assertEqual("simulated", result.evidence_level)
+        self.assertEqual("not_justified", result.status)
+
+    def test_artifact_evaluator_rejects_digest_path_id_and_order_before_worker(self):
+        reference_root = ROOT / "reference" / "mobile-manipulator"
+        source_contract = json.loads(
+            (reference_root / "simulation" / "training-contract.json").read_text(encoding="utf-8")
+        )
+        artifact_path = reference_root / source_contract["artifact_path"]
+        physical = {
+            "remaining_blockers": list(source_contract["physical_blockers"]),
+            "hardware_promotable": False,
+        }
+        for mutate, expected in (
+            (lambda value: value.__setitem__("artifact_sha256", "a" * 64), "artifact_sha256"),
+            (lambda value: value.__setitem__("artifact_path", "../outside.json"), "artifact_path"),
+            (lambda value: value.__setitem__("artifact_path", "C:/outside.json"), "artifact_path"),
+            (lambda value: value.__setitem__("artifact_policy_id", "policy-other"), "artifact_policy_id"),
+            (lambda value: value.__setitem__("artifact_observation_order", ["joint_1"]), "artifact_observation_order"),
+        ):
+            with self.subTest(expected=expected):
+                contract_value = copy.deepcopy(source_contract)
+                mutate(contract_value)
+                with self.assertRaisesRegex(TrainingError, expected):
+                    evaluate_policy_artifact(
+                        contract_value,
+                        artifact_path,
+                        physical,
+                        TrustedPolicyTraceContext(reference_root, Path(self.temporary.name) / expected),
+                    )
+
+    def test_artifact_binding_failures_reject_before_worker_and_success_uses_worker(self):
+        source = ROOT / "reference" / "mobile-manipulator"
+        with tempfile.TemporaryDirectory(dir=self.temporary.name) as raw:
+            reference_root = Path(raw) / "reference"
+            shutil.copytree(source, reference_root)
+            contract_value = json.loads(
+                (reference_root / "simulation" / "training-contract.json").read_text(encoding="utf-8")
+            )
+            artifact_path = reference_root / contract_value["artifact_path"]
+            physical = {
+                "remaining_blockers": list(contract_value["physical_blockers"]),
+                "hardware_promotable": False,
+            }
+            for mutation, expected in (
+                (lambda: artifact_path.write_bytes(artifact_path.read_bytes() + b" "), "artifact"),
+                (lambda: artifact_path.unlink() or os.symlink(source / "simulation" / "policies" / "baseline-affine.json", artifact_path), "symlink"),
+            ):
+                with self.subTest(expected=expected):
+                    if artifact_path.exists() or artifact_path.is_symlink():
+                        artifact_path.unlink()
+                    shutil.copyfile(source / "simulation" / "policies" / "baseline-affine.json", artifact_path)
+                    try:
+                        mutation()
+                    except (NotImplementedError, OSError):
+                        continue
+                    with mock.patch("assurance.simulation.training.execute_policy", wraps=execute_policy) as worker:
+                        with self.assertRaisesRegex(TrainingError, expected):
+                            evaluate_policy_artifact(
+                                contract_value, artifact_path, physical,
+                                TrustedPolicyTraceContext(reference_root, Path(raw) / expected),
+                            )
+                        worker.assert_not_called()
+
+            if artifact_path.exists() or artifact_path.is_symlink():
+                artifact_path.unlink()
+            shutil.copyfile(source / "simulation" / "policies" / "baseline-affine.json", artifact_path)
+            with mock.patch("assurance.simulation.training.execute_policy", wraps=execute_policy) as worker:
+                result = evaluate_policy_artifact(
+                    contract_value, artifact_path, physical,
+                    TrustedPolicyTraceContext(reference_root, Path(raw) / "success"),
+                )
+            self.assertEqual(18, worker.call_count)
+            self.assertEqual(contract_value["artifact_sha256"], result.artifact_sha256)
 
 
 if __name__ == "__main__":

@@ -33,7 +33,7 @@ from assurance.simulation.artifacts import validate_ros_workspace_manifest
 from assurance.simulation.model import TraceSample
 from assurance.simulation.scenario import CompiledScenario
 from assurance.simulation.trace import TraceError, publish_trace_bundle, replay_trace_bundle
-from assurance.simulation.training import evaluate_policy, validate_training_contract
+from assurance.simulation.training import evaluate_policy_artifact, validate_training_contract
 from assurance.simulation.replay_features import ReplayFeatureError, extract_replay_features
 from assurance.simulation.trusted_registry import (
     TrustedRegistryError,
@@ -398,9 +398,12 @@ def _training_result(root: Path, trace_output: Path, profile: dict[str, Any]) ->
         )
     except (TrustedRegistryError, ValueError) as exc:
         raise BenchmarkError("cannot create trusted training context: " + str(exc)) from None
-    result = evaluate_policy(
+    artifact_path = contract.get("artifact_path")
+    if not isinstance(artifact_path, str):
+        raise BenchmarkError("training contract artifact_path is invalid")
+    result = evaluate_policy_artifact(
         contract,
-        lambda _: {"linear_m_s": 0.2, "angular_rad_s": 0.0},
+        artifact_path,
         {
             "remaining_blockers": list(contract["physical_blockers"]),
             "hardware_promotable": False,

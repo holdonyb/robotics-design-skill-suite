@@ -90,6 +90,21 @@ class PolicyTraceTests(unittest.TestCase):
         self.assertGreater(normal_replay.features.wheel_progress_rad, stopped_replay.features.wheel_progress_rad)
         self.assertEqual(0.0, stopped_replay.features.left_wheel_rad_s[-1])
 
+    def test_artifact_trace_retains_the_actual_artifact_digest(self):
+        artifact_sha256 = "c" * 64
+        assignment = run_reference_policy_trace(
+            self.registry, self.scenario.scenario_id, "a" * 64,
+            self.actions(0.2, 0.0),
+            Path(self.temporary.name) / "artifact-bound",
+            wheel_radius_m=0.15, wheel_separation_m=0.68,
+            artifact_sha256=artifact_sha256,
+        )
+        replay = replay_policy_trace_bundle(
+            assignment.bundle_root, assignment.manifest_sha256, self.registry, "a" * 64,
+            expected_artifact_sha256=artifact_sha256,
+        )
+        self.assertEqual(artifact_sha256, replay.artifact_sha256)
+
 
 if __name__ == "__main__":
     unittest.main()
