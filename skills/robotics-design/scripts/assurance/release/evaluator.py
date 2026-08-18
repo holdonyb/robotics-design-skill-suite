@@ -78,6 +78,7 @@ V110_RUNTIME_PATHS = frozenset(
         "skills/robotics-design/scripts/assurance/simulation/live_trace.py",
         "skills/robotics-design/scripts/assurance/simulation/model.py",
         "skills/robotics-design/scripts/assurance/simulation/policy_trace.py",
+        "skills/robotics-design/scripts/assurance/simulation/reference_profile.py",
         "skills/robotics-design/scripts/assurance/simulation/replay_features.py",
         "skills/robotics-design/scripts/assurance/simulation/scenario.py",
         "skills/robotics-design/scripts/assurance/simulation/trace.py",

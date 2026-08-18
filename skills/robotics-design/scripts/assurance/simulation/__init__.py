@@ -31,6 +31,7 @@ from .policy_trace import (
     replay_policy_trace_bundle,
     run_reference_policy_trace,
 )
+from .reference_profile import ReferenceProfileError, ReferenceRunnerProfile, load_reference_runner_profile
 from .backend import BackendError, BackendMetric, BackendResult, compare_backends, evaluate_independent_dynamics, evaluate_trace_kinematics
 from .calibration import CalibrationError, CalibrationResult, fit_calibration, load_calibration_dataset
 from .training import PolicyResult, TrainingError, evaluate_policy, validate_training_contract
@@ -68,6 +69,9 @@ __all__ = [
     "TrustedTraceAssignment",
     "replay_policy_trace_bundle",
     "run_reference_policy_trace",
+    "ReferenceProfileError",
+    "ReferenceRunnerProfile",
+    "load_reference_runner_profile",
     "BackendError",
     "BackendMetric",
     "BackendResult",

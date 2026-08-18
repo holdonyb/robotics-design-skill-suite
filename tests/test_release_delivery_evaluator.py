@@ -75,6 +75,7 @@ class ReleaseDeliveryEvaluatorTests(unittest.TestCase):
             "skills/robotics-design/scripts/assurance/simulation/trace.py",
             "skills/robotics-design/scripts/assurance/simulation/training.py",
             "skills/robotics-design/scripts/assurance/simulation/policy_trace.py",
+            "skills/robotics-design/scripts/assurance/simulation/reference_profile.py",
             "skills/robotics-design/scripts/assurance/simulation/trusted_registry.py",
             "skills/robotics-design/scripts/assurance/simulation/admission.py",
             "skills/robotics-design/scripts/assurance/simulation/artifacts.py",

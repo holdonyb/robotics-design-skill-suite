@@ -32,6 +32,7 @@ from .policy_trace import (
     run_reference_policy_trace,
 )
 from .trusted_registry import TrustedRegistryError, load_reference_trusted_scenario_registry
+from .reference_profile import ReferenceProfileError, load_reference_runner_profile
 
 
 class TrainingError(ValueError):
@@ -351,9 +352,13 @@ def evaluate_policy(
     except TrustedRegistryError as exc:
         raise TrainingError("trace context registry is not the benchmark owner receipt: " + str(exc)) from None
     scenarios = [_scenario_for_case(registry, case) for case in cases]
-    # Capture release-bound geometry before user callback code runs.  These
-    # scalar locals are never read back from a mutable caller-visible profile.
-    wheel_radius_m, wheel_separation_m = 0.15, 0.68
+    # Capture receipt-bound ROS geometry before user callback code runs.  These
+    # scalar locals are never read back from caller-visible configuration.
+    try:
+        profile = load_reference_runner_profile(trace_context.reference_root)
+    except ReferenceProfileError as exc:
+        raise TrainingError("trace context runner profile is invalid: " + str(exc)) from None
+    wheel_radius_m, wheel_separation_m = profile.wheel_radius_m, profile.wheel_separation_m
     started = time.monotonic()
     tracemalloc.start()
     try:
