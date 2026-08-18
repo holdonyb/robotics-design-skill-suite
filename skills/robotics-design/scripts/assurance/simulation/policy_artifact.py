@@ -284,10 +284,9 @@ def _freeze(value: object) -> object:
     return value
 
 
-def load_policy_artifact(path: str | Path) -> PolicyArtifact:
-    """Load one canonical ``affine_tanh_v1`` policy artifact from a regular file."""
+def _parse_policy_artifact_payload(payload: bytes) -> PolicyArtifact:
+    """Validate canonical artifact bytes without accepting a filesystem path."""
 
-    payload = _read_artifact_bytes(path)
     data = _load_canonical_json(payload)
     root = _closed_object(data, _ROOT_FIELDS, "root")
     if type(root["schema_version"]) is not int or root["schema_version"] != 1:
@@ -322,3 +321,9 @@ def load_policy_artifact(path: str | Path) -> PolicyArtifact:
         angular_weights=angular_weights,
         payload=_freeze(data),
     )
+
+
+def load_policy_artifact(path: str | Path) -> PolicyArtifact:
+    """Load one canonical ``affine_tanh_v1`` policy artifact from a regular file."""
+
+    return _parse_policy_artifact_payload(_read_artifact_bytes(path))
