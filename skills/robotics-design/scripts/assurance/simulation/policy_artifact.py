@@ -125,7 +125,13 @@ def _load_canonical_json(payload: bytes) -> dict[str, Any]:
         raise PolicyArtifactError(f"policy artifact is outside canonical JSON: {exc}") from None
     if not isinstance(checked, dict):
         raise PolicyArtifactError("policy artifact root must be a JSON object")
-    if payload != canonical_bytes(checked):
+    try:
+        canonical_payload = canonical_bytes(checked)
+    except (OverflowError, RecursionError, TypeError, ValueError, UnicodeError) as exc:
+        raise PolicyArtifactError(
+            f"policy artifact cannot be encoded as canonical JSON: {exc}"
+        ) from None
+    if payload != canonical_payload:
         raise PolicyArtifactError("policy artifact bytes are not canonical JSON")
     return checked
 

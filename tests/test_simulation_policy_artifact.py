@@ -72,6 +72,21 @@ class PolicyArtifactTests(unittest.TestCase):
         with self.assertRaisesRegex(PolicyArtifactError, "duplicate"):
             load_policy_artifact(self.path)
 
+    def test_normalizes_surrogate_key_and_value_encoding_failures(self):
+        payloads = (
+            b'{"angular":{"bias":0,"weights":[0]},"kind":"affine_tanh_v1",'
+            b'"linear":{"bias":0,"weights":[0]},"observation_order":["joint-1"],'
+            b'"policy_id":"\\ud800","schema_version":1}\n',
+            b'{"angular":{"bias":0,"weights":[0]},"kind":"affine_tanh_v1",'
+            b'"linear":{"bias":0,"weights":[0]},"observation_order":["joint-1"],'
+            b'"policy_id":"policy-reference-baseline","schema_version":1,"\\ud800":0}\n',
+        )
+        for payload in payloads:
+            with self.subTest(payload=payload):
+                self.path.write_bytes(payload)
+                with self.assertRaisesRegex(PolicyArtifactError, "canonical JSON"):
+                    load_policy_artifact(self.path)
+
     def test_rejects_extra_root_and_nested_fields(self):
         root_extra = self.artifact(extra=True)
         self.write_canonical(root_extra)
