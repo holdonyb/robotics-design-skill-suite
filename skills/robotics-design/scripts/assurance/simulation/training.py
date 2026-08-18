@@ -394,6 +394,7 @@ def evaluate_policy(
     trace_context: object,
     *,
     artifact_sha256: str | None = None,
+    training_contract_sha256: str | None = None,
 ) -> PolicyResult:
     """Run one bounded synthetic policy callback and retain physical blockers.
 
@@ -410,6 +411,13 @@ def evaluate_policy(
             raise TrainingError(str(exc)) from None
         if artifact_sha256 != checked_contract["artifact_sha256"]:
             raise TrainingError("artifact_sha256 does not match the training contract")
+    if training_contract_sha256 is not None:
+        try:
+            training_contract_sha256 = validate_sha256(
+                training_contract_sha256, "training_contract_sha256"
+            )
+        except ValueError as exc:
+            raise TrainingError(str(exc)) from None
     if not callable(callback):
         raise TrainingError("callback must be callable")
     blockers = _validated_physical_receipt(physical_report, checked_contract)
@@ -499,12 +507,14 @@ def evaluate_policy(
                 wheel_radius_m=wheel_radius_m,
                 wheel_separation_m=wheel_separation_m,
                 artifact_sha256=artifact_sha256,
+                training_contract_sha256=training_contract_sha256,
             )
             replay = replay_policy_trace_bundle(
                 assignment.bundle_root, assignment.manifest_sha256,
                 registry, policy_sha256,
                 expected_actions=actions,
                 expected_artifact_sha256=artifact_sha256,
+                expected_training_contract_sha256=training_contract_sha256,
             )
         except PolicyTraceError as exc:
             raise TrainingError("trusted policy trace failed: " + str(exc)) from None
@@ -537,6 +547,7 @@ def evaluate_policy(
         evaluation_count=len(cases),
         held_out_evaluation_count=sum(phase == "held_out" for phase, _, _ in cases),
         trace_sha256s=tuple(sorted(features.trace_sha256 for _, features in assigned)),
+        training_contract_sha256=training_contract_sha256,
     )
 
 
@@ -651,6 +662,7 @@ def evaluate_policy_artifact(
         physical_report,
         trace_context,
         artifact_sha256=artifact.sha256,
+        training_contract_sha256=REFERENCE_TRAINING_CONTRACT_RECEIPT,
     )
     if result.physical_blockers != blockers:
         raise TrainingError("physical report blockers changed during evaluation")

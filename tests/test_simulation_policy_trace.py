@@ -1,4 +1,5 @@
 import hashlib
+import json
 import sys
 import tempfile
 import unittest
@@ -9,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
 from assurance.hypothesis.canonical import canonical_bytes  # noqa: E402
+from assurance.hypothesis.bundle import write_bundle_with_receipt  # noqa: E402
 from assurance.simulation.policy_trace import (  # noqa: E402
     PolicyTraceError,
     replay_policy_trace_bundle,
@@ -104,6 +106,76 @@ class PolicyTraceTests(unittest.TestCase):
             expected_artifact_sha256=artifact_sha256,
         )
         self.assertEqual(artifact_sha256, replay.artifact_sha256)
+
+    def test_training_contract_receipt_is_trace_bound_and_replay_required(self):
+        training_contract_sha256 = "d" * 64
+        assignment = run_reference_policy_trace(
+            self.registry, self.scenario.scenario_id, "a" * 64,
+            self.actions(0.2, 0.0),
+            Path(self.temporary.name) / "contract-bound",
+            wheel_radius_m=0.15, wheel_separation_m=0.68,
+            artifact_sha256="c" * 64,
+            training_contract_sha256=training_contract_sha256,
+        )
+        self.assertEqual(training_contract_sha256, assignment.training_contract_sha256)
+        replay = replay_policy_trace_bundle(
+            assignment.bundle_root, assignment.manifest_sha256, self.registry, "a" * 64,
+            expected_artifact_sha256="c" * 64,
+            expected_training_contract_sha256=training_contract_sha256,
+        )
+        self.assertEqual(training_contract_sha256, replay.training_contract_sha256)
+        with self.assertRaisesRegex(PolicyTraceError, "training contract"):
+            replay_policy_trace_bundle(
+                assignment.bundle_root, assignment.manifest_sha256, self.registry, "a" * 64,
+                expected_artifact_sha256="c" * 64,
+                expected_training_contract_sha256="e" * 64,
+            )
+
+        unbound = run_reference_policy_trace(
+            self.registry, self.scenario.scenario_id, "b" * 64,
+            self.actions(0.2, 0.0),
+            Path(self.temporary.name) / "contract-missing",
+            wheel_radius_m=0.15, wheel_separation_m=0.68,
+        )
+        with self.assertRaisesRegex(PolicyTraceError, "training contract"):
+            replay_policy_trace_bundle(
+                unbound.bundle_root, unbound.manifest_sha256, self.registry, "b" * 64,
+                expected_training_contract_sha256=training_contract_sha256,
+            )
+
+    def test_replay_rejects_rehashed_altered_or_missing_training_contract_receipt(self):
+        training_contract_sha256 = "d" * 64
+        assignment = run_reference_policy_trace(
+            self.registry, self.scenario.scenario_id, "a" * 64,
+            self.actions(0.2, 0.0),
+            Path(self.temporary.name) / "original-contract",
+            wheel_radius_m=0.15, wheel_separation_m=0.68,
+            artifact_sha256="c" * 64,
+            training_contract_sha256=training_contract_sha256,
+        )
+        scenario = json.loads((assignment.bundle_root / "scenario.json").read_text(encoding="utf-8"))
+        trace = json.loads((assignment.bundle_root / "trace.json").read_text(encoding="utf-8"))
+        for name, mutate in (
+            ("altered", lambda value: value.__setitem__("training_contract_sha256", "e" * 64)),
+            ("missing", lambda value: value.pop("training_contract_sha256")),
+        ):
+            with self.subTest(name=name):
+                candidate = dict(trace)
+                mutate(candidate)
+                receipt = write_bundle_with_receipt(
+                    Path(self.temporary.name) / f"rehashed-{name}",
+                    {
+                        "index.json": {"schema_version": 1, "kind": "trusted_policy_trace_v1"},
+                        "scenario.json": scenario,
+                        "trace.json": candidate,
+                    },
+                )
+                with self.assertRaisesRegex(PolicyTraceError, "training contract"):
+                    replay_policy_trace_bundle(
+                        receipt.path, receipt.manifest_sha256, self.registry, "a" * 64,
+                        expected_artifact_sha256="c" * 64,
+                        expected_training_contract_sha256=training_contract_sha256,
+                    )
 
 
 if __name__ == "__main__":

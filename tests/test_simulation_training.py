@@ -23,6 +23,7 @@ from assurance.hypothesis.canonical import canonical_bytes  # noqa: E402
 from assurance.simulation.scenario import CompiledScenario  # noqa: E402
 from assurance.simulation.trace import publish_trace_bundle  # noqa: E402
 from assurance.simulation.training import (  # noqa: E402
+    REFERENCE_TRAINING_CONTRACT_RECEIPT,
     TrainingError,
     evaluate_policy,
     evaluate_policy_artifact,
@@ -347,6 +348,7 @@ class TrainingTests(unittest.TestCase):
         contract_value = json.loads(
             (reference_root / "simulation" / "training-contract.json").read_text(encoding="utf-8")
         )
+        trace_output = Path(self.temporary.name) / "artifact-traces"
         result = evaluate_policy_artifact(
             contract_value,
             contract_value["artifact_path"],
@@ -354,11 +356,18 @@ class TrainingTests(unittest.TestCase):
                 "remaining_blockers": list(contract_value["physical_blockers"]),
                 "hardware_promotable": False,
             },
-            TrustedPolicyTraceContext(reference_root, Path(self.temporary.name) / "artifact-traces"),
+            TrustedPolicyTraceContext(reference_root, trace_output),
         )
         self.assertEqual("policy-reference-baseline", result.policy_id)
         self.assertEqual("simulated", result.evidence_level)
         self.assertEqual("not_justified", result.status)
+        traces = sorted(trace_output.glob("*/trace.json"))
+        self.assertEqual(result.evaluation_count, len(traces))
+        self.assertTrue(all(
+            json.loads(path.read_text(encoding="utf-8"))["training_contract_sha256"]
+            == REFERENCE_TRAINING_CONTRACT_RECEIPT
+            for path in traces
+        ))
 
     def test_artifact_evaluator_rejects_digest_path_id_and_order_before_worker(self):
         reference_root = ROOT / "reference" / "mobile-manipulator"

@@ -101,6 +101,7 @@ class TrustedTraceAssignment:
     action_sha256: str
     bundle_root: Path
     manifest_sha256: str
+    training_contract_sha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -111,6 +112,7 @@ class PolicyTraceReplay:
     trace_sha256: str
     features: ReplayFeatures
     artifact_sha256: str | None = None
+    training_contract_sha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -141,6 +143,7 @@ def run_reference_policy_trace(
     wheel_radius_m: object,
     wheel_separation_m: object,
     artifact_sha256: str | None = None,
+    training_contract_sha256: str | None = None,
 ) -> TrustedTraceAssignment:
     """Publish the runner's deterministic trace for exactly one policy action grid."""
     if not isinstance(registry, TrustedScenarioRegistry):
@@ -149,6 +152,10 @@ def run_reference_policy_trace(
         policy_sha256 = validate_sha256(policy_sha256, "policy_sha256")
         if artifact_sha256 is not None:
             artifact_sha256 = validate_sha256(artifact_sha256, "artifact_sha256")
+        if training_contract_sha256 is not None:
+            training_contract_sha256 = validate_sha256(
+                training_contract_sha256, "training_contract_sha256"
+            )
         scenario = registry.scenario_by_id(scenario_id)
     except ValueError as exc:
         raise PolicyTraceError(str(exc)) from None
@@ -164,6 +171,8 @@ def run_reference_policy_trace(
     })
     if artifact_sha256 is not None:
         trace["artifact_sha256"] = artifact_sha256
+    if training_contract_sha256 is not None:
+        trace["training_contract_sha256"] = training_contract_sha256
     try:
         receipt = write_bundle_with_receipt(output, {
             "index.json": {"schema_version": 1, "kind": "trusted_policy_trace_v1"},
@@ -172,7 +181,11 @@ def run_reference_policy_trace(
         })
     except BundleError as exc:
         raise PolicyTraceError(str(exc)) from None
-    return TrustedTraceAssignment(registry.registry_sha256, scenario.scenario_id, policy_sha256, action_sha256, receipt.path, receipt.manifest_sha256)
+    return TrustedTraceAssignment(
+        registry.registry_sha256, scenario.scenario_id, policy_sha256,
+        action_sha256, receipt.path, receipt.manifest_sha256,
+        training_contract_sha256,
+    )
 
 
 def replay_policy_trace_bundle(
@@ -183,6 +196,7 @@ def replay_policy_trace_bundle(
     *,
     expected_actions: object | None = None,
     expected_artifact_sha256: str | None = None,
+    expected_training_contract_sha256: str | None = None,
 ) -> PolicyTraceReplay:
     """Replay only a trace whose registry, policy and runner state all agree."""
     if not isinstance(registry, TrustedScenarioRegistry):
@@ -191,6 +205,10 @@ def replay_policy_trace_bundle(
         expected_policy_sha256 = validate_sha256(expected_policy_sha256, "expected policy_sha256")
         if expected_artifact_sha256 is not None:
             expected_artifact_sha256 = validate_sha256(expected_artifact_sha256, "expected artifact_sha256")
+        if expected_training_contract_sha256 is not None:
+            expected_training_contract_sha256 = validate_sha256(
+                expected_training_contract_sha256, "expected training_contract_sha256"
+            )
         replay = replay_trace_bundle(root, manifest_sha256)
         trace = _read_json(Path(root) / "trace.json")
         scenario = registry.scenario_by_id(replay.scenario_id)
@@ -198,7 +216,12 @@ def replay_policy_trace_bundle(
         raise PolicyTraceError(f"cannot replay trusted policy trace: {exc}") from None
     expected_fields = {"schema_version", "scenario_sha256", "joint_order", "samples", "registry_sha256", "policy_sha256", "actions", "runner_profile"}
     artifact_fields = expected_fields | {"artifact_sha256"}
-    if set(trace) not in {frozenset(expected_fields), frozenset(artifact_fields)}:
+    training_contract_fields = expected_fields | {"training_contract_sha256"}
+    artifact_training_contract_fields = artifact_fields | {"training_contract_sha256"}
+    if set(trace) not in {
+        frozenset(expected_fields), frozenset(artifact_fields),
+        frozenset(training_contract_fields), frozenset(artifact_training_contract_fields),
+    }:
         raise PolicyTraceError("trusted policy trace fields are not closed")
     if trace["registry_sha256"] != registry.registry_sha256:
         raise PolicyTraceError("trace registry receipt does not match trusted registry")
@@ -212,6 +235,16 @@ def replay_policy_trace_bundle(
             raise PolicyTraceError(str(exc)) from None
     if artifact_sha256 != expected_artifact_sha256:
         raise PolicyTraceError("trace artifact identity does not match evaluation request")
+    training_contract_sha256 = trace.get("training_contract_sha256")
+    if training_contract_sha256 is not None:
+        try:
+            training_contract_sha256 = validate_sha256(
+                training_contract_sha256, "trace training_contract_sha256"
+            )
+        except ValueError as exc:
+            raise PolicyTraceError(str(exc)) from None
+    if training_contract_sha256 != expected_training_contract_sha256:
+        raise PolicyTraceError("trace training contract identity does not match evaluation request")
     profile_raw = trace["runner_profile"]
     if not isinstance(profile_raw, dict) or set(profile_raw) != _PROFILE_FIELDS:
         raise PolicyTraceError("trace runner profile fields are invalid")
@@ -229,4 +262,7 @@ def replay_policy_trace_bundle(
         features = extract_replay_features(replay, require_passed=False)
     except ValueError as exc:
         raise PolicyTraceError("trusted policy trace features are invalid: " + str(exc)) from None
-    return PolicyTraceReplay(replay.scenario_id, expected_policy_sha256, action_sha256, replay.trace_sha256, features, artifact_sha256)
+    return PolicyTraceReplay(
+        replay.scenario_id, expected_policy_sha256, action_sha256,
+        replay.trace_sha256, features, artifact_sha256, training_contract_sha256,
+    )

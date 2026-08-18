@@ -96,8 +96,12 @@ def replay_trace_bundle(root: str | Path, manifest_sha256: str) -> SimulationRes
     required_trace = {"schema_version", "scenario_sha256", "joint_order", "samples"}
     policy_trace_fields = required_trace | {"registry_sha256", "policy_sha256", "actions", "runner_profile"}
     artifact_policy_trace_fields = policy_trace_fields | {"artifact_sha256"}
+    training_contract_policy_trace_fields = policy_trace_fields | {"training_contract_sha256"}
+    artifact_training_contract_policy_trace_fields = artifact_policy_trace_fields | {"training_contract_sha256"}
     if set(trace) not in {
-        frozenset(required_trace), frozenset(policy_trace_fields), frozenset(artifact_policy_trace_fields)
+        frozenset(required_trace), frozenset(policy_trace_fields), frozenset(artifact_policy_trace_fields),
+        frozenset(training_contract_policy_trace_fields),
+        frozenset(artifact_training_contract_policy_trace_fields),
     } or trace["schema_version"] != 1:
         raise TraceError("trace.json fields are not closed")
     if hashlib.sha256(canonical_bytes(scenario_data)).hexdigest() != trace["scenario_sha256"]:
