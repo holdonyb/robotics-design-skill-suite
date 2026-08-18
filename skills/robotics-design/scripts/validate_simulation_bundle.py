@@ -33,7 +33,13 @@ from assurance.simulation.artifacts import validate_ros_workspace_manifest
 from assurance.simulation.model import TraceSample
 from assurance.simulation.scenario import CompiledScenario
 from assurance.simulation.trace import TraceError, publish_trace_bundle, replay_trace_bundle
-from assurance.simulation.training import evaluate_policy_artifact, validate_training_contract
+from assurance.simulation.training import (
+    TrainingError,
+    REFERENCE_TRAINING_CONTRACT_RECEIPT,
+    evaluate_policy_artifact,
+    load_reference_training_contract,
+    validate_training_contract,
+)
 from assurance.simulation.replay_features import ReplayFeatureError, extract_replay_features
 from assurance.simulation.trusted_registry import (
     TrustedRegistryError,
@@ -387,11 +393,9 @@ def _crosscheck_record(bundle_root: str | Path, manifest_sha256: str, profile: d
     }
 
 
-def _training_result(root: Path, trace_output: Path, profile: dict[str, Any]) -> dict[str, Any]:
-    contract = _load_json(root / "simulation" / "training-contract.json")
-    errors = validate_training_contract(contract)
-    if errors:
-        raise BenchmarkError("training contract is invalid: " + "; ".join(errors))
+def _training_result(
+    root: Path, trace_output: Path, profile: dict[str, Any], contract: dict[str, Any]
+) -> dict[str, Any]:
     try:
         context = TrustedPolicyTraceContext(
             root, trace_output,
@@ -428,6 +432,10 @@ def run_reference_benchmark(
     admission = _admission_from_reference(root)
     if admission["status"] != "simulation_admitted" or admission["hardware_promotable"] is not False:
         raise BenchmarkError("reference candidate is not simulation-admitted with hardware disabled")
+    try:
+        training_contract = load_reference_training_contract(root)
+    except TrainingError as exc:
+        raise BenchmarkError("reference training contract owner receipt failed: " + str(exc)) from None
 
     try:
         trusted_registry = load_reference_trusted_scenario_registry(root)
@@ -466,16 +474,17 @@ def run_reference_benchmark(
             load_calibration_dataset(root / "simulation" / "calibration-synthetic.json")
         )
         training = (
-            _training_result(root, temporary / "policy-traces", profile)
+            _training_result(root, temporary / "policy-traces", profile, training_contract)
             if not failed
             else {
                 "status": "not_justified",
                 "evidence_level": "simulated",
-                "physical_blockers": _load_json(root / "simulation" / "training-contract.json")["physical_blockers"],
+                "physical_blockers": training_contract["physical_blockers"],
                 "mean_reward": None,
                 "evaluation_count": 0,
                 "held_out_evaluation_count": 0,
                 "trace_sha256s": [],
+                "training_contract_sha256": REFERENCE_TRAINING_CONTRACT_RECEIPT,
                 "reason": "not_evaluated",
             }
         )

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 import math
 import time
 import tracemalloc
@@ -72,6 +73,7 @@ _OBSERVATION_FIELDS = ["joint_rad", "left_wheel_rad_s", "right_wheel_rad_s"]
 _ACTION_FIELDS = ["linear_m_s", "angular_rad_s"]
 _MAX_COLLECTION_ITEMS = 64
 _ASSIGNMENT_FIELDS = {"phase", "seed", "fault_id", "scenario", "bundle_root", "manifest_sha256"}
+REFERENCE_TRAINING_CONTRACT_RECEIPT = "5d175993fd47b8ef8d830f834955299ec7cc0b8c1af60ebbe0f254849d039d18"
 
 
 def _finite(value: object, name: str) -> float:
@@ -211,6 +213,31 @@ def validate_training_contract(value: object) -> list[str]:
     return []
 
 
+def load_reference_training_contract(reference_root: str | Path) -> dict[str, Any]:
+    """Load only the benchmark-owner's exact training contract bytes."""
+
+    root = Path(reference_root)
+    path = root / "simulation" / "training-contract.json"
+    try:
+        if root.is_symlink() or not root.is_dir() or path.is_symlink() or not path.is_file():
+            raise TrainingError("reference training contract is missing or symlinked")
+        payload = path.read_bytes()
+    except OSError as exc:
+        raise TrainingError("cannot read reference training contract: " + str(exc)) from None
+    if hashlib.sha256(payload).hexdigest() != REFERENCE_TRAINING_CONTRACT_RECEIPT:
+        raise TrainingError("reference training contract does not match benchmark owner receipt")
+    try:
+        value = json.loads(payload.decode("utf-8"))
+        checked = _validate_contract_or_raise(value)
+        if canonical_bytes(checked) != payload:
+            raise TrainingError("reference training contract is not canonical JSON")
+    except (UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        if isinstance(exc, TrainingError):
+            raise
+        raise TrainingError("reference training contract is invalid: " + str(exc)) from None
+    return checked
+
+
 def _validated_physical_receipt(
     value: object, contract: dict[str, Any]
 ) -> tuple[str, ...]:
@@ -242,6 +269,7 @@ class PolicyResult:
     held_out_evaluation_count: int
     trace_sha256s: tuple[str, ...]
     artifact_sha256: str | None = None
+    training_contract_sha256: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         value: dict[str, object] = {
@@ -257,6 +285,8 @@ class PolicyResult:
         if self.artifact_sha256 is not None:
             value["artifact_sha256"] = self.artifact_sha256
             value["policy_artifact_sha256"] = self.artifact_sha256
+        if self.training_contract_sha256 is not None:
+            value["training_contract_sha256"] = self.training_contract_sha256
         return value
 
 
@@ -555,6 +585,9 @@ def evaluate_policy_artifact(
     blockers = _validated_physical_receipt(physical_report, checked_contract)
     if not isinstance(trace_context, TrustedPolicyTraceContext):
         raise TrainingError("trace context must be a TrustedPolicyTraceContext")
+    owner_contract = load_reference_training_contract(trace_context.reference_root)
+    if canonical_bytes(checked_contract) != canonical_bytes(owner_contract):
+        raise TrainingError("training contract does not match benchmark owner receipt")
     try:
         registry = load_reference_trusted_scenario_registry(trace_context.reference_root)
     except TrustedRegistryError as exc:
@@ -625,4 +658,5 @@ def evaluate_policy_artifact(
         result,
         policy_id=artifact.policy_id,
         artifact_sha256=artifact.sha256,
+        training_contract_sha256=REFERENCE_TRAINING_CONTRACT_RECEIPT,
     )

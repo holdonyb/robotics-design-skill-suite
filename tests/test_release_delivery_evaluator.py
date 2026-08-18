@@ -87,6 +87,10 @@ class ReleaseDeliveryEvaluatorTests(unittest.TestCase):
             "skills/robotics-design/scripts/assurance/hypothesis/bundle.py",
             "reference/mobile-manipulator/simulation/scenarios.json",
             "reference/mobile-manipulator/simulation/training-contract.json",
+            "reference/mobile-manipulator/simulation/policies/baseline-affine.json",
+            "skills/robotics-design/scripts/assurance/simulation/policy_artifact.py",
+            "skills/robotics-design/scripts/assurance/simulation/policy_backend.py",
+            "skills/robotics-design/scripts/assurance/simulation/policy_worker.py",
         ):
             self.assertIn(path, required)
         root = self.copy_candidate_tree("v1.1.0")

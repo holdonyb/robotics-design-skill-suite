@@ -4,6 +4,8 @@ from __future__ import annotations
 import math
 import re
 import xml.etree.ElementTree as ET
+import hashlib
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,6 +19,45 @@ _CONTROLLERS = "ros2_ws/src/jx_mobile_manipulator_sim/config/controllers.yaml"
 
 class ReferenceProfileError(ValueError):
     """The reference runner geometry is missing, stale, or inconsistent."""
+
+
+def _profile_source_snapshot(root: Path) -> tuple[bytes, bytes]:
+    """Capture manifest-bound source bytes once, before any profile parsing."""
+
+    manifest_path = root / "simulation" / "ros-workspace-manifest.json"
+    errors = validate_ros_workspace_manifest(root, manifest_path, ROS_WORKSPACE_RECEIPT)
+    if errors:
+        raise ReferenceProfileError("ROS workspace is not receipt-valid: " + "; ".join(errors))
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+        if hashlib.sha256(manifest_bytes).hexdigest() != ROS_WORKSPACE_RECEIPT:
+            raise ReferenceProfileError("ROS workspace manifest changed after validation")
+        manifest = json.loads(manifest_bytes.decode("utf-8"))
+        outputs = manifest.get("outputs") if isinstance(manifest, dict) else None
+        if not isinstance(outputs, list):
+            raise ReferenceProfileError("ROS workspace manifest outputs are invalid")
+        hashes = {
+            item["path"]: item["sha256"]
+            for item in outputs
+            if isinstance(item, dict)
+            and set(item) == {"path", "sha256"}
+            and isinstance(item.get("path"), str)
+            and isinstance(item.get("sha256"), str)
+        }
+        if len(hashes) != len(outputs):
+            raise ReferenceProfileError("ROS workspace manifest outputs are invalid")
+        snapshots = []
+        for relative in (_XACRO, _CONTROLLERS):
+            path = root / relative
+            if path.is_symlink() or not path.is_file():
+                raise ReferenceProfileError("reference profile sources are missing or symlinked")
+            payload = path.read_bytes()
+            if hashes.get(relative) != hashlib.sha256(payload).hexdigest():
+                raise ReferenceProfileError(f"reference profile source SHA-256 mismatch: {relative}")
+            snapshots.append(payload)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ReferenceProfileError(f"cannot snapshot reference profile source: {exc}") from None
+    return snapshots[0], snapshots[1]
 
 
 def _finite(value: object, name: str, *, positive: bool = True) -> float:
@@ -48,15 +89,10 @@ def load_reference_runner_profile(reference_root: str | Path) -> ReferenceRunner
     root = Path(reference_root)
     if root.is_symlink() or not root.is_dir():
         raise ReferenceProfileError("reference root is missing, not a directory, or a symlink")
-    errors = validate_ros_workspace_manifest(root, root / "simulation" / "ros-workspace-manifest.json", ROS_WORKSPACE_RECEIPT)
-    if errors:
-        raise ReferenceProfileError("ROS workspace is not receipt-valid: " + "; ".join(errors))
-    xacro_path, controllers_path = root / _XACRO, root / _CONTROLLERS
     try:
-        if any(path.is_symlink() or not path.is_file() for path in (xacro_path, controllers_path)):
-            raise ReferenceProfileError("reference profile sources are missing or symlinked")
-        xacro = ET.fromstring(xacro_path.read_bytes())
-        controllers = controllers_path.read_text(encoding="utf-8")
+        xacro_bytes, controllers_bytes = _profile_source_snapshot(root)
+        xacro = ET.fromstring(xacro_bytes)
+        controllers = controllers_bytes.decode("utf-8")
     except (OSError, UnicodeError, ET.ParseError) as exc:
         raise ReferenceProfileError(f"cannot load reference profile source: {exc}") from None
     namespace = "{http://www.ros.org/wiki/xacro}"

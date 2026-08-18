@@ -371,11 +371,11 @@ class TrainingTests(unittest.TestCase):
             "hardware_promotable": False,
         }
         for mutate, expected in (
-            (lambda value: value.__setitem__("artifact_sha256", "a" * 64), "artifact_sha256"),
+            (lambda value: value.__setitem__("artifact_sha256", "a" * 64), "artifact|training contract"),
             (lambda value: value.__setitem__("artifact_path", "../outside.json"), "artifact_path"),
             (lambda value: value.__setitem__("artifact_path", "C:/outside.json"), "artifact_path"),
-            (lambda value: value.__setitem__("artifact_policy_id", "policy-other"), "artifact_policy_id"),
-            (lambda value: value.__setitem__("artifact_observation_order", ["joint_1"]), "artifact_observation_order"),
+            (lambda value: value.__setitem__("artifact_policy_id", "policy-other"), "artifact|training contract"),
+            (lambda value: value.__setitem__("artifact_observation_order", ["joint_1"]), "artifact|training contract"),
         ):
             with self.subTest(expected=expected):
                 contract_value = copy.deepcopy(source_contract)
@@ -412,8 +412,8 @@ class TrainingTests(unittest.TestCase):
                     shutil.copyfile(source / "simulation" / "policies" / "baseline-affine.json", artifact_path)
                     try:
                         mutation()
-                    except (NotImplementedError, OSError):
-                        continue
+                    except (NotImplementedError, OSError) as exc:
+                        self.skipTest(f"symlink mutation is unavailable: {exc}")
                     with mock.patch("assurance.simulation.training.execute_policy", wraps=execute_policy) as worker:
                         with self.assertRaisesRegex(TrainingError, expected):
                             evaluate_policy_artifact(

@@ -1,3 +1,4 @@
+import json
 import sys
 import shutil
 import tempfile
@@ -10,6 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "skills" / "robotics-design" / "scripts"))
 
 import validate_simulation_bundle as simulation_bundle  # noqa: E402
+from assurance.simulation.policy_backend import execute_policy  # noqa: E402
+from assurance.simulation.training import REFERENCE_TRAINING_CONTRACT_RECEIPT  # noqa: E402
 from validate_simulation_bundle import (  # noqa: E402
     BenchmarkError,
     _backend_input,
@@ -27,6 +30,30 @@ class ReferenceSimulationTests(unittest.TestCase):
             path.write_bytes(path.read_bytes() + b"\n")
             with self.assertRaisesRegex(BenchmarkError, "external receipt"):
                 run_reference_benchmark(copied)
+
+    def test_reference_benchmark_rejects_rehashed_training_contract_before_worker(self):
+        with tempfile.TemporaryDirectory() as raw:
+            copied = Path(raw) / "reference"
+            shutil.copytree(ROOT / "reference" / "mobile-manipulator", copied)
+            contract = copied / "simulation" / "training-contract.json"
+            payload = json.loads(contract.read_text(encoding="utf-8"))
+            payload["baseline_mean_reward"] = 0.1
+            contract.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+            with patch("assurance.simulation.training.execute_policy", wraps=execute_policy) as worker:
+                with self.assertRaisesRegex(BenchmarkError, "training contract.*receipt"):
+                    run_reference_benchmark(copied)
+                worker.assert_not_called()
+
+    def test_failed_reference_benchmark_also_requires_owner_training_contract(self):
+        with tempfile.TemporaryDirectory() as raw:
+            copied = Path(raw) / "reference"
+            shutil.copytree(ROOT / "reference" / "mobile-manipulator", copied)
+            contract = copied / "simulation" / "training-contract.json"
+            payload = json.loads(contract.read_text(encoding="utf-8"))
+            payload["baseline_mean_reward"] = 0.1
+            contract.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(BenchmarkError, "training contract.*receipt"):
+                run_reference_benchmark(copied, force_failed_scenario=True)
 
     def test_backend_profile_is_extracted_from_bound_ros_workspace(self):
         profile = _load_backend_profile(ROOT / "reference" / "mobile-manipulator")
@@ -54,6 +81,10 @@ class ReferenceSimulationTests(unittest.TestCase):
         self.assertEqual("simulated", report["calibration"]["evidence_level"])
         self.assertEqual("simulated", report["training"]["evidence_level"])
         self.assertEqual("not_justified", report["training"]["status"])
+        self.assertEqual(
+            REFERENCE_TRAINING_CONTRACT_RECEIPT,
+            report["training"]["training_contract_sha256"],
+        )
         self.assertNotIn("hardware_promotable", report["training"])
 
     def test_training_issues_distinct_action_bound_traces_and_backend_uses_generic_replays(self):
