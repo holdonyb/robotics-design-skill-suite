@@ -26,6 +26,14 @@ _ROOT_FIELDS = {
     "angular",
 }
 _CHANNEL_FIELDS = {"bias", "weights"}
+_WIN_FILE_ATTRIBUTE_DIRECTORY = 0x10
+_WIN_FILE_ATTRIBUTE_NORMAL = 0x80
+_WIN_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+_WIN_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+_WIN_FILE_SHARE_READ = 0x1
+_WIN_GENERIC_READ = 0x80000000
+_WIN_OPEN_EXISTING = 3
+_WIN_FILE_TYPE_DISK = 0x1
 
 
 class PolicyArtifactError(ValueError):
@@ -61,6 +69,86 @@ def _reject_nonfinite_json_number(value: str) -> None:
     )
 
 
+def _validate_windows_file_handle(attributes: int, file_type: int) -> None:
+    if attributes & _WIN_FILE_ATTRIBUTE_REPARSE_POINT:
+        raise PolicyArtifactError("policy artifact must not be a reparse point")
+    if attributes & _WIN_FILE_ATTRIBUTE_DIRECTORY or file_type != _WIN_FILE_TYPE_DISK:
+        raise PolicyArtifactError("policy artifact must be a regular file")
+
+
+def _open_windows_regular_descriptor(target: Path) -> int:
+    """Open a Windows file without following a replacement reparse point."""
+
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    class ByHandleFileInformation(ctypes.Structure):
+        _fields_ = [
+            ("dwFileAttributes", wintypes.DWORD),
+            ("ftCreationTime", wintypes.FILETIME),
+            ("ftLastAccessTime", wintypes.FILETIME),
+            ("ftLastWriteTime", wintypes.FILETIME),
+            ("dwVolumeSerialNumber", wintypes.DWORD),
+            ("nFileSizeHigh", wintypes.DWORD),
+            ("nFileSizeLow", wintypes.DWORD),
+            ("nNumberOfLinks", wintypes.DWORD),
+            ("nFileIndexHigh", wintypes.DWORD),
+            ("nFileIndexLow", wintypes.DWORD),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    create_file = kernel32.CreateFileW
+    create_file.argtypes = (
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    )
+    create_file.restype = wintypes.HANDLE
+    get_information = kernel32.GetFileInformationByHandle
+    get_information.argtypes = (wintypes.HANDLE, ctypes.POINTER(ByHandleFileInformation))
+    get_information.restype = wintypes.BOOL
+    get_file_type = kernel32.GetFileType
+    get_file_type.argtypes = (wintypes.HANDLE,)
+    get_file_type.restype = wintypes.DWORD
+    close_handle = kernel32.CloseHandle
+    close_handle.argtypes = (wintypes.HANDLE,)
+    close_handle.restype = wintypes.BOOL
+
+    invalid_handle = ctypes.c_void_p(-1).value
+    handle = create_file(
+        os.fspath(target),
+        _WIN_GENERIC_READ,
+        _WIN_FILE_SHARE_READ,
+        None,
+        _WIN_OPEN_EXISTING,
+        _WIN_FILE_ATTRIBUTE_NORMAL | _WIN_FILE_FLAG_OPEN_REPARSE_POINT,
+        None,
+    )
+    if handle is None or handle == invalid_handle:
+        raise PolicyArtifactError("policy artifact cannot be read")
+    try:
+        information = ByHandleFileInformation()
+        if not get_information(handle, ctypes.byref(information)):
+            raise PolicyArtifactError("policy artifact cannot be inspected")
+        _validate_windows_file_handle(information.dwFileAttributes, get_file_type(handle))
+        try:
+            descriptor = msvcrt.open_osfhandle(
+                handle, os.O_RDONLY | getattr(os, "O_BINARY", 0)
+            )
+        except OSError:
+            raise PolicyArtifactError("policy artifact cannot be read") from None
+        handle = None
+        return descriptor
+    finally:
+        if handle is not None:
+            close_handle(handle)
+
+
 def _read_artifact_bytes(path: str | Path) -> bytes:
     try:
         target = Path(path)
@@ -79,11 +167,14 @@ def _read_artifact_bytes(path: str | Path) -> bytes:
     if metadata.st_size > _MAX_ARTIFACT_BYTES:
         raise PolicyArtifactError("policy artifact exceeds maximum size of 64 KiB")
 
-    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
-    try:
-        descriptor = os.open(os.fspath(target), flags)
-    except OSError:
-        raise PolicyArtifactError("policy artifact cannot be read") from None
+    if os.name == "nt":
+        descriptor = _open_windows_regular_descriptor(target)
+    else:
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            descriptor = os.open(os.fspath(target), flags)
+        except OSError:
+            raise PolicyArtifactError("policy artifact cannot be read") from None
     try:
         descriptor_metadata = os.fstat(descriptor)
         if not stat.S_ISREG(descriptor_metadata.st_mode):

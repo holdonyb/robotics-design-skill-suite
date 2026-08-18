@@ -1,11 +1,14 @@
 import hashlib
 import json
 import os
+import stat
 import sys
 import tempfile
 import unittest
 from dataclasses import FrozenInstanceError
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +19,7 @@ from assurance.simulation.policy_artifact import (  # noqa: E402
     PolicyArtifactError,
     load_policy_artifact,
 )
+from assurance.simulation import policy_artifact  # noqa: E402
 
 
 class PolicyArtifactTests(unittest.TestCase):
@@ -140,6 +144,32 @@ class PolicyArtifactTests(unittest.TestCase):
             self.skipTest("symlink creation is unavailable")
         with self.assertRaisesRegex(PolicyArtifactError, "symlink"):
             load_policy_artifact(link)
+
+    def test_windows_reparse_swap_after_lstat_is_rejected_by_handle_open(self):
+        self.write_canonical(self.artifact())
+        initial_file = SimpleNamespace(
+            st_mode=stat.S_IFREG,
+            st_size=self.path.stat().st_size,
+        )
+        with (
+            mock.patch.object(policy_artifact.Path, "lstat", return_value=initial_file),
+            mock.patch.object(
+                policy_artifact,
+                "_open_windows_regular_descriptor",
+                side_effect=PolicyArtifactError("policy artifact must not be a reparse point"),
+            ) as open_regular,
+            mock.patch.object(policy_artifact.os, "name", "nt"),
+        ):
+            with self.assertRaisesRegex(PolicyArtifactError, "reparse point"):
+                load_policy_artifact(self.path)
+        open_regular.assert_called_once_with(self.path)
+
+    def test_windows_handle_metadata_rejects_reparse_points(self):
+        with self.assertRaisesRegex(PolicyArtifactError, "reparse point"):
+            policy_artifact._validate_windows_file_handle(
+                policy_artifact._WIN_FILE_ATTRIBUTE_REPARSE_POINT,
+                policy_artifact._WIN_FILE_TYPE_DISK,
+            )
 
     def test_returns_an_immutable_independent_snapshot(self):
         source = self.artifact()
