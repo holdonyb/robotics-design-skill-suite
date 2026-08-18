@@ -80,6 +80,16 @@ class ScenarioCompilationTests(unittest.TestCase):
                 with self.assertRaisesRegex(ScenarioError, expected):
                     compile_scenarios(bad)
 
+    def test_allows_same_random_seed_only_for_a_distinct_fault_case(self):
+        source = registry()
+        source["scenarios"][4]["seed"] = 1
+        source["scenarios"][4]["faults"] = [{"fault_id": "fault-stop", "at_ns": 500_000_000}]
+        compiled = compile_scenarios(source)
+        matching = [item for item in compiled if item.seed == 1]
+        self.assertEqual(2, len(matching))
+        self.assertEqual((), matching[0].faults)
+        self.assertEqual("fault-stop", matching[1].faults[0]["fault_id"])
+
     def test_loader_rejects_duplicate_keys_and_reference_registry_is_compilable(self):
         path = ROOT / "reference" / "mobile-manipulator" / "simulation" / "scenarios.json"
         loaded = load_scenario_registry(path)

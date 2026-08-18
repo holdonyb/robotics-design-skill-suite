@@ -22,6 +22,8 @@ from ..hypothesis.canonical import (
     validate_sha256,
 )
 from .replay_features import ReplayFeatureError, ReplayFeatures, extract_replay_features
+from .model import SimulationResult
+from .scenario import CompiledScenario
 
 
 class TrainingError(ValueError):
@@ -55,7 +57,7 @@ _REWARD_FIELDS = {"wheel_progress", "wheel_effort"}
 _OBSERVATION_FIELDS = ["joint_rad", "left_wheel_rad_s", "right_wheel_rad_s"]
 _ACTION_FIELDS = ["linear_m_s", "angular_rad_s"]
 _MAX_COLLECTION_ITEMS = 64
-_ASSIGNMENT_FIELDS = {"phase", "seed", "fault_id", "replay"}
+_ASSIGNMENT_FIELDS = {"phase", "seed", "fault_id", "scenario", "replay"}
 
 
 def _finite(value: object, name: str) -> float:
@@ -233,6 +235,7 @@ def _validated_assignments(
         raise TrainingError("trace assignments must match the required evaluation cases")
     expected_set = set(expected)
     assignments: dict[tuple[str, int, str | None], ReplayFeatures] = {}
+    trace_sha256s: set[str] = set()
     for index, raw in enumerate(value):
         if not isinstance(raw, dict) or set(raw) != _ASSIGNMENT_FIELDS:
             raise TrainingError(f"trace assignments[{index}] fields are invalid")
@@ -247,10 +250,43 @@ def _validated_assignments(
         key = (phase, seed, fault_id)
         if key not in expected_set or key in assignments:
             raise TrainingError("trace assignments do not match required cases")
+        scenario = raw["scenario"]
+        replay = raw["replay"]
+        if not isinstance(scenario, CompiledScenario):
+            raise TrainingError(f"trace assignments[{index}] scenario must be a compiled scenario")
+        if not isinstance(replay, SimulationResult):
+            raise TrainingError(f"trace assignments[{index}] replay must be receipt-validated")
+        if scenario.seed != seed:
+            raise TrainingError(f"trace assignments[{index}] scenario seed does not match case")
+        scenario_faults = tuple(item["fault_id"] for item in scenario.faults)
+        if phase == "held_out":
+            if scenario_faults != (fault_id,):
+                raise TrainingError(f"trace assignments[{index}] scenario fault does not match held-out case")
+        elif fault_id is not None or scenario_faults:
+            raise TrainingError(f"trace assignments[{index}] scenario fault is invalid for ordinary case")
+        if (
+            replay.scenario_id != scenario.scenario_id
+            or replay.model_sha256 != scenario.model_sha256
+            or replay.trajectory_sha256 != scenario.trajectory_sha256
+            or replay.environment_sha256 != scenario.environment_sha256
+            or replay.joint_order != scenario.joint_order
+        ):
+            raise TrainingError(f"trace assignments[{index}] replay does not match scenario provenance")
+        expected_metrics = {
+            item["name"]: (item["unit"], float(item["limit"]))
+            for item in scenario.metrics
+        }
+        replay_metrics = {item.name: (item.unit, item.limit) for item in replay.metrics}
+        if replay_metrics != expected_metrics:
+            raise TrainingError(f"trace assignments[{index}] replay metrics do not match scenario provenance")
         try:
-            assignments[key] = extract_replay_features(raw["replay"])
+            features = extract_replay_features(replay)
         except ReplayFeatureError as exc:
             raise TrainingError(f"trace assignments[{index}] replay is invalid: {exc}") from None
+        if features.trace_sha256 in trace_sha256s:
+            raise TrainingError("trace assignments must use unique receipt-bound trace_sha256 values")
+        trace_sha256s.add(features.trace_sha256)
+        assignments[key] = features
     if set(assignments) != expected_set:
         raise TrainingError("trace assignments do not cover required cases")
     return [(case, assignments[case]) for case in expected]

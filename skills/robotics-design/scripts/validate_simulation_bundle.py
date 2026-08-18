@@ -30,8 +30,8 @@ from assurance.simulation.backend import (
 )
 from assurance.simulation.calibration import fit_calibration, load_calibration_dataset
 from assurance.simulation.artifacts import validate_ros_workspace_manifest
-from assurance.simulation.model import TraceSample
-from assurance.simulation.scenario import compile_scenarios, load_scenario_registry
+from assurance.simulation.model import SimulationResult, TraceSample
+from assurance.simulation.scenario import CompiledScenario, compile_scenarios, load_scenario_registry
 from assurance.simulation.trace import publish_trace_bundle, replay_trace_bundle
 from assurance.simulation.training import evaluate_policy, validate_training_contract
 from assurance.simulation.replay_features import ReplayFeatureError, extract_replay_features
@@ -316,19 +316,12 @@ def _load_backend_profile(root: Path) -> dict[str, Any]:
     }
 
 
-def _backend_input(replay: dict[str, Any], profile: dict[str, Any]) -> dict[str, object]:
+def _backend_input(replay: SimulationResult, profile: dict[str, Any]) -> dict[str, object]:
     """Use receipt-validated replay samples as the backend-consumer input."""
     try:
         features = extract_replay_features(replay, require_passed=False)
     except ReplayFeatureError as exc:
-        message = str(exc)
-        if "state." in message:
-            message = "replayed trace wheel state is invalid: " + message
-        elif message == "replay fields are not closed":
-            message = "replayed trace provenance is invalid: " + message
-        else:
-            message = "replayed trace cannot produce backend input: " + message
-        raise BenchmarkError(message) from None
+        raise BenchmarkError("receipt-validated replay cannot produce backend input: " + str(exc)) from None
     return {
         "model_sha256": features.model_sha256,
         "trajectory_sha256": features.trajectory_sha256,
@@ -365,17 +358,17 @@ def _backend_result(result: Any) -> dict[str, Any]:
     }
 
 
-def _crosscheck_record(replay: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
+def _crosscheck_record(replay: SimulationResult, profile: dict[str, Any]) -> dict[str, Any]:
     backend_trace = _backend_input(replay, profile)
     primary = evaluate_trace_kinematics(backend_trace)
     independent = evaluate_independent_dynamics(backend_trace)
     tolerances = {metric.name: 1e-9 for metric in primary.metrics}
     comparison = compare_backends(primary, independent, tolerances)
     return {
-        "scenario_id": replay["scenario_id"],
-        "trace_sha256": replay["trace_sha256"],
-        "model_sha256": replay["model_sha256"],
-        "trajectory_sha256": replay["trajectory_sha256"],
+        "scenario_id": replay.scenario_id,
+        "trace_sha256": replay.trace_sha256,
+        "model_sha256": replay.model_sha256,
+        "trajectory_sha256": replay.trajectory_sha256,
         "profile": profile,
         "primary": _backend_result(primary),
         "independent": _backend_result(independent),
@@ -384,13 +377,11 @@ def _crosscheck_record(replay: dict[str, Any], profile: dict[str, Any]) -> dict[
     }
 
 
-def _training_result(root: Path, replayed: list[dict[str, Any]]) -> dict[str, Any]:
+def _training_result(root: Path, replayed: list[tuple[CompiledScenario, SimulationResult]]) -> dict[str, Any]:
     contract = _load_json(root / "simulation" / "training-contract.json")
     errors = validate_training_contract(contract)
     if errors:
         raise BenchmarkError("training contract is invalid: " + "; ".join(errors))
-    by_scenario = {item.get("scenario_id"): item for item in replayed}
-    passed_replays = [item for item in replayed if item.get("status") == "passed"]
     expected_cases = [
         ("train", seed, None) for seed in contract["train_seeds"]
     ] + [
@@ -400,22 +391,31 @@ def _training_result(root: Path, replayed: list[dict[str, Any]]) -> dict[str, An
         for fault in contract["held_out_faults"]
         for seed in contract["evaluation_seeds"]
     ]
-    ordinary_cases = [case for case in expected_cases if case[0] != "held_out"]
-    if len(passed_replays) < len(ordinary_cases):
-        raise BenchmarkError("training has too few passed replay traces for required cases")
-    held_replay = by_scenario.get("scenario-10")
-    if not isinstance(held_replay, dict) or held_replay.get("status") != "passed":
-        raise BenchmarkError("training trace assignment requires passed fault scenario-10")
     assignments = []
-    ordinary_index = 0
     for phase, seed, fault_id in expected_cases:
-        if phase == "held_out":
-            replay = held_replay
-        else:
-            replay = passed_replays[ordinary_index]
-            ordinary_index += 1
+        expected_faults = () if fault_id is None else (fault_id,)
+        matches = [
+            (scenario, replay)
+            for scenario, replay in replayed
+            if scenario.seed == seed
+            and tuple(item["fault_id"] for item in scenario.faults) == expected_faults
+        ]
+        if len(matches) != 1:
+            raise BenchmarkError("training trace assignment requires exactly one matching scenario case")
+        scenario, replay = matches[0]
+        if replay.status != "passed":
+            return {
+                "status": "not_justified",
+                "evidence_level": "simulated",
+                "physical_blockers": list(contract["physical_blockers"]),
+                "mean_reward": None,
+                "evaluation_count": 0,
+                "held_out_evaluation_count": 0,
+                "trace_sha256s": [],
+                "reason": "not_evaluated",
+            }
         assignments.append(
-            {"phase": phase, "seed": seed, "fault_id": fault_id, "replay": replay}
+            {"phase": phase, "seed": seed, "fault_id": fault_id, "scenario": scenario, "replay": replay}
         )
     result = evaluate_policy(
         contract,
@@ -449,7 +449,7 @@ def run_reference_benchmark(
     scenarios = compile_scenarios(registry)
     if len(scenarios) != 10:
         raise BenchmarkError("reference registry must compile exactly ten scenarios")
-    replayed: list[dict[str, Any]] = []
+    replayed: list[tuple[CompiledScenario, SimulationResult]] = []
     with tempfile.TemporaryDirectory(prefix="robotics-design-reference-") as raw:
         temporary = Path(raw)
         for index, scenario in enumerate(scenarios):
@@ -458,16 +458,17 @@ def run_reference_benchmark(
                 scenario,
                 _samples_for(scenario, failed=force_failed_scenario and index == 0),
             )
-            replayed.append(
-                replay_trace_bundle(
-                    temporary / scenario.scenario_id, receipt.manifest_sha256
-                ).to_dict()
-            )
-    passed = sum(item["status"] == "passed" for item in replayed)
+            replayed.append((
+                scenario,
+                replay_trace_bundle(temporary / scenario.scenario_id, receipt.manifest_sha256),
+            ))
+    replayed.sort(key=lambda item: item[0].scenario_id)
+    replay_dicts = [item.to_dict() for _, item in replayed]
+    passed = sum(item.status == "passed" for _, item in replayed)
     failed = len(replayed) - passed
 
     profile = _load_backend_profile(root)
-    crosschecks = [_crosscheck_record(replay, profile) for replay in replayed]
+    crosschecks = [_crosscheck_record(replay, profile) for _, replay in replayed]
     crosschecks.sort(key=lambda item: item["scenario_id"])
     comparison = "passed" if all(item["status"] == "passed" for item in crosschecks) else "failed"
     calibration = fit_calibration(
@@ -481,7 +482,7 @@ def run_reference_benchmark(
         "scenario_count": len(replayed),
         "passed_scenarios": passed,
         "failed_scenarios": failed,
-        "replays": replayed,
+        "replays": replay_dicts,
         "backend_crosschecks": crosschecks,
         "independent_backend": {
             "status": comparison,

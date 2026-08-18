@@ -10,11 +10,12 @@ ROS 2, and simulation skills to audited commits.
 
 ## Live State
 
-- Current post-v0.9 checkpoint: `cf3b8c7` is the latest merged main revision.
-  It retains a Jazzy/Harmonic turn-and-yaw live trace with stable physics-time
-  MCAP stamps. The next portable change makes training reward/joint checks and
-  cross-backend inputs derive from the same receipt-validated replay features;
-  it remains simulated-only and has not changed procurement or motion authority.
+- Current post-v0.9 working checkpoint: trace-first simulation evaluation now
+  accepts only receipt-validated replay results paired with compiled scenario
+  provenance. It recomputes final joint error from samples, requires one unique
+  trace per train/evaluation/held-out case, and binds seed plus fault identity.
+  A failed required replay yields no partial policy score. The change remains
+  simulated-only and has not changed procurement or motion authority.
 
 - Public release: `v0.9.0`; pull request `#12` merged as `ffb22ab`, annotated
   tag `v0.9.0` and [GitHub Release](https://github.com/holdonyb/robotics-design-skill-suite/releases/tag/v0.9.0)

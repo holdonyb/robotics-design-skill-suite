@@ -35,13 +35,17 @@ does not authorize hardware motion.
 Training contracts close observation/action schemas, SI frames and rates,
 reward/constraints, episode/step/time/memory caps, distinct train/evaluation
 seeds, uncertainty-owned randomization, held-out faults, baseline reward, and
-physical blockers. Each case binds one receipt-validated replay. The callback
-receives only the trace-native final joint/wheel observation and may return only
-the bounded base action; it cannot report reward, displacement, or joint error.
-Visible `wheel_progress` and `wheel_effort` weights and the hard joint-error
-gate are recomputed from replay samples. The returned record binds consumed
-trace hashes, is always `simulated` and `not_justified`, and has no
-hardware-promotion field.
+physical blockers. Each case binds one unique receipt-validated replay result
+and its compiled scenario; its seed and exact fault identity must match the
+declared case. Serialized replay dictionaries are never accepted as evaluation
+input. The callback receives only the trace-native final joint/wheel observation
+and may return only the bounded base action; it cannot report reward,
+displacement, or joint error. Visible `wheel_progress` and `wheel_effort`
+weights and the hard joint-error gate are recomputed from replay samples, and
+the retained metric must agree with that recomputation. The returned record
+binds consumed trace hashes, is always `simulated` and `not_justified`, and has
+no hardware-promotion field. A required failed replay prevents score production
+rather than permitting a partial policy result.
 
 ## Live consumer and hardware boundary
 

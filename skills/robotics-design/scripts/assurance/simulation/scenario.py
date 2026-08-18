@@ -105,16 +105,14 @@ def compile_scenarios(registry: object) -> tuple[CompiledScenario, ...]:
         raise ScenarioError("joint_order contains duplicate identifiers")
     if not isinstance(root["scenarios"], list) or len(root["scenarios"]) != 10:
         raise ScenarioError("scenarios must contain exactly 10 records")
-    compiled, ids, seeds = [], set(), set()
+    compiled, ids, seed_fault_cases = [], set(), set()
     for index, raw in enumerate(root["scenarios"]):
         path, item = f"scenarios[{index}]", _closed(raw, _SCENARIO, f"scenarios[{index}]")
         scenario_id = validate_identifier(item["scenario_id"], f"{path}.scenario_id")
         seed, duration = validate_integer(item["seed"], f"{path}.seed"), validate_integer(item["duration_ns"], f"{path}.duration_ns", positive=True)
         if scenario_id in ids:
             raise ScenarioError(f"scenarios contains duplicate scenario_id: {scenario_id}")
-        if seed in seeds:
-            raise ScenarioError(f"scenarios contains duplicate seed: {seed}")
-        ids.add(scenario_id); seeds.add(seed)
+        ids.add(scenario_id)
         if not isinstance(item["parameters"], dict) or not isinstance(item["faults"], list):
             raise ScenarioError(f"{path}.parameters must be an object and faults must be a list")
         fault_ids, faults = set(), []
@@ -126,6 +124,10 @@ def compile_scenarios(registry: object) -> tuple[CompiledScenario, ...]:
             if not 0 <= at_ns <= duration:
                 raise ScenarioError(f"{path}.faults[{fault_index}].at_ns must be within duration_ns")
             fault_ids.add(fault_id); faults.append({"fault_id": fault_id, "at_ns": at_ns})
+        seed_fault_case = (seed, tuple(sorted(fault_ids)))
+        if seed_fault_case in seed_fault_cases:
+            raise ScenarioError(f"scenarios contains duplicate seed/fault case: {seed}")
+        seed_fault_cases.add(seed_fault_case)
         if not isinstance(item["metrics"], list) or not item["metrics"]:
             raise ScenarioError(f"{path}.metrics must be a non-empty list")
         names, metrics = set(), []

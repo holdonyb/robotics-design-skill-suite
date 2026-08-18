@@ -51,6 +51,7 @@ class ReferenceSimulationTests(unittest.TestCase):
         report = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")
         replay_hashes = {item["trace_sha256"] for item in report["replays"]}
         self.assertEqual(6, len(report["training"]["trace_sha256s"]))
+        self.assertEqual(6, len(set(report["training"]["trace_sha256s"])))
         self.assertTrue(set(report["training"]["trace_sha256s"]).issubset(replay_hashes))
         self.assertEqual(
             [item["trace_sha256"] for item in report["replays"]],
@@ -65,6 +66,7 @@ class ReferenceSimulationTests(unittest.TestCase):
         self.assertEqual(1, report["failed_scenarios"])
         self.assertEqual("failed", report["independent_backend"]["status"])
         self.assertEqual("failed", report["backend_crosschecks"][0]["status"])
+        self.assertEqual("not_evaluated", report["training"]["reason"])
 
     def test_backend_cross_check_consumes_replayed_wheel_trace(self):
         report = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")
@@ -184,23 +186,10 @@ class ReferenceSimulationTests(unittest.TestCase):
             with self.assertRaisesRegex(BenchmarkError, "child link"):
                 _load_backend_profile(root)
 
-    def test_backend_rejects_missing_or_nonfinite_replayed_wheel_state(self):
+    def test_backend_rejects_untrusted_serialized_replay(self):
         profile = _load_backend_profile(ROOT / "reference" / "mobile-manipulator")
         replay = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")["replays"][0]
-        replay["samples"][1]["state"].pop("left_wheel_rad_s")
-        with self.assertRaisesRegex(BenchmarkError, "wheel state"):
-            _backend_input(replay, profile)
-
-        replay = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")["replays"][0]
-        replay["samples"][1]["state"]["right_wheel_rad_s"] = float("inf")
-        with self.assertRaisesRegex(BenchmarkError, "finite"):
-            _backend_input(replay, profile)
-
-    def test_backend_rejects_missing_replayed_provenance(self):
-        profile = _load_backend_profile(ROOT / "reference" / "mobile-manipulator")
-        replay = run_reference_benchmark(ROOT / "reference" / "mobile-manipulator")["replays"][0]
-        replay.pop("trajectory_sha256")
-        with self.assertRaisesRegex(BenchmarkError, "provenance"):
+        with self.assertRaisesRegex(BenchmarkError, "receipt-validated"):
             _backend_input(replay, profile)
 
 

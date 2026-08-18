@@ -68,6 +68,8 @@ class ReleaseDeliveryEvaluatorTests(unittest.TestCase):
             "reference/mobile-manipulator/simulation/Dockerfile.jazzy-harmonic",
             "skills/robotics-design/scripts/assurance/simulation/__init__.py",
             "skills/robotics-design/scripts/assurance/simulation/live_trace.py",
+            "skills/robotics-design/scripts/assurance/simulation/replay_features.py",
+            "skills/robotics-design/scripts/assurance/simulation/training.py",
         ):
             self.assertIn(path, required)
         root = self.copy_candidate_tree("v1.1.0")

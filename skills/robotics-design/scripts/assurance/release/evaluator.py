@@ -59,6 +59,8 @@ V110_RUNTIME_PATHS = frozenset(
         "skills/robotics-design/scripts/assurance/hypothesis/canonical.py",
         "skills/robotics-design/scripts/assurance/simulation/__init__.py",
         "skills/robotics-design/scripts/assurance/simulation/live_trace.py",
+        "skills/robotics-design/scripts/assurance/simulation/replay_features.py",
+        "skills/robotics-design/scripts/assurance/simulation/training.py",
         "skills/robotics-design/scripts/assurance/release/__init__.py",
         "skills/robotics-design/scripts/assurance/release/evaluator.py",
         "skills/robotics-design/scripts/assurance/release/model.py",
