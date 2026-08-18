@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -29,12 +30,162 @@ _MAX_STDERR_BYTES = 4096
 _MAX_ABSOLUTE_OBSERVATION = 1_000_000.0
 _MAX_LINEAR_M_S = 1.0
 _MAX_ANGULAR_RAD_S = 2.0
+_CLEANUP_WAIT_S = 0.1
+_WIN_CREATE_SUSPENDED = 0x00000004
 _ACTION_FIELDS = {"linear_m_s", "angular_rad_s"}
 _SCRIPT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class PolicyBackendError(ValueError):
     """A closed policy action could not be safely executed."""
+
+
+class _WindowsKillOnCloseJob:
+    """Windows Job Object whose close terminates every assigned descendant."""
+
+    _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9
+    _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
+
+    def __init__(self) -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        class _BasicLimitInformation(ctypes.Structure):
+            _fields_ = [
+                ("per_process_user_time_limit", ctypes.c_longlong),
+                ("per_job_user_time_limit", ctypes.c_longlong),
+                ("limit_flags", wintypes.DWORD),
+                ("minimum_working_set_size", ctypes.c_size_t),
+                ("maximum_working_set_size", ctypes.c_size_t),
+                ("active_process_limit", wintypes.DWORD),
+                ("affinity", ctypes.c_size_t),
+                ("priority_class", wintypes.DWORD),
+                ("scheduling_class", wintypes.DWORD),
+            ]
+
+        class _IoCounters(ctypes.Structure):
+            _fields_ = [
+                ("read_operation_count", ctypes.c_ulonglong),
+                ("write_operation_count", ctypes.c_ulonglong),
+                ("other_operation_count", ctypes.c_ulonglong),
+                ("read_transfer_count", ctypes.c_ulonglong),
+                ("write_transfer_count", ctypes.c_ulonglong),
+                ("other_transfer_count", ctypes.c_ulonglong),
+            ]
+
+        class _ExtendedLimitInformation(ctypes.Structure):
+            _fields_ = [
+                ("basic_limit_information", _BasicLimitInformation),
+                ("io_info", _IoCounters),
+                ("process_memory_limit", ctypes.c_size_t),
+                ("job_memory_limit", ctypes.c_size_t),
+                ("peak_process_memory_used", ctypes.c_size_t),
+                ("peak_job_memory_used", ctypes.c_size_t),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        create = kernel32.CreateJobObjectW
+        create.argtypes = (wintypes.LPVOID, wintypes.LPCWSTR)
+        create.restype = wintypes.HANDLE
+        configure = kernel32.SetInformationJobObject
+        configure.argtypes = (wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD)
+        configure.restype = wintypes.BOOL
+        assign = kernel32.AssignProcessToJobObject
+        assign.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
+        assign.restype = wintypes.BOOL
+        close = kernel32.CloseHandle
+        close.argtypes = (wintypes.HANDLE,)
+        close.restype = wintypes.BOOL
+        snapshot = kernel32.CreateToolhelp32Snapshot
+        snapshot.argtypes = (wintypes.DWORD, wintypes.DWORD)
+        snapshot.restype = wintypes.HANDLE
+        open_thread = kernel32.OpenThread
+        open_thread.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        open_thread.restype = wintypes.HANDLE
+        resume_thread = kernel32.ResumeThread
+        resume_thread.argtypes = (wintypes.HANDLE,)
+        resume_thread.restype = wintypes.DWORD
+
+        class _ThreadEntry32(ctypes.Structure):
+            _fields_ = [
+                ("dwSize", wintypes.DWORD),
+                ("cntUsage", wintypes.DWORD),
+                ("th32ThreadID", wintypes.DWORD),
+                ("th32OwnerProcessID", wintypes.DWORD),
+                ("tpBasePri", ctypes.c_long),
+                ("tpDeltaPri", ctypes.c_long),
+                ("dwFlags", wintypes.DWORD),
+            ]
+
+        thread_first = kernel32.Thread32First
+        thread_first.argtypes = (wintypes.HANDLE, ctypes.POINTER(_ThreadEntry32))
+        thread_first.restype = wintypes.BOOL
+        thread_next = kernel32.Thread32Next
+        thread_next.argtypes = (wintypes.HANDLE, ctypes.POINTER(_ThreadEntry32))
+        thread_next.restype = wintypes.BOOL
+
+        handle = create(None, None)
+        if not handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        limits = _ExtendedLimitInformation()
+        limits.basic_limit_information.limit_flags = self._JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        if not configure(
+            handle,
+            self._JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
+            ctypes.byref(limits),
+            ctypes.sizeof(limits),
+        ):
+            error = ctypes.get_last_error()
+            close(handle)
+            raise ctypes.WinError(error)
+        self._assign = assign
+        self._close = close
+        self._ctypes = ctypes
+        self._handle = handle
+        self._close_snapshot = close
+        self._snapshot = snapshot
+        self._open_thread = open_thread
+        self._resume_thread = resume_thread
+        self._thread_first = thread_first
+        self._thread_next = thread_next
+        self._thread_entry_type = _ThreadEntry32
+
+    def assign(self, process: subprocess.Popen[bytes]) -> None:
+        if not self._assign(self._handle, process._handle):
+            raise self._ctypes.WinError(self._ctypes.get_last_error())
+
+    def close(self) -> None:
+        if self._handle:
+            self._close(self._handle)
+            self._handle = None
+
+    def resume_root(self, process: subprocess.Popen[bytes]) -> None:
+        """Resume the suspended primary thread only after Job assignment."""
+
+        deadline = time.monotonic() + _CLEANUP_WAIT_S
+        invalid_handle = self._ctypes.c_void_p(-1).value
+        while time.monotonic() < deadline:
+            snapshot = self._snapshot(0x00000004, 0)  # TH32CS_SNAPTHREAD
+            if snapshot and snapshot != invalid_handle:
+                try:
+                    entry = self._thread_entry_type()
+                    entry.dwSize = self._ctypes.sizeof(entry)
+                    found = self._thread_first(snapshot, self._ctypes.byref(entry))
+                    while found:
+                        if entry.th32OwnerProcessID == process.pid:
+                            thread = self._open_thread(0x0002, False, entry.th32ThreadID)
+                            if thread:
+                                try:
+                                    if self._resume_thread(thread) != 0xFFFFFFFF:
+                                        return
+                                finally:
+                                    self._close_snapshot(thread)
+                        entry.dwSize = self._ctypes.sizeof(entry)
+                        found = self._thread_next(snapshot, self._ctypes.byref(entry))
+                finally:
+                    self._close_snapshot(snapshot)
+            time.sleep(0.001)
+        raise self._ctypes.WinError(self._ctypes.get_last_error())
 
 
 class _BoundedPipeReader:
@@ -50,39 +201,75 @@ class _BoundedPipeReader:
     def start(self) -> None:
         self._thread.start()
 
-    def join(self) -> None:
-        self._thread.join()
+    def join(self, timeout: float | None = None) -> bool:
+        self._thread.join(timeout)
+        return not self._thread.is_alive()
 
     def _drain(self) -> None:
         try:
-            while chunk := self._stream.read(4096):
+            while True:
+                try:
+                    chunk = self._stream.read(4096)
+                except (OSError, ValueError):
+                    return
+                if not chunk:
+                    return
                 if len(self.data) + len(chunk) > self._limit:
                     self.overflow = True
                     return
                 self.data.extend(chunk)
         finally:
-            self._stream.close()
+            try:
+                self._stream.close()
+            except (OSError, ValueError):
+                pass
 
 
 def _write_input(stream: object, payload: bytes, errors: list[OSError]) -> None:
     try:
         stream.write(payload)
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         errors.append(exc)
     finally:
+        try:
+            stream.close()
+        except (OSError, ValueError):
+            pass
+
+
+def _close_pipe(stream: object) -> None:
+    try:
         stream.close()
+    except (OSError, ValueError):
+        pass
 
 
-def _stop_worker(process: subprocess.Popen[bytes]) -> None:
-    if process.poll() is None:
+def _stop_worker(
+    process: subprocess.Popen[bytes], windows_job: _WindowsKillOnCloseJob | None
+) -> None:
+    if windows_job is not None:
+        windows_job.close()
+    if os.name == "posix":
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except OSError:
+            pass
+    elif process.poll() is None:
         try:
             process.kill()
         except OSError:
             pass
     try:
-        process.wait()
-    except OSError:
-        pass
+        process.wait(timeout=_CLEANUP_WAIT_S)
+    except subprocess.TimeoutExpired:
+        try:
+            process.kill()
+        except OSError:
+            pass
+        try:
+            process.wait(timeout=_CLEANUP_WAIT_S)
+        except subprocess.TimeoutExpired:
+            pass
 
 
 def _run_worker(
@@ -90,15 +277,30 @@ def _run_worker(
 ) -> subprocess.CompletedProcess[bytes]:
     """Run one worker with bounded pipe retention and a hard wall-time limit."""
 
-    process = subprocess.Popen(
-        command,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=cwd,
-        env=env,
-        shell=False,
-    )
+    windows_job = _WindowsKillOnCloseJob() if os.name == "nt" else None
+    process: subprocess.Popen[bytes] | None = None
+    try:
+        process = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=cwd,
+            env=env,
+            shell=False,
+            start_new_session=os.name == "posix",
+            creationflags=_WIN_CREATE_SUSPENDED if os.name == "nt" else 0,
+        )
+        if windows_job is not None:
+            windows_job.assign(process)
+            windows_job.resume_root(process)
+    except BaseException:
+        if process is not None:
+            _stop_worker(process, windows_job)
+        elif windows_job is not None:
+            windows_job.close()
+        raise
+    assert process is not None
     assert process.stdin is not None and process.stdout is not None and process.stderr is not None
     stdout = _BoundedPipeReader(process.stdout, _MAX_STDOUT_BYTES)
     stderr = _BoundedPipeReader(process.stderr, _MAX_STDERR_BYTES)
@@ -123,10 +325,13 @@ def _run_worker(
                 break
             time.sleep(0.005)
     finally:
-        _stop_worker(process)
-        writer.join()
-        stdout.join()
-        stderr.join()
+        _stop_worker(process, windows_job)
+        _close_pipe(process.stdin)
+        _close_pipe(process.stdout)
+        _close_pipe(process.stderr)
+        writer.join(_CLEANUP_WAIT_S)
+        stdout.join(_CLEANUP_WAIT_S)
+        stderr.join(_CLEANUP_WAIT_S)
     if failure is not None:
         raise failure
     if stdout.overflow or stderr.overflow:

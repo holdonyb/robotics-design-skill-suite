@@ -1,8 +1,10 @@
 import io
 import math
+import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -261,6 +263,81 @@ class PolicyBackendTests(unittest.TestCase):
                     env=policy_backend._worker_environment(),
                     timeout=0.01,
                 )
+
+    def test_timeout_kills_inherited_pipe_descendants_without_delaying_cleanup(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        raw = Path(temporary.name)
+        child_pid = raw / "child.pid"
+        ready = raw / "ready"
+        descendant = (
+            "import os,pathlib,time;"
+            f"pathlib.Path({str(child_pid)!r}).write_text(str(os.getpid()));"
+            "time.sleep(1.2)"
+        )
+        root = (
+            "import os,pathlib,subprocess,sys,time;"
+            "[os.set_inheritable(stream.fileno(),True) for stream in (sys.stdout,sys.stderr)];"
+            f"subprocess.Popen([sys.executable,'-c',{descendant!r}],"
+            "stdout=sys.stdout,stderr=sys.stderr,close_fds=False);"
+            f"[time.sleep(0.001) for _ in range(500) if not pathlib.Path({str(child_pid)!r}).exists()];"
+            f"pathlib.Path({str(ready)!r}).write_text('ready');"
+            "time.sleep(1)"
+        )
+
+        started = time.monotonic()
+        with self.assertRaisesRegex(PolicyBackendError, "timeout"):
+            policy_backend._run_worker(
+                [sys.executable, "-c", root],
+                b"",
+                cwd=str(raw),
+                env=policy_backend._worker_environment(),
+                timeout=0.3,
+            )
+        elapsed = time.monotonic() - started
+
+        self.assertTrue(ready.exists())
+        self.assertTrue(child_pid.exists())
+        self.assertLess(elapsed, 0.7)
+        pid = int(child_pid.read_text(encoding="utf-8"))
+        if os.name == "nt":
+            import ctypes
+
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            open_process = kernel32.OpenProcess
+            open_process.argtypes = (ctypes.c_uint32, ctypes.c_bool, ctypes.c_uint32)
+            open_process.restype = ctypes.c_void_p
+            close_handle = kernel32.CloseHandle
+            close_handle.argtypes = (ctypes.c_void_p,)
+            close_handle.restype = ctypes.c_bool
+            deadline = time.monotonic() + policy_backend._CLEANUP_WAIT_S
+            handle = open_process(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+            while handle and time.monotonic() < deadline:
+                close_handle(handle)
+                time.sleep(0.005)
+                handle = open_process(0x1000, False, pid)
+            self.assertFalse(handle)
+        else:
+            deadline = time.monotonic() + policy_backend._CLEANUP_WAIT_S
+            while True:
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    break
+                stat = Path(f"/proc/{pid}/stat")
+                if (
+                    stat.exists()
+                    and stat.read_text(encoding="utf-8")
+                    .rsplit(")", 1)[1]
+                    .lstrip()
+                    .startswith("Z")
+                ):
+                    break
+                if time.monotonic() >= deadline:
+                    self.fail("descendant process remained alive after cleanup")
+                time.sleep(0.005)
+        temporary.cleanup()
+        self.assertFalse(raw.exists())
 
 
 if __name__ == "__main__":
