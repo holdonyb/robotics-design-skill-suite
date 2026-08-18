@@ -21,6 +21,7 @@ from ..hypothesis.canonical import (
     validate_identifier,
     validate_sha256,
 )
+from .replay_features import ReplayFeatureError, ReplayFeatures, extract_replay_features
 
 
 class TrainingError(ValueError):
@@ -50,10 +51,11 @@ _CONSTRAINT_FIELDS = {
     "max_angular_rad_s",
     "max_joint_error_rad",
 }
-_REWARD_FIELDS = {"progress", "energy"}
-_OBSERVATION_FIELDS = ["scan_m", "joint_rad"]
+_REWARD_FIELDS = {"wheel_progress", "wheel_effort"}
+_OBSERVATION_FIELDS = ["joint_rad", "left_wheel_rad_s", "right_wheel_rad_s"]
 _ACTION_FIELDS = ["linear_m_s", "angular_rad_s"]
 _MAX_COLLECTION_ITEMS = 64
+_ASSIGNMENT_FIELDS = {"phase", "seed", "fault_id", "replay"}
 
 
 def _finite(value: object, name: str) -> float:
@@ -197,6 +199,7 @@ class PolicyResult:
     mean_reward: float
     evaluation_count: int
     held_out_evaluation_count: int
+    trace_sha256s: tuple[str, ...]
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -207,13 +210,57 @@ class PolicyResult:
             "mean_reward": self.mean_reward,
             "evaluation_count": self.evaluation_count,
             "held_out_evaluation_count": self.held_out_evaluation_count,
+            "trace_sha256s": list(self.trace_sha256s),
         }
+
+
+def _expected_cases(contract: dict[str, Any]) -> list[tuple[str, int, str | None]]:
+    return [
+        ("train", seed, None) for seed in contract["train_seeds"]
+    ] + [
+        ("evaluation", seed, None) for seed in contract["evaluation_seeds"]
+    ] + [
+        ("held_out", seed, fault)
+        for fault in contract["held_out_faults"]
+        for seed in contract["evaluation_seeds"]
+    ]
+
+
+def _validated_assignments(
+    value: object, expected: list[tuple[str, int, str | None]]
+) -> list[tuple[tuple[str, int, str | None], ReplayFeatures]]:
+    if not isinstance(value, list) or len(value) != len(expected):
+        raise TrainingError("trace assignments must match the required evaluation cases")
+    expected_set = set(expected)
+    assignments: dict[tuple[str, int, str | None], ReplayFeatures] = {}
+    for index, raw in enumerate(value):
+        if not isinstance(raw, dict) or set(raw) != _ASSIGNMENT_FIELDS:
+            raise TrainingError(f"trace assignments[{index}] fields are invalid")
+        phase, seed, fault_id = raw["phase"], raw["seed"], raw["fault_id"]
+        if not isinstance(phase, str) or type(seed) is not int:
+            raise TrainingError(f"trace assignments[{index}] case identity is invalid")
+        if fault_id is not None:
+            try:
+                fault_id = validate_identifier(fault_id, f"trace assignments[{index}].fault_id")
+            except ValueError as exc:
+                raise TrainingError(str(exc)) from None
+        key = (phase, seed, fault_id)
+        if key not in expected_set or key in assignments:
+            raise TrainingError("trace assignments do not match required cases")
+        try:
+            assignments[key] = extract_replay_features(raw["replay"])
+        except ReplayFeatureError as exc:
+            raise TrainingError(f"trace assignments[{index}] replay is invalid: {exc}") from None
+    if set(assignments) != expected_set:
+        raise TrainingError("trace assignments do not cover required cases")
+    return [(case, assignments[case]) for case in expected]
 
 
 def evaluate_policy(
     contract: object,
     callback: Callable[[dict[str, Any]], dict[str, Any]],
     physical_report: object,
+    trace_assignments: object,
 ) -> PolicyResult:
     """Run one bounded synthetic policy callback and retain physical blockers.
 
@@ -227,27 +274,19 @@ def evaluate_policy(
         raise TrainingError("callback must be callable")
     blockers = _validated_physical_receipt(physical_report, checked_contract)
 
-    cases = [
-        ("train", seed, None) for seed in checked_contract["train_seeds"]
-    ] + [
-        ("evaluation", seed, None) for seed in checked_contract["evaluation_seeds"]
-    ] + [
-        ("held_out", seed, fault)
-        for fault in checked_contract["held_out_faults"]
-        for seed in checked_contract["evaluation_seeds"]
-    ]
+    cases = _expected_cases(checked_contract)
     if len(cases) > checked_contract["budgets"]["episodes"]:
         raise TrainingError("episodes budget is smaller than required train/evaluation cases")
     if len(cases) > checked_contract["budgets"]["steps"]:
         raise TrainingError("steps budget is smaller than required callback steps")
+    assigned = _validated_assignments(trace_assignments, cases)
     started = time.monotonic()
     tracemalloc.start()
     try:
         results = []
-        for phase, seed, fault_id in cases:
+        for (phase, seed, fault_id), features in assigned:
             observation = {
-                "scan_m": [1.0],
-                "joint_rad": [0.0],
+                **features.observation,
                 "phase": phase,
                 "seed": seed,
                 "fault_id": fault_id,
@@ -267,33 +306,35 @@ def evaluate_policy(
 
     accepted_results = []
     for index, result in enumerate(results):
-        if not isinstance(result, dict) or set(result) != {
-            *_ACTION_FIELDS,
-            "final_joint_error_rad",
-        }:
+        if not isinstance(result, dict) or set(result) != set(_ACTION_FIELDS):
             raise TrainingError("callback action fields are invalid")
         linear = _finite(result["linear_m_s"], "callback linear")
         angular = _finite(result["angular_rad_s"], "callback angular")
-        joint_error = _finite(result["final_joint_error_rad"], "callback final_joint_error_rad")
-        accepted_results.append((linear, angular, joint_error))
+        accepted_results.append((linear, angular))
     constraints = checked_contract["hard_constraints"]
-    for linear, angular, joint_error in accepted_results:
+    for (linear, angular), (_, features) in zip(accepted_results, assigned):
         if (
             abs(linear) > constraints["max_linear_m_s"]
             or abs(angular) > constraints["max_angular_rad_s"]
-            or abs(joint_error) > constraints["max_joint_error_rad"]
+            or features.final_joint_error_rad > constraints["max_joint_error_rad"]
         ):
-            raise TrainingError("callback violates hard constraint")
+            raise TrainingError("callback action or replayed joint error violates hard constraint")
     reward = sum(
-        checked_contract["reward_weights"]["progress"] * linear
-        + checked_contract["reward_weights"]["energy"] * abs(angular)
-        for linear, angular, _ in accepted_results
-    ) / len(accepted_results)
+        checked_contract["reward_weights"]["wheel_progress"] * features.wheel_progress_rad
+        + checked_contract["reward_weights"]["wheel_effort"] * features.wheel_effort_rad2_s
+        for _, features in assigned
+    ) / len(assigned)
     reward = _finite(reward, "mean_reward")
     if reward < checked_contract["baseline_mean_reward"]:
         raise TrainingError("callback regresses baseline_mean_reward")
     identity = hashlib.sha256(
-        canonical_bytes({"contract": checked_contract, "results": results})
+        canonical_bytes(
+            {
+                "contract": checked_contract,
+                "results": results,
+                "trace_sha256s": [features.trace_sha256 for _, features in assigned],
+            }
+        )
     ).hexdigest()[:24]
     return PolicyResult(
         policy_id="policy-" + identity,
@@ -303,4 +344,5 @@ def evaluate_policy(
         mean_reward=reward,
         evaluation_count=len(cases),
         held_out_evaluation_count=sum(phase == "held_out" for phase, _, _ in cases),
+        trace_sha256s=tuple(sorted(features.trace_sha256 for _, features in assigned)),
     )
