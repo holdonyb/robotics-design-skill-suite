@@ -349,7 +349,7 @@ class TrainingTests(unittest.TestCase):
         )
         result = evaluate_policy_artifact(
             contract_value,
-            reference_root / contract_value["artifact_path"],
+            contract_value["artifact_path"],
             {
                 "remaining_blockers": list(contract_value["physical_blockers"]),
                 "hardware_promotable": False,
@@ -365,7 +365,7 @@ class TrainingTests(unittest.TestCase):
         source_contract = json.loads(
             (reference_root / "simulation" / "training-contract.json").read_text(encoding="utf-8")
         )
-        artifact_path = reference_root / source_contract["artifact_path"]
+        artifact_path = source_contract["artifact_path"]
         physical = {
             "remaining_blockers": list(source_contract["physical_blockers"]),
             "hardware_promotable": False,
@@ -397,6 +397,7 @@ class TrainingTests(unittest.TestCase):
                 (reference_root / "simulation" / "training-contract.json").read_text(encoding="utf-8")
             )
             artifact_path = reference_root / contract_value["artifact_path"]
+            artifact_argument = contract_value["artifact_path"]
             physical = {
                 "remaining_blockers": list(contract_value["physical_blockers"]),
                 "hardware_promotable": False,
@@ -416,7 +417,7 @@ class TrainingTests(unittest.TestCase):
                     with mock.patch("assurance.simulation.training.execute_policy", wraps=execute_policy) as worker:
                         with self.assertRaisesRegex(TrainingError, expected):
                             evaluate_policy_artifact(
-                                contract_value, artifact_path, physical,
+                                contract_value, artifact_argument, physical,
                                 TrustedPolicyTraceContext(reference_root, Path(raw) / expected),
                             )
                         worker.assert_not_called()
@@ -426,11 +427,36 @@ class TrainingTests(unittest.TestCase):
             shutil.copyfile(source / "simulation" / "policies" / "baseline-affine.json", artifact_path)
             with mock.patch("assurance.simulation.training.execute_policy", wraps=execute_policy) as worker:
                 result = evaluate_policy_artifact(
-                    contract_value, artifact_path, physical,
+                    contract_value, artifact_argument, physical,
                     TrustedPolicyTraceContext(reference_root, Path(raw) / "success"),
                 )
             self.assertEqual(18, worker.call_count)
             self.assertEqual(contract_value["artifact_sha256"], result.artifact_sha256)
+
+    def test_artifact_argument_must_be_the_exact_contract_relative_path_before_worker(self):
+        reference_root = ROOT / "reference" / "mobile-manipulator"
+        contract_value = json.loads(
+            (reference_root / "simulation" / "training-contract.json").read_text(encoding="utf-8")
+        )
+        physical = {
+            "remaining_blockers": list(contract_value["physical_blockers"]),
+            "hardware_promotable": False,
+        }
+        for artifact_path in (
+            reference_root / contract_value["artifact_path"],
+            "simulation/policies/../policies/baseline-affine.json",
+            "simulation//policies/baseline-affine.json",
+        ):
+            with self.subTest(artifact_path=artifact_path):
+                with mock.patch("assurance.simulation.training.execute_policy", wraps=execute_policy) as worker:
+                    with self.assertRaisesRegex(TrainingError, "artifact_path"):
+                        evaluate_policy_artifact(
+                            contract_value,
+                            artifact_path,
+                            physical,
+                            TrustedPolicyTraceContext(reference_root, Path(self.temporary.name) / "aliased-path"),
+                        )
+                    worker.assert_not_called()
 
 
 if __name__ == "__main__":

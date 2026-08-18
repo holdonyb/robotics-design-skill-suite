@@ -194,7 +194,7 @@ def _safe_artifact_path(value: object) -> PurePosixPath:
     if not isinstance(value, str) or not value or "\\" in value:
         raise TrainingError("artifact_path must be a non-empty POSIX relative path")
     path = PurePosixPath(value)
-    if path.is_absolute() or PureWindowsPath(value).is_absolute() or any(
+    if str(path) != value or path.is_absolute() or PureWindowsPath(value).is_absolute() or any(
         part in {"", ".", ".."} for part in path.parts
     ):
         raise TrainingError("artifact_path must stay safely relative to the reference root")
@@ -515,6 +515,10 @@ def _bound_artifact_path(
 ) -> Path:
     """Require the caller-selected path to be exactly the contract-bound file."""
 
+    raw_path = artifact_path.as_posix() if isinstance(artifact_path, Path) else artifact_path
+    supplied_path = _safe_artifact_path(raw_path)
+    if supplied_path != contract_path:
+        raise TrainingError("artifact_path does not exactly match the training contract")
     if reference_root.is_symlink() or not reference_root.is_dir():
         raise TrainingError("reference root is missing, not a directory, or a symlink")
     root = reference_root.resolve(strict=True)
@@ -530,18 +534,6 @@ def _bound_artifact_path(
             raise TrainingError("artifact_path must not traverse a symlink")
         if part != contract_path.parts[-1] and not current.is_dir():
             raise TrainingError("artifact_path parent must be a directory")
-    try:
-        supplied = Path(artifact_path)
-    except (TypeError, ValueError):
-        raise TrainingError("artifact_path is invalid") from None
-    if not supplied.is_absolute():
-        supplied = root / supplied
-    try:
-        supplied_resolved = supplied.resolve(strict=True)
-    except OSError as exc:
-        raise TrainingError("artifact_path cannot be resolved") from exc
-    if supplied_resolved != expected.resolve(strict=True):
-        raise TrainingError("artifact_path does not match the training contract")
     return expected
 
 
