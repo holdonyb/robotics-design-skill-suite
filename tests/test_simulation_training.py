@@ -1,5 +1,6 @@
 import copy
 import hashlib
+import json
 import sys
 import tempfile
 import unittest
@@ -19,6 +20,12 @@ from assurance.hypothesis.canonical import canonical_bytes  # noqa: E402
 from assurance.simulation.scenario import CompiledScenario  # noqa: E402
 from assurance.simulation.trace import publish_trace_bundle  # noqa: E402
 from assurance.simulation.training import TrainingError, evaluate_policy, validate_training_contract  # noqa: E402
+from assurance.simulation.policy_trace import TrustedPolicyTraceContext  # noqa: E402
+from assurance.simulation.trusted_registry import (  # noqa: E402
+    load_reference_trusted_scenario_registry,
+    load_trusted_scenario_registry,
+)
+from assurance.simulation import policy_trace  # noqa: E402
 
 
 SHA_A = "a" * 64
@@ -125,15 +132,16 @@ class TrainingTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
 
     def receipt_assignments(self, *, final_error=0.001):
-        return receipt_assignments(self.temporary.name, final_error=final_error)
+        return TrustedPolicyTraceContext(
+            ROOT / "reference" / "mobile-manipulator",
+            Path(tempfile.mkdtemp(dir=self.temporary.name)),
+        )
 
     def test_rejects_forged_simulation_result_instead_of_a_revalidated_bundle(self):
-        value = assignments()
-        value[0]["replay"] = replace(value[0]["replay"], trace_sha256="f" * 64)
-        with self.assertRaisesRegex(TrainingError, "fields"):
+        with self.assertRaisesRegex(TrainingError, "context"):
             evaluate_policy(
                 contract(), lambda _: {"linear_m_s": 0.0, "angular_rad_s": 0.0},
-                physical_receipt(), value,
+                physical_receipt(), {"replay": replace(replay(), trace_sha256="f" * 64)},
             )
 
     def test_accepts_each_assignment_only_after_bundle_receipt_revalidation(self):
@@ -232,6 +240,36 @@ class TrainingTests(unittest.TestCase):
         self.assertEqual(first.policy_id, second.policy_id)
         self.assertEqual(("BOM.PLACEHOLDER_BLOCKS_CLAIM",), first.physical_blockers)
 
+    def test_two_in_range_policies_cannot_reuse_a_score_or_trace(self):
+        stopped = evaluate_policy(
+            contract(), lambda _: {"linear_m_s": 0.0, "angular_rad_s": 0.0},
+            physical_receipt(), self.receipt_assignments(),
+        )
+        moving = evaluate_policy(
+            contract(), lambda _: {"linear_m_s": 0.2, "angular_rad_s": 0.0},
+            physical_receipt(), self.receipt_assignments(),
+        )
+        self.assertLess(stopped.mean_reward, moving.mean_reward)
+        self.assertTrue(set(stopped.trace_sha256s).isdisjoint(moving.trace_sha256s))
+
+    def test_callback_cannot_mutate_the_evaluation_geometry_profile(self):
+        baseline = evaluate_policy(
+            contract(), lambda _: {"linear_m_s": 0.2, "angular_rad_s": 0.0},
+            physical_receipt(), self.receipt_assignments(),
+        )
+        original = getattr(policy_trace, "REFERENCE_RUNNER_PROFILE", None)
+        try:
+            def callback(_):
+                policy_trace.REFERENCE_RUNNER_PROFILE = {"wheel_radius_m": 0.04, "wheel_separation_m": 0.68}
+                return {"linear_m_s": 0.2, "angular_rad_s": 0.0}
+            attacked = evaluate_policy(contract(), callback, physical_receipt(), self.receipt_assignments())
+        finally:
+            if original is None:
+                delattr(policy_trace, "REFERENCE_RUNNER_PROFILE")
+            else:
+                policy_trace.REFERENCE_RUNNER_PROFILE = original
+        self.assertEqual(baseline.mean_reward, attacked.mean_reward)
+
     def test_executes_each_evaluation_seed_with_held_out_fault_and_baseline_comparison(self):
         seen = []
 
@@ -240,17 +278,8 @@ class TrainingTests(unittest.TestCase):
             return {"linear_m_s": 0.2, "angular_rad_s": 0.0}
 
         result = evaluate_policy(contract(), callback, physical_receipt(), self.receipt_assignments())
-        self.assertEqual(
-            [
-                ("train", 1, None),
-                ("train", 2, None),
-                ("evaluation", 3, None),
-                ("evaluation", 4, None),
-                ("held_out", 3, "fault-stop"),
-                ("held_out", 4, "fault-stop"),
-            ],
-            seen,
-        )
+        self.assertEqual(18, len(seen))
+        self.assertEqual([("train", 1, None)] * 3, seen[:3])
         self.assertEqual(6, result.evaluation_count)
         self.assertEqual(2, result.held_out_evaluation_count)
 
@@ -269,31 +298,34 @@ class TrainingTests(unittest.TestCase):
         with self.assertRaisesRegex(TrainingError, "constraint"):
             evaluate_policy(contract(), lambda x: {"linear_m_s": 1.0, "angular_rad_s": 0.0}, physical_receipt(), self.receipt_assignments())
 
-    def test_trace_derived_joint_error_and_case_assignments_are_hard_gates(self):
+    def test_trace_context_is_a_hard_gate(self):
         callback = lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0}
-        constrained = contract()
-        constrained["hard_constraints"]["max_joint_error_rad"] = 0.0005
-        with self.assertRaisesRegex(TrainingError, "joint"):
-            evaluate_policy(constrained, callback, physical_receipt(), self.receipt_assignments())
-        missing = self.receipt_assignments()[:-1]
-        with self.assertRaisesRegex(TrainingError, "assignments"):
-            evaluate_policy(contract(), callback, physical_receipt(), missing)
-        duplicate = self.receipt_assignments()
-        duplicate[-1]["seed"] = 3
-        with self.assertRaisesRegex(TrainingError, "assignments"):
-            evaluate_policy(contract(), callback, physical_receipt(), duplicate)
+        with self.assertRaisesRegex(TrainingError, "context"):
+            evaluate_policy(contract(), callback, physical_receipt(), [])
 
-    def test_rejects_reused_trace_and_case_without_matching_scenario_provenance(self):
-        callback = lambda x: {"linear_m_s": 0.0, "angular_rad_s": 0.0}
-        duplicate = self.receipt_assignments()
-        duplicate[-1]["bundle_root"] = duplicate[-2]["bundle_root"]
-        duplicate[-1]["manifest_sha256"] = duplicate[-2]["manifest_sha256"]
-        with self.assertRaisesRegex(TrainingError, "provenance"):
-            evaluate_policy(contract(), callback, physical_receipt(), duplicate)
-        wrong_scenario = self.receipt_assignments()
-        wrong_scenario[-1]["scenario"] = scenario(scenario_id="scenario-other", seed=4, fault_id="fault-stop")
-        with self.assertRaisesRegex(TrainingError, "scenario"):
-            evaluate_policy(contract(), callback, physical_receipt(), wrong_scenario)
+    def test_rejects_a_context_signed_by_an_unapproved_registry(self):
+        source = ROOT / "reference" / "mobile-manipulator" / "simulation" / "scenarios.json"
+        forged = json.loads(source.read_text(encoding="utf-8"))
+        forged["registry_id"] = "attacker-registry"
+        path = Path(self.temporary.name) / "scenarios.json"
+        path.write_bytes(canonical_bytes(forged))
+        forged_root = Path(self.temporary.name) / "reference"
+        (forged_root / "simulation").mkdir(parents=True)
+        (forged_root / "simulation" / "scenarios.json").write_bytes(path.read_bytes())
+        context = TrustedPolicyTraceContext(forged_root, Path(self.temporary.name) / "forged")
+        with self.assertRaisesRegex(TrainingError, "benchmark owner receipt"):
+            evaluate_policy(
+                contract(), lambda _: {"linear_m_s": 0.2, "angular_rad_s": 0.0},
+                physical_receipt(), context,
+            )
+
+    def test_context_generated_traces_are_unique_per_required_case(self):
+        result = evaluate_policy(
+            contract(), lambda x: {"linear_m_s": 0.2, "angular_rad_s": 0.0},
+            physical_receipt(), self.receipt_assignments(),
+        )
+        self.assertEqual(6, len(result.trace_sha256s))
+        self.assertEqual(6, len(set(result.trace_sha256s)))
 
 
 if __name__ == "__main__":

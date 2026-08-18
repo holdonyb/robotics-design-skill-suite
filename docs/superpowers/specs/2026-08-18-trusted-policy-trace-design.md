@@ -27,21 +27,23 @@ approved scenarios.json SHA-256 + external registry receipt
 
 `TrustedScenarioRegistry` contains an exact registry file path, SHA-256,
 external receipt, model/trajectory/environment hashes, and all ten compiled
-scenario IDs.  It is loaded once by the benchmark, validates the external
-receipt before any assignment, and becomes the sole authority allowed to issue
+scenario IDs.  The public benchmark accepts only the retained
+`REFERENCE_SCENARIO_REGISTRY_RECEIPT`, never a caller-selected registry receipt.
+It becomes the sole authority allowed to issue
 trace assignments.  A trace assignment names the registry receipt, scenario
 ID, policy digest, trace bundle path, and trace receipt.  A mismatched registry,
 scenario, policy, action digest, bundle, or receipt is an error.
 
 ## Causal runner
 
-The portable reference runner is deliberately narrow.  It accepts only the
-declared base action at every fixed sample tick and emits wheel rates,
-zero-target joint positions, and the canonical action record.  It is not a
-claim of Gazebo fidelity or policy training convergence.  It proves the
-evaluation plumbing: the reward and safety metrics are generated from the
-specific bounded action sequence, not supplied by a callback or borrowed from
-another trace.
+The portable reference runner is deliberately narrow.  It invokes the policy at
+every fixed sample tick with the previous runner state, records the complete
+action sequence, and emits wheel rates plus zero-target joint positions.  The
+declared `fault-stop` disposition forces the base state to zero from its event
+time, so held-out cases affect replayed reward rather than being labels alone.
+`policy_sha256` binds the immutable declared policy artifact SHA-256, case, and
+complete action sequence.  This is not a claim of Gazebo fidelity or policy
+training convergence.
 
 The existing Jazzy/Harmonic runner can later issue the same trace format after
 actual controller execution.  Its Linux receipt must still validate against

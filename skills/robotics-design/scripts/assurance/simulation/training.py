@@ -25,6 +25,13 @@ from ..hypothesis.canonical import (
 from .replay_features import ReplayFeatureError, ReplayFeatures, extract_replay_features
 from .scenario import CompiledScenario
 from .trace import TraceError, replay_trace_bundle
+from .policy_trace import (
+    PolicyTraceError,
+    TrustedPolicyTraceContext,
+    replay_policy_trace_bundle,
+    run_reference_policy_trace,
+)
+from .trusted_registry import TrustedRegistryError, load_reference_trusted_scenario_registry
 
 
 class TrainingError(ValueError):
@@ -229,6 +236,21 @@ def _expected_cases(contract: dict[str, Any]) -> list[tuple[str, int, str | None
     ]
 
 
+def _scenario_for_case(
+    registry: object, case: tuple[str, int, str | None]
+) -> CompiledScenario:
+    phase, seed, fault_id = case
+    matches = [
+        scenario for scenario in registry.scenarios
+        if scenario.seed == seed
+        and tuple(item["fault_id"] for item in scenario.faults)
+        == (() if fault_id is None else (fault_id,))
+    ]
+    if len(matches) != 1:
+        raise TrainingError(f"trusted registry has no unique scenario for {phase}/{seed}/{fault_id}")
+    return matches[0]
+
+
 def _validated_assignments(
     value: object, expected: list[tuple[str, int, str | None]]
 ) -> list[tuple[tuple[str, int, str | None], ReplayFeatures]]:
@@ -303,7 +325,7 @@ def evaluate_policy(
     contract: object,
     callback: Callable[[dict[str, Any]], dict[str, Any]],
     physical_report: object,
-    trace_assignments: object,
+    trace_context: object,
 ) -> PolicyResult:
     """Run one bounded synthetic policy callback and retain physical blockers.
 
@@ -322,20 +344,50 @@ def evaluate_policy(
         raise TrainingError("episodes budget is smaller than required train/evaluation cases")
     if len(cases) > checked_contract["budgets"]["steps"]:
         raise TrainingError("steps budget is smaller than required callback steps")
-    assigned = _validated_assignments(trace_assignments, cases)
+    if not isinstance(trace_context, TrustedPolicyTraceContext):
+        raise TrainingError("trace context must be a TrustedPolicyTraceContext")
+    try:
+        registry = load_reference_trusted_scenario_registry(trace_context.reference_root)
+    except TrustedRegistryError as exc:
+        raise TrainingError("trace context registry is not the benchmark owner receipt: " + str(exc)) from None
+    scenarios = [_scenario_for_case(registry, case) for case in cases]
+    # Capture release-bound geometry before user callback code runs.  These
+    # scalar locals are never read back from a mutable caller-visible profile.
+    wheel_radius_m, wheel_separation_m = 0.15, 0.68
     started = time.monotonic()
     tracemalloc.start()
     try:
-        results = []
-        for (phase, seed, fault_id), features in assigned:
-            observation = {
-                **features.observation,
-                "phase": phase,
-                "seed": seed,
-                "fault_id": fault_id,
-                "randomization": copy.deepcopy(checked_contract["randomization"]),
-            }
-            results.append(callback(copy.deepcopy(observation)))
+        results, accepted_results = [], []
+        for (phase, seed, fault_id), scenario in zip(cases, scenarios):
+            action_rows, accepted_rows = [], []
+            previous = (0.0, 0.0)
+            grid = (0, scenario.stop["at_ns"] // 2, scenario.stop["at_ns"])
+            for timestamp in grid:
+                stopped = any(
+                    item["fault_id"] == "fault-stop" and item["at_ns"] <= timestamp
+                    for item in scenario.faults
+                )
+                effective = (0.0, 0.0) if stopped else previous
+                observation = {
+                    "joint_rad": [0.0] * len(scenario.joint_order),
+                    "left_wheel_rad_s": effective[0] / wheel_radius_m,
+                    "right_wheel_rad_s": effective[1] / wheel_radius_m,
+                    "phase": phase,
+                    "seed": seed,
+                    "fault_id": fault_id,
+                    "timestamp_ns": timestamp,
+                    "randomization": copy.deepcopy(checked_contract["randomization"]),
+                }
+                result = callback(copy.deepcopy(observation))
+                if not isinstance(result, dict) or set(result) != set(_ACTION_FIELDS):
+                    raise TrainingError("callback action fields are invalid")
+                linear = _finite(result["linear_m_s"], "callback linear")
+                angular = _finite(result["angular_rad_s"], "callback angular")
+                action_rows.append({"timestamp_ns": timestamp, "linear_m_s": linear, "angular_rad_s": angular})
+                accepted_rows.append((linear, angular))
+                previous = (linear, angular)
+            results.append(action_rows)
+            accepted_results.append(accepted_rows)
         _, peak_bytes = tracemalloc.get_traced_memory()
     except Exception as exc:
         raise TrainingError(f"callback failed: {exc}") from None
@@ -347,21 +399,37 @@ def evaluate_policy(
     if peak_bytes > checked_contract["budgets"]["memory_mb"] * 1024 * 1024:
         raise TrainingError("callback exceeds memory budget")
 
-    accepted_results = []
-    for index, result in enumerate(results):
-        if not isinstance(result, dict) or set(result) != set(_ACTION_FIELDS):
-            raise TrainingError("callback action fields are invalid")
-        linear = _finite(result["linear_m_s"], "callback linear")
-        angular = _finite(result["angular_rad_s"], "callback angular")
-        accepted_results.append((linear, angular))
     constraints = checked_contract["hard_constraints"]
-    for (linear, angular), (_, features) in zip(accepted_results, assigned):
-        if (
-            abs(linear) > constraints["max_linear_m_s"]
-            or abs(angular) > constraints["max_angular_rad_s"]
-            or features.final_joint_error_rad > constraints["max_joint_error_rad"]
-        ):
-            raise TrainingError("callback action or replayed joint error violates hard constraint")
+    for action_rows in accepted_results:
+        for linear, angular in action_rows:
+            if abs(linear) > constraints["max_linear_m_s"] or abs(angular) > constraints["max_angular_rad_s"]:
+                raise TrainingError("callback action violates hard constraint")
+    assigned = []
+    for case, scenario, actions in zip(cases, scenarios, results):
+        policy_sha256 = hashlib.sha256(canonical_bytes({
+            "policy_artifact_sha256": checked_contract["artifact_sha256"],
+            "case": {"phase": case[0], "seed": case[1], "fault_id": case[2]},
+            "actions": actions,
+        })).hexdigest()
+        safe_fault = case[2] or "nominal"
+        try:
+            assignment = run_reference_policy_trace(
+                registry, scenario.scenario_id, policy_sha256,
+                actions,
+                trace_context.output_root / f"{case[0]}-{case[1]}-{safe_fault}",
+                wheel_radius_m=wheel_radius_m,
+                wheel_separation_m=wheel_separation_m,
+            )
+            replay = replay_policy_trace_bundle(
+                assignment.bundle_root, assignment.manifest_sha256,
+                registry, policy_sha256,
+                expected_actions=actions,
+            )
+        except PolicyTraceError as exc:
+            raise TrainingError("trusted policy trace failed: " + str(exc)) from None
+        if replay.features.final_joint_error_rad > constraints["max_joint_error_rad"]:
+            raise TrainingError("replayed joint error violates hard constraint")
+        assigned.append((case, replay.features))
     reward = sum(
         checked_contract["reward_weights"]["wheel_progress"] * features.wheel_progress_rad
         + checked_contract["reward_weights"]["wheel_effort"] * features.wheel_effort_rad2_s

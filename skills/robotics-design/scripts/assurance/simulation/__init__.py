@@ -23,6 +23,14 @@ from .trusted_registry import (
     load_trusted_scenario_registry,
 )
 from .trace import TraceError, publish_trace_bundle, replay_trace_bundle
+from .policy_trace import (
+    PolicyTraceError,
+    PolicyTraceReplay,
+    TrustedPolicyTraceContext,
+    TrustedTraceAssignment,
+    replay_policy_trace_bundle,
+    run_reference_policy_trace,
+)
 from .backend import BackendError, BackendMetric, BackendResult, compare_backends, evaluate_independent_dynamics, evaluate_trace_kinematics
 from .calibration import CalibrationError, CalibrationResult, fit_calibration, load_calibration_dataset
 from .training import PolicyResult, TrainingError, evaluate_policy, validate_training_contract
@@ -54,6 +62,12 @@ __all__ = [
     "TraceError",
     "publish_trace_bundle",
     "replay_trace_bundle",
+    "PolicyTraceError",
+    "PolicyTraceReplay",
+    "TrustedPolicyTraceContext",
+    "TrustedTraceAssignment",
+    "replay_policy_trace_bundle",
+    "run_reference_policy_trace",
     "BackendError",
     "BackendMetric",
     "BackendResult",

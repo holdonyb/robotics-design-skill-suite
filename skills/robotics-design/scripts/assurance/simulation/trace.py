@@ -94,7 +94,8 @@ def replay_trace_bundle(root: str | Path, manifest_sha256: str) -> SimulationRes
     if set(scenario_data) != scenario_fields:
         raise TraceError("scenario.json has unknown fields or missing required fields")
     required_trace = {"schema_version", "scenario_sha256", "joint_order", "samples"}
-    if set(trace) != required_trace or trace["schema_version"] != 1:
+    policy_trace_fields = required_trace | {"registry_sha256", "policy_sha256", "actions", "runner_profile"}
+    if set(trace) not in {frozenset(required_trace), frozenset(policy_trace_fields)} or trace["schema_version"] != 1:
         raise TraceError("trace.json fields are not closed")
     if hashlib.sha256(canonical_bytes(scenario_data)).hexdigest() != trace["scenario_sha256"]:
         raise TraceError("trace scenario SHA-256 mismatch")

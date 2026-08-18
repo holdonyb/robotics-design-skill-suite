@@ -39,6 +39,7 @@ from assurance.simulation.trusted_registry import (
     TrustedRegistryError,
     load_reference_trusted_scenario_registry,
 )
+from assurance.simulation.policy_trace import TrustedPolicyTraceContext
 
 
 class BenchmarkError(ValueError):
@@ -386,59 +387,17 @@ def _crosscheck_record(bundle_root: str | Path, manifest_sha256: str, profile: d
     }
 
 
-def _training_result(
-    root: Path, replayed: list[tuple[CompiledScenario, Path, str]]
-) -> dict[str, Any]:
+def _training_result(root: Path, trace_output: Path, profile: dict[str, Any]) -> dict[str, Any]:
     contract = _load_json(root / "simulation" / "training-contract.json")
     errors = validate_training_contract(contract)
     if errors:
         raise BenchmarkError("training contract is invalid: " + "; ".join(errors))
-    expected_cases = [
-        ("train", seed, None) for seed in contract["train_seeds"]
-    ] + [
-        ("evaluation", seed, None) for seed in contract["evaluation_seeds"]
-    ] + [
-        ("held_out", seed, fault)
-        for fault in contract["held_out_faults"]
-        for seed in contract["evaluation_seeds"]
-    ]
-    assignments = []
-    for phase, seed, fault_id in expected_cases:
-        expected_faults = () if fault_id is None else (fault_id,)
-        matches = [
-            (scenario, bundle_root, manifest_sha256)
-            for scenario, bundle_root, manifest_sha256 in replayed
-            if scenario.seed == seed
-            and tuple(item["fault_id"] for item in scenario.faults) == expected_faults
-        ]
-        if len(matches) != 1:
-            raise BenchmarkError("training trace assignment requires exactly one matching scenario case")
-        scenario, bundle_root, manifest_sha256 = matches[0]
-        try:
-            replay = replay_trace_bundle(bundle_root, manifest_sha256)
-        except (TraceError, TypeError, ValueError, OSError) as exc:
-            raise BenchmarkError("training receipt revalidation failed: " + str(exc)) from None
-        if replay.status != "passed":
-            return {
-                "status": "not_justified",
-                "evidence_level": "simulated",
-                "physical_blockers": list(contract["physical_blockers"]),
-                "mean_reward": None,
-                "evaluation_count": 0,
-                "held_out_evaluation_count": 0,
-                "trace_sha256s": [],
-                "reason": "not_evaluated",
-            }
-        assignments.append(
-            {
-                "phase": phase,
-                "seed": seed,
-                "fault_id": fault_id,
-                "scenario": scenario,
-                "bundle_root": str(bundle_root),
-                "manifest_sha256": manifest_sha256,
-            }
+    try:
+        context = TrustedPolicyTraceContext(
+            root, trace_output,
         )
+    except (TrustedRegistryError, ValueError) as exc:
+        raise BenchmarkError("cannot create trusted training context: " + str(exc)) from None
     result = evaluate_policy(
         contract,
         lambda _: {"linear_m_s": 0.2, "angular_rad_s": 0.0},
@@ -446,7 +405,7 @@ def _training_result(
             "remaining_blockers": list(contract["physical_blockers"]),
             "hardware_promotable": False,
         },
-        assignments,
+        context,
     ).to_dict()
     if result["evidence_level"] != "simulated" or result["status"] != "not_justified":
         raise BenchmarkError("training firewall did not retain simulated/not_justified evidence")
@@ -503,7 +462,20 @@ def run_reference_benchmark(
         calibration = fit_calibration(
             load_calibration_dataset(root / "simulation" / "calibration-synthetic.json")
         )
-        training = _training_result(root, replayed)
+        training = (
+            _training_result(root, temporary / "policy-traces", profile)
+            if not failed
+            else {
+                "status": "not_justified",
+                "evidence_level": "simulated",
+                "physical_blockers": _load_json(root / "simulation" / "training-contract.json")["physical_blockers"],
+                "mean_reward": None,
+                "evaluation_count": 0,
+                "held_out_evaluation_count": 0,
+                "trace_sha256s": [],
+                "reason": "not_evaluated",
+            }
+        )
     return {
         "schema_version": 1,
         "kind": "portable_reference_simulation",

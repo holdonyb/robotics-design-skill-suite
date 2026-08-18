@@ -74,6 +74,18 @@ class ReleaseDeliveryEvaluatorTests(unittest.TestCase):
             "skills/robotics-design/scripts/assurance/simulation/scenario.py",
             "skills/robotics-design/scripts/assurance/simulation/trace.py",
             "skills/robotics-design/scripts/assurance/simulation/training.py",
+            "skills/robotics-design/scripts/assurance/simulation/policy_trace.py",
+            "skills/robotics-design/scripts/assurance/simulation/trusted_registry.py",
+            "skills/robotics-design/scripts/assurance/simulation/admission.py",
+            "skills/robotics-design/scripts/assurance/simulation/artifacts.py",
+            "skills/robotics-design/scripts/assurance/simulation/calibration.py",
+            "skills/robotics-design/scripts/assurance/engine.py",
+            "skills/robotics-design/scripts/assurance/contract.py",
+            "skills/robotics-design/scripts/assurance/analyses.py",
+            "skills/robotics-design/scripts/assurance/ledger.py",
+            "skills/robotics-design/scripts/assurance/hypothesis/bundle.py",
+            "reference/mobile-manipulator/simulation/scenarios.json",
+            "reference/mobile-manipulator/simulation/training-contract.json",
         ):
             self.assertIn(path, required)
         root = self.copy_candidate_tree("v1.1.0")
@@ -84,6 +96,16 @@ class ReleaseDeliveryEvaluatorTests(unittest.TestCase):
         report = evaluate_release_delivery(root, contract)
         self.assertFalse(report.passed)
         self.assertIn("RELEASE.STALE_ARTIFACT", {item.code for item in report.findings})
+
+    def test_every_v110_runtime_binding_rejects_tampering(self):
+        for relative in sorted(required_paths_for("v1.1.0") - required_paths_for("v1.0.0")):
+            with self.subTest(relative=relative):
+                root = self.copy_candidate_tree("v1.1.0")
+                contract = self.write_contract(root, "v1.1.0")
+                (root / relative).write_bytes(b"tampered\n")
+                report = evaluate_release_delivery(root, contract)
+                self.assertFalse(report.passed)
+                self.assertIn("RELEASE.STALE_ARTIFACT", {item.code for item in report.findings})
 
     def test_unknown_or_unhashable_release_profile_fails_actionably(self):
         with self.assertRaisesRegex(ValueError, "unsupported release_id"):
